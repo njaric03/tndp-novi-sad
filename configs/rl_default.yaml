@@ -1,0 +1,9 @@
+# glavni trening na sintetici, gravity demand
+name: gravity-v1
+iters: 3000
+batch: 16
+n_range: [15, 30]
+num_routes: 4
+demand_mode: gravity
+eval_every: 100
+eval_cities: 16

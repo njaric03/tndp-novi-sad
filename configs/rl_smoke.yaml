@@ -1,0 +1,9 @@
+# mali brzi run za proveru da trening uopšte radi
+name: smoke
+iters: 60
+batch: 4
+n_range: [12, 16]
+num_routes: 3
+eval_every: 20
+eval_cities: 4
+pool_size: 128
