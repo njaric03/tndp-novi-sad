@@ -1,5 +1,3 @@
-"""Testovi baseline algoritama na Mandl instanci."""
-
 from pathlib import Path
 
 import pytest

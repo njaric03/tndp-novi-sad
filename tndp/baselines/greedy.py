@@ -1,31 +1,21 @@
-"""Greedy baseline: iterativno dodavanje linije koja najvise popravlja cilj.
-
-Kandidat linije su najkraci putevi izmedju svih parova cvorova (skraceni
-na max_len ako treba), pa se u svakoj od num_routes iteracija bira kandidat
-koji leksikografski najvise popravlja (d_un, cost).
-"""
-
 import numpy as np
 from scipy.sparse.csgraph import dijkstra
 
 from tndp.baselines.common import network_objective
-from tndp.core.city import CityGraph
 from tndp.core.network import TransitNetwork
 
 
-def shortest_path_candidates(
-    city: CityGraph, min_len: int, max_len: int
-) -> list[list[int]]:
-    """Najkraci ulicni putevi za sve parove, filtrirani na [min_len, max_len]."""
+# kandidati: najkraći ulični putevi svih parova, skraćeni na max_len,
+# filtrirani na min_len, bez duplikata
+def shortest_path_candidates(city, min_len, max_len):
     n = city.n
     street = np.where(np.isfinite(city.street_time), city.street_time, 0.0)
     _, pred = dijkstra(street, directed=False, return_predecessors=True)
 
-    candidates = []
-    seen = set()
+    candidates, seen = [], set()
     for i in range(n):
         for j in range(i + 1, n):
-            if pred[i, j] < 0 and i != j:
+            if pred[i, j] < 0:
                 continue
             path = [j]
             while path[-1] != i:
@@ -41,25 +31,16 @@ def shortest_path_candidates(
     return candidates
 
 
-def greedy_network(
-    city: CityGraph,
-    num_routes: int,
-    min_len: int,
-    max_len: int,
-    alpha: float = 0.5,
-) -> tuple[TransitNetwork, tuple[float, float]]:
-    """Gradi mrezu dodajuci po jednu najbolju kandidat liniju."""
+# u svakoj iteraciji dodaj kandidata koji najviše popravlja (d_un, cost)
+def greedy_network(city, num_routes, min_len, max_len, alpha=0.5):
     candidates = shortest_path_candidates(city, min_len, max_len)
-    routes: list[list[int]] = []
-    best_obj = None
+    routes, best_obj = [], None
     for _ in range(num_routes):
         best_cand, step_best = None, None
         for cand in candidates:
             if cand in routes:
                 continue
-            obj = network_objective(
-                city, TransitNetwork(routes=routes + [cand]), alpha
-            )
+            obj = network_objective(city, TransitNetwork(routes=routes + [cand]), alpha)
             if step_best is None or obj < step_best:
                 best_cand, step_best = cand, obj
         routes.append(best_cand)

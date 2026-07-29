@@ -1,64 +1,46 @@
-"""Passenger assignment: cena mreze iz perspektive putnika i operatera.
-
-Gradi se "route graf" nad platformama (linija, pozicija) plus po jedan
-zemaljski cvor po cvoru grada. Ukrcavanje kosta transfer_penalty minuta,
-silazak 0, pa put sa k presedanja akumulira (k+1) * penal; prvi penal se
-oduzme na kraju. Najkraci putevi se racunaju scipy Dijkstrom nad sparse
-matricom, jer se ova funkcija poziva u petlji RL treninga.
-"""
-
 from dataclasses import dataclass
 
 import numpy as np
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import dijkstra
 
-from tndp.core.city import CityGraph
-from tndp.core.network import TransitNetwork
-
+# standardni transfer penal iz literature
 TRANSFER_PENALTY_MIN = 5.0
 
 
 @dataclass
 class AssignmentResult:
-    travel_time: np.ndarray      # (n, n) vreme putovanja sa penalima, np.inf za nepokrivene
-    transfers: np.ndarray | None # (n, n) broj presedanja, -1 za nepokrivene; None ako se ne racuna
-    C_p: float                   # prosecno vreme putovanja po putniku (pokriveni demand)
-    C_o: float                   # ukupno vreme voznje svih linija u jednom smeru
-    d: dict                      # d_0, d_1, d_2, d_3p, d_un kao udeli ukupnog demanda
+    travel_time: np.ndarray  # (n, n), inf za nepokrivene parove
+    transfers: np.ndarray    # (n, n), -1 za nepokrivene; None ako se ne računa
+    C_p: float               # prosečno vreme putovanja po putniku
+    C_o: float               # ukupno vreme vožnje linija u jednom smeru
+    d: dict                  # d_0, d_1, d_2, d_3p, d_un udeli demanda
 
     @property
-    def is_connected(self) -> bool:
+    def is_connected(self):
         return self.d["d_un"] == 0.0
 
 
-def combined_cost(result: AssignmentResult, alpha: float = 0.5) -> float:
-    """Jedina cost funkcija u projektu: C = alpha * C_p + (1 - alpha) * C_o."""
+# jedina cost funkcija u projektu
+def combined_cost(result, alpha=0.5):
     return alpha * result.C_p + (1.0 - alpha) * result.C_o
 
 
-def assign(
-    city: CityGraph,
-    network: TransitNetwork,
-    transfer_penalty: float = TRANSFER_PENALTY_MIN,
-    compute_transfers: bool = True,
-) -> AssignmentResult:
-    """Izracuna vremena putovanja, C_p, C_o i d_k statistike za mrezu.
-
-    compute_transfers=False preskace rekonstrukciju puteva (d_k statistike),
-    sto je brze i dovoljno za reward u RL treningu.
-    """
+# passenger assignment preko "route grafa": platforma = (linija, pozicija),
+# plus zemaljski čvor po čvoru grada. ukrcavanje košta transfer_penalty,
+# silazak 0, pa put sa k presedanja plati (k+1) penala; prvi se oduzme na
+# kraju. compute_transfers=False preskače rekonstrukciju puteva (d_k
+# statistike), dovoljno i duplo brže za RL reward.
+def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfers=True):
     n = city.n
     routes = network.routes
-
-    # indeksi platformi: platforma je (linija, pozicija na liniji)
-    route_offsets = np.cumsum([0] + [len(r) for r in routes])
-    num_platforms = int(route_offsets[-1])
-    ground = num_platforms  # zemaljski cvor grada i ima indeks ground + i
+    offsets = np.cumsum([0] + [len(r) for r in routes])
+    num_platforms = int(offsets[-1])
+    ground = num_platforms  # zemaljski čvor grada i ima indeks ground + i
 
     rows, cols, weights = [], [], []
     for ri, route in enumerate(routes):
-        base = route_offsets[ri]
+        base = offsets[ri]
         for p, (a, b) in enumerate(zip(route, route[1:])):
             tau = city.street_time[a, b]
             rows += [base + p, base + p + 1]
@@ -70,32 +52,25 @@ def assign(
             weights += [transfer_penalty, 0.0]
 
     size = num_platforms + n
-    graph = csr_matrix(
-        (np.array(weights), (np.array(rows), np.array(cols))), shape=(size, size)
-    )
+    graph = csr_matrix((np.array(weights), (np.array(rows), np.array(cols))),
+                       shape=(size, size))
 
     ground_ids = np.arange(ground, ground + n)
     if compute_transfers:
-        dist, pred = dijkstra(
-            graph, directed=True, indices=ground_ids, return_predecessors=True
-        )
+        dist, pred = dijkstra(graph, directed=True, indices=ground_ids,
+                              return_predecessors=True)
     else:
         dist = dijkstra(graph, directed=True, indices=ground_ids)
-        pred = None
 
-    # vreme putovanja: oduzmi penal prvog ukrcavanja
-    travel_time = dist[:, ground_ids] - transfer_penalty
+    travel_time = dist[:, ground_ids] - transfer_penalty  # skini prvi penal
     np.fill_diagonal(travel_time, 0.0)
 
     demand = city.demand
-    total_demand = demand.sum()
+    total = demand.sum()
     served = np.isfinite(travel_time)
     served_demand = demand[served].sum()
-
-    if served_demand > 0:
-        C_p = float((demand[served] * travel_time[served]).sum() / served_demand)
-    else:
-        C_p = float("inf")
+    C_p = float((demand[served] * travel_time[served]).sum() / served_demand) \
+        if served_demand > 0 else float("inf")
     C_o = float(network.route_times(city).sum())
 
     transfers = None
@@ -104,28 +79,20 @@ def assign(
         transfers = _count_transfers(pred, ground_ids, num_platforms, n)
         transfers[~served] = -1
         np.fill_diagonal(transfers, 0)
-        if total_demand > 0:
-            offdiag = ~np.eye(n, dtype=bool)
-            mask0 = served & (transfers == 0) & offdiag
-            d["d_0"] = float(demand[mask0].sum() / total_demand)
-            d["d_1"] = float(demand[served & (transfers == 1)].sum() / total_demand)
-            d["d_2"] = float(demand[served & (transfers == 2)].sum() / total_demand)
-            d["d_3p"] = float(demand[served & (transfers >= 3)].sum() / total_demand)
-    d["d_un"] = float(demand[~served].sum() / total_demand) if total_demand > 0 else 0.0
+        offdiag = ~np.eye(n, dtype=bool)
+        d["d_0"] = float(demand[served & (transfers == 0) & offdiag].sum() / total)
+        d["d_1"] = float(demand[served & (transfers == 1)].sum() / total)
+        d["d_2"] = float(demand[served & (transfers == 2)].sum() / total)
+        d["d_3p"] = float(demand[served & (transfers >= 3)].sum() / total)
+    d["d_un"] = float(demand[~served].sum() / total)
 
-    return AssignmentResult(
-        travel_time=travel_time, transfers=transfers, C_p=C_p, C_o=C_o, d=d
-    )
+    return AssignmentResult(travel_time=travel_time, transfers=transfers,
+                            C_p=C_p, C_o=C_o, d=d)
 
 
-def _count_transfers(
-    pred: np.ndarray, ground_ids: np.ndarray, num_platforms: int, n: int
-) -> np.ndarray:
-    """Broj presedanja po paru: broj ukrcavanja duz najkraceg puta minus 1.
-
-    Ukrcavanje je prelaz zemaljski cvor -> platforma. Putevi se rekonstruisu
-    hodom po predecessor matrici; grafovi su mali pa je python petlja ok.
-    """
+# broj presedanja = broj ukrcavanja (prelaz zemlja -> platforma) minus 1;
+# hod po predecessor matrici, grafovi su mali pa je python petlja ok
+def _count_transfers(pred, ground_ids, num_platforms, n):
     transfers = np.full((n, n), -1, dtype=int)
     for si in range(n):
         p_row = pred[si]

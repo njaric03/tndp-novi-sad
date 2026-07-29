@@ -1,8 +1,6 @@
-"""Faza 2 benchmark: random i greedy baselines na Mandl instanci.
-
-Pokretanje: python -m tndp.experiments.bench_mandl [--alpha 0.5] [--samples 1000]
-Ispisuje markdown tabelu i snima je u results/bench_mandl.md.
-"""
+# random i greedy baselines na Mandlu; ispisuje markdown tabelu
+# i snima je u results/bench_mandl.md
+# pokretanje: python -m tndp.experiments.bench_mandl [--alpha 0.5] [--samples 1000]
 
 import argparse
 from pathlib import Path

@@ -1,5 +1,3 @@
-"""Testovi passenger assignmenta na rucno izracunatom toy primeru."""
-
 import numpy as np
 import pytest
 
@@ -8,12 +6,10 @@ from tndp.core.city import CityGraph
 from tndp.core.network import TransitNetwork
 
 
+# put 0-1-2 plus ogranak 1-3, sva vremena 10 min; demand 0->2 ide linijom
+# A direktno, 0->3 mora A pa B sa jednim presedanjem
 @pytest.fixture
 def toy_city():
-    """Put 0-1-2 plus ogranak 1-3; sva vremena 10 min.
-
-    Demand: 0->2 (linija A direktno), 0->3 (A pa B, jedno presedanje).
-    """
     n = 4
     street = np.full((n, n), np.inf)
     np.fill_diagonal(street, 0.0)
@@ -61,5 +57,5 @@ def test_constraints_check(toy_city):
     problems = bad.check(toy_city, num_routes=2, min_len=2, max_len=3)
     assert any("ivica" in p for p in problems)      # 0-2 ne postoji
     assert any("ponovljen" in p for p in problems)  # 1-1
-    assert any("duzina" in p for p in problems)     # [3] prekratka
+    assert any("dužina" in p for p in problems)     # [3] prekratka
     assert any("broj linija" in p for p in problems)
