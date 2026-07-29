@@ -1,0 +1,40 @@
+[project]
+name = "tndp"
+version = "0.1.0"
+description = "GNN + RL za Transit Network Design Problem, case study Novi Sad (seminarski rad)"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "scipy",
+    "pyyaml",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+# RL faza (model i trening)
+rl = [
+    "torch",
+    "torch-geometric",
+]
+# Novi Sad pipeline (geo podaci)
+geo = [
+    "osmnx",
+    "gtfs-kit",
+    "h3",
+    "geopandas",
+    "shapely",
+    "folium",
+]
+dev = [
+    "pytest",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["tndp*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

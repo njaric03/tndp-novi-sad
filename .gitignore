@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+venv/
+
+# eksperimenti i veliki podaci
+runs/
+checkpoints/
+data/raw/
+data/novisad/
+*.pt
+*.npz
+
+# OS / editor
+.DS_Store
+Thumbs.db
