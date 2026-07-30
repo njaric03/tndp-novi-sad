@@ -1,7 +1,6 @@
 import numpy as np
-from scipy.sparse.csgraph import dijkstra
 
-from tndp.core.assignment import assign, combined_cost
+from tndp.core.assignment import assign, cost_scales, objective
 from tndp.core.network import TransitNetwork
 
 # MDP po uzoru na Holliday: epizoda gradi svih R linija redom. za svaku
@@ -21,13 +20,7 @@ class TndpEnv:
         n = city.n
         self.neighbors = [np.flatnonzero(np.isfinite(city.street_time[i])
                                          & (np.arange(n) != i)) for i in range(n)]
-        # skale za normalizaciju nagrade: donja granica C_p je demand-ponderisano
-        # najkraće vreme ulicom, skala C_o je gruba dužina cele mreže
-        street = np.where(np.isfinite(city.street_time), city.street_time, 0.0)
-        sp = dijkstra(street, directed=False)
-        self.cp_scale = float((city.demand * sp).sum() / city.demand.sum())
-        finite = np.isfinite(city.street_time) & (city.street_time > 0)
-        self.co_scale = num_routes * (max_len - 1) * float(city.street_time[finite].mean())
+        self.scales = cost_scales(city, num_routes, max_len)
         self.reset()
 
     def reset(self):
@@ -69,13 +62,8 @@ class TndpEnv:
         else:
             self.current.insert(0, node)
 
-    # terminalna nagrada: negativan normalizovan cost, plus kazna za
-    # nepokriven demand (maskiranje ne može da garantuje povezanost)
+    # terminalna nagrada: negativan cilj (manji cost i pokrivenost = veća nagrada)
     def reward(self):
         net = TransitNetwork(routes=self.routes)
         res = assign(self.city, net, compute_transfers=False)
-        cost = self.alpha * res.C_p / self.cp_scale \
-            + (1 - self.alpha) * res.C_o / self.co_scale
-        if not np.isfinite(cost):  # ništa pokriveno
-            cost = 10.0
-        return -(cost + 5.0 * res.d["d_un"]), res
+        return -objective(res, self.scales, self.alpha), res

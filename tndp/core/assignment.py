@@ -6,6 +6,9 @@ from scipy.sparse.csgraph import dijkstra
 
 # standardni transfer penal iz literature
 TRANSFER_PENALTY_MIN = 5.0
+# kazna za udeo nepokrivenog demanda u funkciji cilja; maskiranje ne može
+# da garantuje povezanost pa nepokrivene parove kažnjavamo mekom kaznom
+UNSERVED_PENALTY = 5.0
 
 
 @dataclass
@@ -21,9 +24,33 @@ class AssignmentResult:
         return self.d["d_un"] == 0.0
 
 
-# jedina cost funkcija u projektu
-def combined_cost(result, alpha=0.5):
-    return alpha * result.C_p + (1.0 - alpha) * result.C_o
+# skale za normalizaciju C_p i C_o na uporedive opsege. bez ovoga C_o
+# (desetine minuta) brojčano guši C_p, pa alpha=0.5 na sirovim vrednostima
+# daje operatoru mnogo veći uticaj nego putniku. cp_scale je donja granica
+# C_p (demand-ponderisano najkraće vreme ulicom), co_scale gruba procena
+# ukupne dužine mreže. ista normalizacija se koristi u RL nagradi i u
+# baseline cilju da poređenje bude na istom skalaru.
+def cost_scales(city, num_routes, max_len):
+    street = np.where(np.isfinite(city.street_time), city.street_time, 0.0)
+    sp = dijkstra(street, directed=False)
+    cp = float((city.demand * sp).sum() / city.demand.sum())
+    finite = np.isfinite(city.street_time) & (city.street_time > 0)
+    co = num_routes * (max_len - 1) * float(city.street_time[finite].mean())
+    return cp, co
+
+
+def normalized_cost(result, scales, alpha=0.5):
+    cp_scale, co_scale = scales
+    return alpha * result.C_p / cp_scale + (1 - alpha) * result.C_o / co_scale
+
+
+# puna funkcija cilja: normalizovani cost plus kazna za nepokriven demand.
+# ovo RL maksimizuje (kao negativnu nagradu) i po ovome se porede sve metode
+def objective(result, scales, alpha=0.5):
+    cost = normalized_cost(result, scales, alpha)
+    if not np.isfinite(cost):  # ništa pokriveno
+        cost = 10.0
+    return cost + UNSERVED_PENALTY * result.d["d_un"]
 
 
 # passenger assignment preko "route grafa": platforma = (linija, pozicija),

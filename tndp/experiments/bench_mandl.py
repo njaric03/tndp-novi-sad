@@ -63,7 +63,7 @@ def main() -> None:
     print(table)
     out = Path(__file__).parent.parent.parent / "results"
     out.mkdir(exist_ok=True)
-    (out / "bench_mandl.md").write_text(table + "\n")
+    (out / "bench_mandl.md").write_text(table + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

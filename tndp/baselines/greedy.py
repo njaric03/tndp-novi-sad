@@ -2,6 +2,7 @@ import numpy as np
 from scipy.sparse.csgraph import dijkstra
 
 from tndp.baselines.common import network_objective
+from tndp.core.assignment import cost_scales
 from tndp.core.network import TransitNetwork
 
 
@@ -33,6 +34,7 @@ def shortest_path_candidates(city, min_len, max_len):
 
 # u svakoj iteraciji dodaj kandidata koji najviše popravlja (d_un, cost)
 def greedy_network(city, num_routes, min_len, max_len, alpha=0.5):
+    scales = cost_scales(city, num_routes, max_len)
     candidates = shortest_path_candidates(city, min_len, max_len)
     routes, best_obj = [], None
     for _ in range(num_routes):
@@ -40,7 +42,7 @@ def greedy_network(city, num_routes, min_len, max_len, alpha=0.5):
         for cand in candidates:
             if cand in routes:
                 continue
-            obj = network_objective(city, TransitNetwork(routes=routes + [cand]), alpha)
+            obj = network_objective(city, TransitNetwork(routes=routes + [cand]), scales, alpha)
             if step_best is None or obj < step_best:
                 best_cand, step_best = cand, obj
         routes.append(best_cand)

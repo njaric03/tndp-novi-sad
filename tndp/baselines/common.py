@@ -1,13 +1,14 @@
 import numpy as np
 
-from tndp.core.assignment import assign, combined_cost
+from tndp.core.assignment import assign, normalized_cost
 
 
-# leksikografski cilj: prvo minimalan nepokriven demand, pa cost;
-# izbegava magične penal konstante
-def network_objective(city, network, alpha=0.5):
+# leksikografski cilj: prvo minimalan nepokriven demand, pa normalizovani
+# cost (isti koji RL trenira, pa je poređenje na istom skalaru). scales iz
+# cost_scales; leksikografski deo izbegava magične penal konstante
+def network_objective(city, network, scales, alpha=0.5):
     res = assign(city, network, compute_transfers=False)
-    return (res.d["d_un"], combined_cost(res, alpha))
+    return (res.d["d_un"], normalized_cost(res, scales, alpha))
 
 
 # slučajna prosta putanja u uličnom grafu: slučajan start pa nasumično
