@@ -32,6 +32,15 @@ class TndpEnv:
     def done(self):
         return len(self.routes) == self.num_routes
 
+    # snapshot i vraćanje stanja, za pretragu stabla (MCTS)
+    def clone_state(self):
+        return ([r[:] for r in self.routes], self.current[:])
+
+    def set_state(self, state):
+        routes, current = state
+        self.routes = [r[:] for r in routes]
+        self.current = current[:]
+
     # koju odluku policy sada donosi i koji su čvorovi dozvoljeni.
     # kod HALT odluke akcija -1 (završi liniju) je uvek dozvoljena,
     # a čvorovi iz maske znače "ipak produži"

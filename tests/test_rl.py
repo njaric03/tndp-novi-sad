@@ -58,3 +58,15 @@ def test_policy_smoke(city):
     loss.backward()
     grads = [p.grad.abs().sum() for p in policy.parameters() if p.grad is not None]
     assert len(grads) > 0 and all(torch.isfinite(g) for g in grads)
+
+
+# MCTS dekoder daje validnu mrežu; malo simulacija za brzinu
+def test_mcts_decode(city):
+    pytest.importorskip("torch")
+    from tndp.rl.mcts import mcts_decode
+    from tndp.rl.model import TndpPolicy
+
+    policy = TndpPolicy()
+    net, res = mcts_decode(policy, city, num_routes=2, min_len=2, max_len=6, sims=8)
+    assert net.check(city, num_routes=2, min_len=2, max_len=6) == []
+    assert res.C_o > 0
