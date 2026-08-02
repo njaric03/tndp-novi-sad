@@ -7,11 +7,22 @@ from tndp.core.network import TransitNetwork
 from tndp.rl.env import HALT, TndpEnv
 from tndp.rl.model import edge_tensors, node_features
 
-# MCTS dekodiranje sa naučenim priorima (PUCT), po uzoru na AlphaTransit ali
-# bez MCTS-a u treningu. politika daje prior P(a|s) za širenje stabla, a
-# vrednost lista se dobija greedy rollout-om iste politike do kraja epizode
-# (pouzdanije od value glave koja je trenirana samo na početnom stanju).
-# koristi se samo pri evaluaciji.
+# MCTS dekodiranje sa naučenim priorima (PUCT), po uzoru na AlphaTransit.
+#
+# Dve razlike u odnosu na AlphaTransit, obe svesne:
+#  - AlphaTransit vrednost lista uzima iz value mreže i MCTS koristi i u
+#    treningu, pa value glava uči baš na međustanjima. Kod nas je value glava
+#    trenirana samo na početnom stanju, pa bi na međustanjima bila gora od
+#    rollout-a; zato je vrednost lista greedy rollout iste politike.
+#  - Zbog istog razloga pretraga je samo dekoder, ne ulazi u trening.
+# Kod njih se rollout-i izbegavaju jer nagradu daje saobraćajni simulator
+# (skupo); kod nas je nagrada jedan Dijkstra na malom grafu, pa rollout-i
+# nisu usko grlo.
+#
+# Vrednosti se normalizuju po stablu (MuZero min-max) umesto ranijeg
+# exp(nagrada): sirove vrednosti su bile u uskom opsegu oko 0.26, pa je
+# eksploracioni član PUCT-a bio red veličine veći od razlike među akcijama
+# i pretraga je faktički uzorkovala iz priora.
 
 
 class _Node:
@@ -26,17 +37,32 @@ class _Node:
         self.children = {}  # akcija -> _Node
 
 
-# akcija je indeks čvora, ili -1 za halt
+# min-max normalizacija vrednosti preko celog stabla, da Q i eksploracioni
+# član PUCT-a budu na istoj skali bez obzira na apsolutni nivo nagrade
+class _Bounds:
+    def __init__(self):
+        self.lo, self.hi = math.inf, -math.inf
+
+    def update(self, v):
+        self.lo, self.hi = min(self.lo, v), max(self.hi, v)
+
+    def norm(self, v):
+        if self.hi > self.lo:
+            return (v - self.lo) / (self.hi - self.lo)
+        return 0.5
+
+
+# akcija je ravan indeks u masku (side * n + node), ili -1 za halt
 @torch.no_grad()
 def _priors(policy, env, edge_index, edge_attr):
     decision, mask = env.decision()
     h = policy.encode(node_features(env), edge_index, edge_attr)
-    logits = policy.action_logits(h, decision, mask)
-    probs = torch.softmax(logits, dim=0).numpy()
-    n = env.city.n
-    P = {i: float(probs[i]) for i in range(n) if mask[i]}
+    logits = policy.action_logits(h, decision, mask, env.ends)
+    probs = torch.softmax(logits, dim=0)
+    flat = mask.reshape(-1)
+    P = {i: float(probs[i]) for i in range(flat.size) if flat[i]}
     if decision == HALT:
-        P[-1] = float(probs[n])  # poslednji logit je halt
+        P[-1] = float(probs[-1])  # poslednji logit je halt
     return P
 
 
@@ -49,56 +75,58 @@ def _make_node(policy, env, edge_index, edge_attr):
     return node
 
 
-# vrednost stanja = exp(nagrada) u (0, 1], greedy rollout do kraja.
-# greedy je namerno: jedan sampled rollout je previše šumovit i obmane stablo
+# vrednost stanja = nagrada greedy rollout-a do kraja. greedy je namerno:
+# jedan sampled rollout je previše šumovit i obmane stablo.
 @torch.no_grad()
 def _rollout_value(policy, env, edge_index, edge_attr):
     while not env.done:
         decision, mask = env.decision()
         h = policy.encode(node_features(env), edge_index, edge_attr)
-        logits = policy.action_logits(h, decision, mask)
+        logits = policy.action_logits(h, decision, mask, env.ends)
         a = int(logits.argmax())
         is_halt = decision == HALT and a == len(logits) - 1
         env.step(-1 if is_halt else a)
-    return math.exp(env.reward()[0])
+    return env.reward()[0]
 
 
-def _puct(node, c):
-    sqrt_total = math.sqrt(sum(node.N.values()) + 1)
+def _puct(node, c, bounds):
+    total = sum(node.N.values())
+    sqrt_total = math.sqrt(total + 1)
+    # FPU: neposećena akcija nasleđuje tekuću procenu roditelja umesto 0.
+    # sa sirovim Q=0 i nagradama oko -1.3 svaka neposećena akcija je
+    # izgledala bolje/gore od svih posećenih, zavisno od znaka.
+    fpu = bounds.norm(sum(node.W.values()) / total) if total > 0 else 0.5
     best, best_score = None, -1e18
     for a, p in node.P.items():
         n = node.N.get(a, 0)
-        q = node.W[a] / n if n > 0 else 0.0
+        q = bounds.norm(node.W[a] / n) if n > 0 else fpu
         score = q + c * p * sqrt_total / (1 + n)
         if score > best_score:
             best, best_score = a, score
     return best
 
 
-def _step(env, a):
-    env.step(-1 if a == -1 else a)
-
-
-def _simulate(policy, env, root, edge_index, edge_attr, c):
+def _simulate(policy, env, root, edge_index, edge_attr, c, bounds):
     node, path = root, []
     while True:
-        a = _puct(node, c)
+        a = _puct(node, c, bounds)
         path.append((node, a))
         if a in node.children:
             node = node.children[a]
             if node.terminal:
                 env.set_state(node.state)
-                value = math.exp(env.reward()[0])
+                value = env.reward()[0]
                 break
             continue
-        # prošireno: napravi dete za akciju a i oceni ga rollout-om
+        # nova akcija: napravi dete i oceni ga rollout-om
         env.set_state(node.state)
-        _step(env, a)
+        env.step(a)
         child = _make_node(policy, env, edge_index, edge_attr)
         node.children[a] = child
-        value = math.exp(env.reward()[0]) if child.terminal \
+        value = env.reward()[0] if child.terminal \
             else _rollout_value(policy, env, edge_index, edge_attr)
         break
+    bounds.update(value)
     for n, a in path:
         n.N[a] = n.N.get(a, 0) + 1
         n.W[a] = n.W.get(a, 0.0) + value
@@ -110,12 +138,16 @@ def mcts_decode(policy, city, num_routes, min_len=2, max_len=8, alpha=0.5,
     env = TndpEnv(city, num_routes, min_len, max_len, alpha)
     edge_index, edge_attr = edge_tensors(city)
     env.reset()
+    bounds = _Bounds()
+    root = _make_node(policy, env, edge_index, edge_attr)
     while not env.done:
-        root = _make_node(policy, env, edge_index, edge_attr)
-        for _ in range(sims):
-            _simulate(policy, env, root, edge_index, edge_attr, c_puct)
+        for _ in range(sims - sum(root.N.values())):
+            _simulate(policy, env, root, edge_index, edge_attr, c_puct, bounds)
         best = max(root.N, key=root.N.get)  # najposećenija akcija
         env.set_state(root.state)
-        _step(env, best)
+        env.step(best)
+        # zadrži podstablo izabrane akcije umesto da se gradi iznova:
+        # ranije se ceo posao od ~30 simulacija bacao posle svakog poteza
+        root = root.children[best]
     net = TransitNetwork(routes=env.routes)
     return net, assign(city, net)

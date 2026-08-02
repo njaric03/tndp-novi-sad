@@ -1,4 +1,4 @@
-# mali brzi run za proveru da trening uopšte radi
+# mali brzi run za proveru da trening uopste radi
 name: smoke
 iters: 60
 batch: 4

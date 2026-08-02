@@ -1,0 +1,11 @@
+# ablacija: uniform tražnja umesto gravity. pitanje je uci li mreza
+# prostornu strukturu tražnje ili samo topologiju ulicne mreze
+name: abl-uniform
+iters: 3000
+batch: 16
+n_range: [15, 30]
+num_routes: 4
+demand_mode: uniform
+eval_every: 100
+eval_cities: 16
+alpha_eval: 0.5

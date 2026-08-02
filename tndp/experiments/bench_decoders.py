@@ -1,59 +1,67 @@
 # poređenje načina dekodiranja iste trenirane politike: greedy, sampling i
-# MCTS (frontier add-on). manji broj gradova jer je MCTS spor.
-# pokretanje: python -m tndp.experiments.bench_decoders runs/gravity-v1/policy.pt
+# MCTS. manji broj gradova jer je MCTS spor.
+# pokretanje: python -m tndp.experiments.bench_decoders runs/gravity-v1/best.pt
 
-import sys
+import argparse
 import time
 from pathlib import Path
 
 import numpy as np
-import torch
 
-from tndp.core.assignment import assign, cost_scales, objective
+from tndp.experiments.common import (evaluate_method, fmt_p, held_out_cities,
+                                     load_policy, paired_vs, scales_for)
 from tndp.rl.evaluate import decode, decode_sampling
 from tndp.rl.mcts import mcts_decode
-from tndp.rl.model import TndpPolicy
-from tndp.synth.generator import generate_city
-
-NUM_CITIES = 10
-SEED_BASE = 20_000
 
 
 def main():
-    ckpt = torch.load(sys.argv[1], weights_only=False)
-    cfg = ckpt["cfg"]
-    policy = TndpPolicy(hidden=cfg["hidden"], layers=cfg["layers"])
-    policy.load_state_dict(ckpt["state_dict"])
-    policy.eval()
-    R, lo, hi, a = cfg["num_routes"], cfg["min_len"], cfg["max_len"], cfg["alpha"]
+    ap = argparse.ArgumentParser()
+    ap.add_argument("checkpoint")
+    ap.add_argument("--cities", type=int, default=20)
+    ap.add_argument("--sims", type=int, default=50)
+    ap.add_argument("--k", type=int, default=32)
+    ap.add_argument("--alpha", type=float, default=None)
+    args = ap.parse_args()
 
-    cities = [generate_city(seed=SEED_BASE + k, demand_mode=cfg["demand_mode"],
-                            n_range=tuple(cfg["n_range"])) for k in range(NUM_CITIES)]
-    scales = [cost_scales(c, R, hi) for c in cities]
+    policy, cfg = load_policy(args.checkpoint)
+    R, lo, hi = cfg["num_routes"], cfg["min_len"], cfg["max_len"]
+    a = args.alpha if args.alpha is not None else cfg["alpha_eval"]
+    cities = held_out_cities(cfg, args.cities)
+    scales = scales_for(cities)
 
     decoders = {
-        "greedy dekod": lambda c: decode(policy, c, R, lo, hi, a),
-        "sampling 32": lambda c: decode_sampling(policy, c, R, k=32, min_len=lo,
-                                                 max_len=hi, alpha=a),
-        "MCTS 30": lambda c: mcts_decode(policy, c, R, lo, hi, a, sims=30),
+        "greedy dekod": lambda c: decode(policy, c, R, lo, hi, a)[0],
+        f"sampling {args.k}": lambda c: decode_sampling(policy, c, R, k=args.k,
+                                                        min_len=lo, max_len=hi,
+                                                        alpha=a)[0],
+        f"MCTS {args.sims}": lambda c: mcts_decode(policy, c, R, lo, hi, a,
+                                                   sims=args.sims)[0],
     }
 
-    lines = [f"# Poređenje dekodera ({NUM_CITIES} gradova, ista politika {sys.argv[1]})",
-             "", "| dekoder | cilj | C_p (min) | C_o (min) | d_un | sec/grad |",
-             "|---|---|---|---|---|---|"]
+    stats, times = {}, {}
     for name, dec in decoders.items():
-        objs, cps, cos, duns = [], [], [], []
         t0 = time.perf_counter()
-        for c, sc in zip(cities, scales):
-            _, res = dec(c)
-            objs.append(objective(res, sc, a))
-            cps.append(res.C_p)
-            cos.append(res.C_o)
-            duns.append(res.d["d_un"])
-        dt = (time.perf_counter() - t0) / NUM_CITIES
-        lines.append(f"| {name} | {np.mean(objs):.3f} | {np.mean(cps):.2f} | "
-                     f"{np.mean(cos):.0f} | {np.mean(duns):.3f} | {dt:.1f} |")
-        print(lines[-1])
+        stats[name] = evaluate_method(dec, cities, scales, R, lo, hi, a)
+        times[name] = (time.perf_counter() - t0) / len(cities)
+        print(f"{name}: cilj {stats[name]['cilj'].mean():.3f} ({times[name]:.2f} s/grad)")
+
+    ref = "greedy dekod"
+    lines = [f"# Poređenje dekodera ({args.cities} gradova, alpha={a}, "
+             f"ista politika {args.checkpoint})", "",
+             "Δ i p su uparene razlike u odnosu na greedy dekodiranje "
+             "(Wilcoxon, isti gradovi).", "",
+             "| dekoder | cilj | Δ vs greedy | p | C_p_all | C_o | d_un | s/grad |",
+             "|---|---|---|---|---|---|---|---|"]
+    for name, s in stats.items():
+        if name == ref:
+            delta, p = "—", "—"
+        else:
+            d, se, pv = paired_vs(s["cilj"], stats[ref]["cilj"])
+            delta, p = f"{d:+.3f} ± {se:.3f}", fmt_p(pv)
+        lines.append(f"| {name} | {s['cilj'].mean():.3f} ± {s['cilj'].std(ddof=1):.3f} "
+                     f"| {delta} | {p} | {s['C_p_all'].mean():.2f} "
+                     f"| {s['C_o'].mean():.0f} | {s['d_un'].mean():.3f} "
+                     f"| {times[name]:.2f} |")
 
     out = Path(__file__).parent.parent.parent / "results" / "bench_decoders.md"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")

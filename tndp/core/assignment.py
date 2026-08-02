@@ -6,16 +6,26 @@ from scipy.sparse.csgraph import dijkstra
 
 # standardni transfer penal iz literature
 TRANSFER_PENALTY_MIN = 5.0
-# kazna za udeo nepokrivenog demanda u funkciji cilja; maskiranje ne može
-# da garantuje povezanost pa nepokrivene parove kažnjavamo mekom kaznom
-UNSERVED_PENALTY = 5.0
+# Nepokriven par ne kažnjavamo proizvoljnom konstantom nego ga naplaćujemo
+# kao da putnik istu razdaljinu pređe pešice. Faktor je zato odnos brzina:
+# autobus 20 km/h (BUS_SPEED_KMH u generatoru) prema pešaku 5 km/h.
+# Ulazi u C_p_all, dakle u isti putnički član kao i svi ostali parovi — nema
+# zasebne kazne koja bi se odvojeno podešavala.
+#
+# Vrednost je bitna: mereno na greedy rešenjima, opslužen par putuje samo
+# ~1.04x duže od uličnog najkraćeg vremena, pa faktor blizu 1 znači da
+# "ne opslužiti" košta koliko i "opslužiti" i pokrivenost se uruši.
+# Osetljivost je u tools/metodoloske_provere.py i mora ići uz rezultate.
+BUS_SPEED_KMH, WALK_SPEED_KMH = 20.0, 5.0
+UNSERVED_FACTOR = BUS_SPEED_KMH / WALK_SPEED_KMH
 
 
 @dataclass
 class AssignmentResult:
     travel_time: np.ndarray  # (n, n), inf za nepokrivene parove
     transfers: np.ndarray    # (n, n), -1 za nepokrivene; None ako se ne računa
-    C_p: float               # prosečno vreme putovanja po putniku
+    C_p: float               # prosečno vreme po putniku, samo opsluženi parovi
+    C_p_all: float           # isto, ali nepokriveni naplaćeni po UNSERVED_FACTOR
     C_o: float               # ukupno vreme vožnje linija u jednom smeru
     d: dict                  # d_0, d_1, d_2, d_3p, d_un udeli demanda
 
@@ -24,33 +34,28 @@ class AssignmentResult:
         return self.d["d_un"] == 0.0
 
 
-# skale za normalizaciju C_p i C_o na uporedive opsege. bez ovoga C_o
-# (desetine minuta) brojčano guši C_p, pa alpha=0.5 na sirovim vrednostima
-# daje operatoru mnogo veći uticaj nego putniku. cp_scale je donja granica
-# C_p (demand-ponderisano najkraće vreme ulicom), co_scale gruba procena
-# ukupne dužine mreže. ista normalizacija se koristi u RL nagradi i u
-# baseline cilju da poređenje bude na istom skalaru.
-def cost_scales(city, num_routes, max_len):
-    street = np.where(np.isfinite(city.street_time), city.street_time, 0.0)
-    sp = dijkstra(street, directed=False)
-    cp = float((city.demand * sp).sum() / city.demand.sum())
-    finite = np.isfinite(city.street_time) & (city.street_time > 0)
-    co = num_routes * (max_len - 1) * float(city.street_time[finite].mean())
-    return cp, co
+# skale za normalizaciju putničkog i operaterskog člana. obe su DONJE
+# GRANICE istog tipa, da alpha zaista balansira:
+#   cp_scale — demand-ponderisano najkraće vreme ulicom (mreža ide svuda),
+#   co_scale — ukupno vreme minimalnog razapinjućeg stabla (najmanje mreže
+#              koliko treba da svaki čvor bude dostupan).
+# ranija co skala R*(max_len-1)*mean(tau) je bila procena gornje granice i
+# skoro konstanta po gradu, pa je operaterski član imao upola manji uticaj
+# nego putnički. mereno preko kandidat-rešenja, odnos rasipanja ta dva člana
+# je sa ovim skalama ~1.1:1 umesto ~2.1:1.
+# num_routes i max_len se više ne koriste; ostavljeni su u potpisu da
+# pozivaoci ne moraju da se menjaju.
+def cost_scales(city, num_routes=None, max_len=None):
+    return city.street_shortest_mean_demand, city.mst_time
 
 
-def normalized_cost(result, scales, alpha=0.5):
-    cp_scale, co_scale = scales
-    return alpha * result.C_p / cp_scale + (1 - alpha) * result.C_o / co_scale
-
-
-# puna funkcija cilja: normalizovani cost plus kazna za nepokriven demand.
-# ovo RL maksimizuje (kao negativnu nagradu) i po ovome se porede sve metode
+# jedina funkcija cilja: oba člana su odnos prema svojoj donjoj granici, pa
+# je vrednost ~1 kad je mreža blizu teorijskog poda. nepokrivena tražnja je
+# već uračunata kroz C_p_all, dakle NEMA zasebne kazne ni magične konstante.
+# ovo RL maksimizuje (kao negativnu nagradu) i po ovome se porede sve metode.
 def objective(result, scales, alpha=0.5):
-    cost = normalized_cost(result, scales, alpha)
-    if not np.isfinite(cost):  # ništa pokriveno
-        cost = 10.0
-    return cost + UNSERVED_PENALTY * result.d["d_un"]
+    cp_scale, co_scale = scales
+    return alpha * result.C_p_all / cp_scale + (1 - alpha) * result.C_o / co_scale
 
 
 # passenger assignment preko "route grafa": platforma = (linija, pozicija),
@@ -98,6 +103,12 @@ def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfe
     served_demand = demand[served].sum()
     C_p = float((demand[served] * travel_time[served]).sum() / served_demand) \
         if served_demand > 0 else float("inf")
+    # C_p_all: isti prosek nad SVIM parovima, gde nepokriveni plaćaju
+    # UNSERVED_FACTOR puta ulično najkraće vreme. bez ovoga C_p svake metode
+    # prosečava preko drugog skupa parova (one sa većim d_un ispuštaju baš
+    # najduže parove i time sebi lepšaju C_p), pa nije uporediv.
+    charged = np.where(served, travel_time, UNSERVED_FACTOR * city.street_shortest)
+    C_p_all = float((demand * charged).sum() / total)
     C_o = float(network.route_times(city).sum())
 
     transfers = None
@@ -114,7 +125,7 @@ def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfe
     d["d_un"] = float(demand[~served].sum() / total)
 
     return AssignmentResult(travel_time=travel_time, transfers=transfers,
-                            C_p=C_p, C_o=C_o, d=d)
+                            C_p=C_p, C_p_all=C_p_all, C_o=C_o, d=d)
 
 
 # broj presedanja = broj ukrcavanja (prelaz zemlja -> platforma) minus 1;

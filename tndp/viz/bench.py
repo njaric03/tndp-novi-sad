@@ -9,7 +9,9 @@ import numpy as np
 def plot_synth(stats, out_path):
     names = list(stats)
     x = np.arange(len(names))
-    colors = ["tab:gray", "tab:orange", "tab:blue", "tab:green"]
+    palette = ["tab:gray", "tab:orange", "tab:red", "tab:blue", "tab:green",
+               "tab:purple", "tab:brown"]
+    colors = [palette[i % len(palette)] for i in range(len(names))]
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
 
@@ -23,8 +25,8 @@ def plot_synth(stats, out_path):
     axes[1].set_title("pokrivenost putovanja")
     axes[1].legend()
 
-    axes[2].bar(x - 0.2, [stats[n]["C_p"] for n in names], 0.4,
-                label="C_p putnik (min)", color="tab:blue")
+    axes[2].bar(x - 0.2, [stats[n]["C_p_all"] for n in names], 0.4,
+                label="C_p_all putnik (min)", color="tab:blue")
     axes[2].bar(x + 0.2, [stats[n]["C_o"] / 10 for n in names], 0.4,
                 label="C_o operater (min/10)", color="tab:orange")
     axes[2].set_title("kompromis putnik/operater")

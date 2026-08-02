@@ -36,7 +36,8 @@ def compare_networks(city, named_networks, out_path, alpha=0.5):
         axes = [axes]
     for ax, (name, net) in zip(axes, named_networks.items()):
         res = assign(city, net)
-        sub = f"C_p {res.C_p:.1f} min | C_o {res.C_o:.0f} min | d_un {res.d['d_un']:.2f}"
+        sub = (f"C_p_all {res.C_p_all:.1f} min | C_o {res.C_o:.0f} min "
+               f"| d_un {res.d['d_un']:.2f}")
         draw_network(ax, city, net, title=f"{name}\n{sub}")
     fig.suptitle(f"{city.name} (n={city.n}), R={len(next(iter(named_networks.values())).routes)}",
                  fontsize=11)

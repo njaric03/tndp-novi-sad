@@ -1,24 +1,30 @@
 import numpy as np
 import torch
 
+from tndp.core.assignment import assign
 from tndp.core.network import TransitNetwork
 from tndp.rl.env import HALT, TndpEnv
 from tndp.rl.model import edge_tensors, node_features
 
 
 # odigraj epizodu politikom; sample=True vuče iz distribucije (trening),
-# sample=False uzima argmax (greedy dekodiranje). vraća mrežu, log prob
-# sumu i entropiju (za REINFORCE)
-def rollout(policy, env, sample=True):
+# sample=False uzima argmax (greedy dekodiranje). vraća mrežu, nagradu,
+# assignment rezultat, sumu log verovatnoća i prosečnu entropiju.
+# gen: opcioni torch.Generator — bez njega bi uzorkovanje diralo globalni
+# RNG, pa bi svaki poziv pomerio stanje celom procesu.
+def rollout(policy, env, sample=True, gen=None):
     edge_index, edge_attr = edge_tensors(env.city)
     log_probs, entropies = [], []
     env.reset()
     while not env.done:
         decision, mask = env.decision()
         h = policy.encode(node_features(env), edge_index, edge_attr)
-        logits = policy.action_logits(h, decision, mask)
+        logits = policy.action_logits(h, decision, mask, env.ends)
         dist = torch.distributions.Categorical(logits=logits)
-        a = dist.sample() if sample else logits.argmax()
+        if sample:
+            a = torch.multinomial(dist.probs, 1, generator=gen).squeeze(0)
+        else:
+            a = logits.argmax()
         log_probs.append(dist.log_prob(a))
         entropies.append(dist.entropy())
         # halt je poslednji logit kad je odluka HALT
@@ -37,15 +43,18 @@ def decode(policy, city, num_routes, min_len=2, max_len=8, alpha=0.5):
     return net, res
 
 
-# najbolja od k sampled epizoda (jeftino poboljšanje, Kool et al. trik)
+# najbolja od k sampled epizoda (jeftino poboljšanje, Kool et al. trik).
+# ovo je zapravo pretraga nad KOMPLETNIM rešenjima ocenjenim tačnom
+# funkcijom cilja, pa je jak protivnik MCTS-u koji ocenjuje parcijalna
+# stanja proxy-jem.
 @torch.no_grad()
 def decode_sampling(policy, city, num_routes, k=32, min_len=2, max_len=8,
                     alpha=0.5, seed=0):
-    torch.manual_seed(seed)
+    gen = torch.Generator().manual_seed(seed)
     env = TndpEnv(city, num_routes, min_len, max_len, alpha)
     best_net, best_res, best_r = None, None, -np.inf
     for _ in range(k):
-        net, reward, res, _, _ = rollout(policy, env, sample=True)
+        net, reward, res, _, _ = rollout(policy, env, sample=True, gen=gen)
         if reward > best_r:
             best_net, best_res, best_r = net, res, reward
     return best_net, best_res

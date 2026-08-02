@@ -4,14 +4,17 @@ Transit Network Design Problem (TNDP): dat je graf grada sa uličnom mrežom i m
 tražnje putovanja, traži se skup autobuskih linija koji dobro opslužuje putnike uz
 razuman trošak operatera. Problem je NP-težak i klasično se rešava metaheuristikama po
 gradu; ovde umesto toga graf neuronska mreža uči **heuristiku** na hiljadama sintetičkih
-gradova, pa je primenjuje na nov grad u jednom prolazu, bez ponovne optimizacije.
-
-![mreže koje metode grade na istom gradu](results/networks.png)
+gradova, pa je primenjuje na nov grad u jednom prolazu.
 
 Seminarski rad za predmet Eksperimenti sa neuronskim mrežama 2 (DMI, UNSPMF), po uzoru
-na Holliday et al. (Transportmetrica B, 2025). Mreža je GATv2 sa pointer mehanizmom,
-trenirana REINFORCE-om; poređenje je sa random i greedy baselinima na benchmark
-instancama iz literature (Mandl, Mumford) i na held-out sintetici.
+na Holliday et al. Mreža je GATv2 sa pointer mehanizmom, trenirana REINFORCE-om;
+poređenje je sa random search, konstruktivnim greedy-jem i lokalnom pretragom, na
+held-out sintetici i na benchmark instancama iz literature (Mandl, Mumford).
+
+> **Napomena o obimu.** Jednoprolazna konstrukcija je *komponenta* metode iz reference,
+> ne cela metoda: kod Hollidaya naučena politika radi kao operator unutar metaheuristike,
+> i autori mere do 20% razlike u korist hibrida (Neural BCO, arXiv:2306.00720). Ovde je
+> `hill_climb` uključen kao baseline upravo da bi ta razlika bila vidljiva.
 
 ```
  ┌──────────────────────┐        ┌────────────────────────┐
@@ -51,96 +54,129 @@ ulicom (`inf` gde nema ivice) i matricu tražnje. [assignment.py](tndp/core/assi
 za datu mrežu linija računa najkraće vreme putovanja svakog para preko grafa linija sa
 penalom od 5 min po presedanju, pa iz toga:
 
-- `C_p` — prosečno vreme putovanja po putniku (interes putnika),
-- `C_o` — ukupno vreme vožnje svih linija u jednom smeru (interes operatera),
+- `C_p` — prosečno vreme putovanja, **samo nad opsluženim parovima**. Ovo je konvencija
+  u kojoj su objavljeni brojevi iz literature, pa se koristi za poređenje sa njima.
+  Između metoda sa različitim `d_un` **nije uporediv**: metoda koja ispusti više parova
+  ispušta baš najduže i time sebi ulepšava `C_p`.
+- `C_p_all` — isti prosek nad **svim** parovima, gde nepokriven par plaća
+  `UNSERVED_FACTOR` puta ulično najkraće vreme. Faktor je 20/5 = 4, odnos brzine autobusa
+  i pešaka: putnik bez linije pređe istu razdaljinu pešice. Ovo je metrika po kojoj se
+  porede metode.
+- `C_o` — ukupno vreme vožnje svih linija u jednom smeru.
 - `d_0/d_1/d_2/d_un` — udeli tražnje bez presedanja, sa jednim, sa dva, i nepokrivene.
 
-`C_p` je u desetinama minuta a `C_o` u stotinama, pa `alpha=0.5` na sirovim vrednostima
-zapravo daje operateru mnogo veći uticaj. Zato se oba normalizuju: `C_p` donjom granicom
-(demand-ponderisano najkraće vreme ulicom, kao da mreža ide svuda), `C_o` grubom
-procenom ukupne dužine mreže. Cilj je `alpha * C_p/scale + (1-alpha) * C_o/scale` plus
-kazna za `d_un`; maskiranje akcija ne može da garantuje da su svi parovi povezani, pa je
-nepokrivena tražnja meka kazna a ne tvrdo ograničenje. **Ista normalizacija se koristi u
-RL nagradi i u baseline cilju**, inače poređenje ne bi bilo na istom skalaru.
+Funkcija cilja je
+
+```
+alpha * C_p_all / (donja granica C_p)  +  (1 - alpha) * C_o / (vreme MST-a)
+```
+
+Obe skale su **donje granice iste vrste**: demand-ponderisano najkraće vreme ulicom (kao
+da mreža ide svuda) i ukupno vreme minimalnog razapinjućeg stabla (najmanje mreže koliko
+treba da svaki čvor bude dostupan). Zato je vrednost ~1 kad je mreža blizu teorijskog
+poda, i zato `alpha` zaista balansira — mereno preko kandidat-rešenja, odnos rasipanja
+ta dva člana je ~1.4:1. **Nema zasebne kazne za nepokrivenu tražnju**: ona je već u
+`C_p_all`. **Ista funkcija se koristi u RL nagradi i u baseline cilju.**
+
+Dve konstante ostaju stvar izbora — `UNSERVED_FACTOR` i `alpha`. Osetljivost na obe
+ispisuje `python -m tools.metodoloske_provere` i **treba da ide uz rezultate**.
 
 ### Sintetički gradovi
 
 [generator.py](tndp/synth/generator.py) baca slučajne tačke, povezuje ih Delaunay
 triangulacijom, izbacuje predugačke ivice i proređuje ostatak do realistične gustine
-ulica (uz proveru da graf ostane povezan). Tražnja ima dva režima: `uniform`
-(U[60, 800] po paru, replicira Holliday) i `gravity` (mase čvorova iz lognormalne,
-opadanje sa daljinom `1/d^beta`) — gravity je glavni režim jer ima prostornu strukturu
-koju mreža može da nauči. Ukupan broj putovanja je isti u oba, da su uporedivi.
+ulica. Ivica se skida samo ako graf ostane povezan, i grad se na kraju validira — nepovezan
+grad ima beskonačnu donju granicu putničkog troška i ne sme da izađe iz generatora.
+Tražnja ima dva režima: `uniform` (U[60, 800] po paru, replicira Holliday) i `gravity`
+(mase čvorova iz lognormalne, opadanje sa daljinom `1/d^beta`) — gravity je glavni režim.
+Ukupan broj putovanja je isti u oba, da su uporedivi.
 
 ### Baselines
 
 - [random_search.py](tndp/baselines/random_search.py) — najbolja od *k* nasumičnih mreža.
+  Ovo je donja granica, ne ozbiljan takmac.
 - [greedy.py](tndp/baselines/greedy.py) — kandidati su najkraći ulični putevi svih parova,
-  u svakoj iteraciji se dodaje onaj koji najviše popravlja `(d_un, cost)`.
+  u svakoj iteraciji se dodaje onaj koji najviše popravlja cilj.
+- [hill_climb.py](tndp/baselines/hill_climb.py) — lokalna pretraga nad kompletnim mrežama
+  (produži/skrati/zameni liniju), sa restartima. Ovo je ono što u literaturi radi
+  metaheuristika i jedini baseline koji stvarno pretražuje.
 
 ### MDP i model
 
 [env.py](tndp/rl/env.py): epizoda gradi svih *R* linija redom. Za svaku liniju bira se
-početni čvor, pa se naizmenično bira proširenje (sused **bilo kog** od dva kraja koji nije
-već u liniji) ili `halt` kad je dužina u dozvoljenom opsegu. Nevalidni potezi se maskiraju,
-pa politika ne može da proizvede nevalidnu mrežu. Nagrada stiže tek na kraju epizode.
+početni čvor (dozvoljen terminal), pa se naizmenično bira proširenje ili `halt` kad je
+dužina u dozvoljenom opsegu. **Akcija proširenja je par (kraj, čvor)**, ne samo čvor —
+inače za čvor susedan oba kraja varijanta „na početak" nije dostižna, a takvih poteza je
+na Delaunay grafovima ~13%. Halt je maskiran ako bi linija bila duplikat već sagrađene.
 
-[model.py](tndp/rl/model.py): 10 atributa po čvoru (normalizovane koordinate, produkcija i
-atrakcija tražnje, stepen, da li je čvor već pokriven, da li je u tekućoj liniji, da li je
-njen kraj, napredak epizode, `alpha`), ulične ivice u oba smera sa vremenom i tražnjom kao
-edge feature. Tri sloja GATv2 daju embeddinge, pointer glava skorira čvorove uslovljeno
-stanjem tekuće linije, posebna glava skorira `halt`, value glava daje baseline.
+[model.py](tndp/rl/model.py): 13 atributa po čvoru (normalizovane koordinate, produkcija i
+atrakcija tražnje, stepen, koncentracija tražnje, pokrivenost, pripadnost tekućoj liniji,
+da li je početak, da li je rep, napredak epizode, popunjenost linije, `alpha`), ulične
+ivice u oba smera sa vremenom i tražnjom kao edge feature.
+
+Tražnja ulazi u mrežu kroz **rang transformaciju** (`rang → N(0,1)`), ne kao sirov udeo.
+U gravity režimu je lognormalna, pa je sirov feature imao asimetriju ~5.3 na ivicama i
+raspon 40x — a na Mandlu i Mumfordu asimetriju ~0. Trening i test su time bili različite
+raspodele, što je za model čija je poenta transfer veći problem od same skale. Posle
+rang transformacije raspodela je ista na svakoj instanci. Apsolutni odnosi koje rang
+briše vraćeni su kao jedan skalar po gradu (`concentration`, udeo tražnje u top 10%
+parova). **Sirova tražnja ulazi u funkciju cilja nedirnuta** — transformiše se samo ulaz
+u mrežu. Tri sloja GATv2 daju embeddinge; pointer glava
+skorira parove (kraj, čvor) uslovljeno embeddingom tog kraja, posebna glava skorira
+`halt`, value glava daje baseline.
 
 [train.py](tndp/rl/train.py): REINFORCE sa naučenim baseline-om (value glava), opciono
-self-critical (greedy rollout kao baseline, Kool et al.). Trening ide na fiksnom poolu od
-512 sintetičkih gradova umesto generisanja u letu — brže i reproducibilnije.
+self-critical (greedy rollout, Kool et al.), sa standardizacijom advantage-a unutar
+batch-a. **`alpha` se uzorkuje `U[0,1]` po epizodi** (kao kod Hollidaya), pa jedna
+politika pokriva ceo Pareto front umesto samo `alpha=0.5`. Trening ide na fiksnom poolu
+sintetičkih gradova. Čuvaju se dva checkpointa: `policy.pt` (poslednji) i `best.pt`
+(najbolji na validaciji) — evaluacija treba da koristi `best.pt`.
 
 ```bash
-python -m tndp.rl.train --config configs/rl_default.yaml   # runs/<ime>/policy.pt, log.csv
+python -m tndp.rl.train --config configs/rl_default.yaml          # runs/<ime>/best.pt
+python -m tndp.rl.train --config configs/rl_default.yaml --seed 1 # drugi seed
 ```
 
 ### Dekodiranje
 
-Ista politika se može dekodirati na tri načina ([evaluate.py](tndp/rl/evaluate.py),
+Ista politika se dekodira na tri načina ([evaluate.py](tndp/rl/evaluate.py),
 [mcts.py](tndp/rl/mcts.py)): greedy (argmax), sampling *k* pa najbolja epizoda, i MCTS sa
-naučenim priorima (PUCT, vrednost lista iz greedy rollout-a iste politike) po uzoru na
-AlphaTransit — ali samo pri evaluaciji, MCTS ne ulazi u trening.
+naučenim priorima (PUCT) po uzoru na AlphaTransit.
+
+Dve svesne razlike od AlphaTransita: tamo vrednost lista daje value mreža i MCTS se koristi
+i u treningu (pa value glava uči na međustanjima), a ovde je value glava trenirana samo na
+početnom stanju pa je vrednost lista greedy rollout, i pretraga je samo dekoder. Kod njih
+se rollout-i izbegavaju jer nagradu daje saobraćajni simulator; ovde je nagrada jedan
+Dijkstra na malom grafu. Vrednosti se u stablu normalizuju min-max po stablu, a podstablo
+izabrane akcije se zadržava.
 
 ## Rezultati
 
-**Held-out sintetika** (20 gradova van trening poola, n ∈ [15, 30], R=4, alpha=0.5).
-Kolona `cilj` je normalizovani cost sa kaznom, tačno ono što RL optimizuje; manje je bolje.
+**Rezultati u `results/` su obrisani i treba ih regenerisati** — funkcija cilja,
+prostor akcija i generator su se promenili, pa stari brojevi više ne važe i nisu
+uporedivi sa novima. Redosled:
 
-| metoda | cilj | C_p (min) | C_o (min) | d_0 | d_un |
-|---|---|---|---|---|---|
-| random najbolja od 200 | 2.053 | 11.25 | 89 | 0.64 | 0.102 |
-| greedy | 1.699 | 8.71 | 60 | 0.58 | 0.104 |
-| RL greedy dekod | 1.430 | 8.27 | 101 | 0.82 | 0.026 |
-| **RL sampling 32** | **1.191** | 7.21 | 95 | 0.84 | 0.008 |
+```bash
+python -m tndp.rl.train --config configs/rl_default.yaml
+python -m tndp.experiments.bench_synth     runs/gravity-v1/best.pt   # glavna tabela
+python -m tndp.experiments.bench_transfer  runs/gravity-v1/best.pt   # Mandl + Mumford
+python -m tndp.experiments.pareto          runs/gravity-v1/best.pt   # Pareto front
+python -m tndp.experiments.anytime         runs/gravity-v1/best.pt   # kvalitet vs vreme
+python -m tndp.experiments.bench_decoders  runs/gravity-v1/best.pt   # greedy/sampling/MCTS
+python -m tndp.experiments.show_networks   runs/gravity-v1/best.pt   # slika mreža
+python -m tndp.viz.curves                  runs/gravity-v1           # kriva treninga
+```
 
-RL dobija i po cilju i po `C_p`, ali troši više `C_o` od greedy-ja: uči da pokrije tražnju
-(`d_un` pada sa 0.10 na 0.01, `d_0` raste sa 0.58 na 0.84) i za to plaća dužim linijama.
+Tabele nose standardnu devijaciju po gradovima i **uparene** razlike u odnosu na
+referentnu metodu (Wilcoxon, iste instance), jer se gradovi po težini razlikuju mnogo više
+nego metode među sobom. Svaki eksperiment validira mrežu koju metoda vrati i pada ako
+prekrši ograničenja.
 
-**Poređenje dekodera** (10 gradova, ista politika):
+[bench_mandl.md](results/bench_mandl.md) i dalje služi kao provera implementacije
+assignment-a naspram objavljenih vrednosti, ne kao poređenje metoda.
 
-| dekoder | cilj | C_p (min) | C_o (min) | d_un | sec/grad |
-|---|---|---|---|---|---|
-| greedy dekod | 1.499 | 8.90 | 104 | 0.028 | 0.1 |
-| sampling 32 | 1.210 | 7.42 | 99 | 0.010 | 3.2 |
-| MCTS 30 | 1.330 | 8.33 | 103 | 0.012 | 41.5 |
-
-MCTS je konkurentan ali ispod samplinga uz 13× veće vreme. Razlog je verovatno u tome što
-se vrednost lista dobija greedy rollout-om iste politike, pa pretraga nasleđuje njenu
-pristrasnost; AlphaTransit MCTS koristi i u treningu, gde value glava uči baš na
-međustanjima.
-
-**Mandl benchmark** ([bench_mandl.md](results/bench_mandl.md)) služi kao provera
-implementacije assignment-a i cost-a naspram objavljenih vrednosti, ne kao poređenje
-metoda: greedy postiže `C_p` 13.4 min gde Nikolić (2013) ima 10.2, ali uz trostruko manje
-`C_o` — objavljena rešenja su sa druge tačke Pareto krive (optimizovana za putnika).
-
-Sve tabele se regenerišu skriptama iz [experiments/](tndp/experiments), izlaz ide u
-[results/](results).
+Ablacije (`value` vs self-critical baseline, fiksni vs uzorkovani `alpha`, gravity vs
+uniform tražnja, standardizacija advantage-a) su u [configs/](configs) kao `abl_*.yaml`.
 
 ## Pokretanje
 
@@ -148,49 +184,58 @@ Sve tabele se regenerišu skriptama iz [experiments/](tndp/experiments), izlaz i
 python -m venv .venv && .venv\Scripts\activate
 pip install -e .[dev]        # core: numpy, scipy, matplotlib
 pip install -e .[rl]         # torch, torch-geometric (trening i evaluacija)
-pytest                       # unit testovi + Mandl acceptance
+pytest                       # Mandl acceptance + toy assignment + smoke
+python -m tools.metodoloske_provere   # invarijante i osetljivost na konstante
 ```
-
-```bash
-python -m tndp.synth.generator                                        # pregled generatora
-python -m tndp.experiments.bench_mandl                                # baselines vs literatura
-python -m tndp.rl.train --config configs/rl_smoke.yaml                # kratak trening
-python -m tndp.experiments.bench_synth runs/gravity-v1/policy.pt      # RL vs baselines
-python -m tndp.experiments.bench_decoders runs/gravity-v1/policy.pt   # greedy vs sampling vs MCTS
-python -m tndp.experiments.show_networks runs/gravity-v1/policy.pt    # slika mreža
-```
-
-`runs/` (težine, logovi) se ne čuva u gitu, regeneriše se treningom.
 
 ## Struktura
 
 ```
 tndp/
   core/        CityGraph, TransitNetwork, passenger assignment i cost
-  baselines/   random search, greedy
+  baselines/   random search, greedy, hill climbing
   synth/       generator sintetičkih gradova (uniform i gravity demand)
   rl/          MDP env, GATv2 + pointer model, REINFORCE trening, dekoderi, MCTS
   novisad/     zoniranje i graf Novog Sada (nije još implementirano)
-  experiments/ skripte koje proizvode tabele u results/
+  experiments/ skripte koje proizvode tabele i slike u results/
   viz/         mape mreža i krive treninga
-configs/       yaml konfiguracije treninga
+configs/       yaml konfiguracije treninga i ablacija
 data/benchmarks/  Mandl i Mumford instance (izvor: RenatoArbex/TransitNetworkDesign)
 results/       tabele i slike koje se predaju
-tests/         acceptance test na Mandlu i unit testovi
+tests/         acceptance test na Mandlu, toy assignment, smoke
+tools/         provere invarijanti i osetljivosti
+docs/          metodološka procena i redosled popravki
 ```
 
 ## Status
 
-Sintetika, baselines, RL trening i evaluacija su gotovi. Ostaje primena na graf Novog
-Sada iz otvorenih podataka (OSM ulična mreža, Overture zgrade i OSM sadržaji za gravity
-tražnju) i poređenje sa postojećom GSP mrežom po istim merama.
+Sintetika, baselines, RL trening i evaluacija su gotovi; rezultate treba pregenerisati
+posle izmena funkcije cilja. Ostaje primena na graf Novog Sada iz otvorenih podataka
+(OSM ulična mreža, Overture zgrade i OSM sadržaji za gravity tražnju) i poređenje sa
+postojećom GSP mrežom po istim merama.
+
+[docs/metodoloska-procena.md](docs/metodoloska-procena.md) drži pregled slabih tačaka
+eksperimentalnog dizajna, šta je od toga popravljeno i šta ostaje.
+
+## Ograničenja modela
+
+Rešava se TRNDP, ne pun TNDP: **nema frekvencija, vremena čekanja, kapaciteta ni veličine
+voznog parka**. `C_o` (ukupno vreme vožnje linija u jednom smeru) je *proxy* za trošak
+operatera, ne trošak operatera. Presedanje se naplaćuje fiksnih 5 min bez obzira na
+frekvenciju linije. Tražnja je statična i neelastična — mreža ne menja to koliko se
+putuje. Sve su to standardne pretpostavke Mandl/Mumford benchmark postavke, ali ih treba
+imati u vidu pri tumačenju brojeva.
 
 ## Izvori
 
 | Uloga | Izvor |
 |---|---|
-| Metoda (GAT + RL) | Holliday, El-Geneidy, Dudek, *Learning heuristics for transit network design and improvement with deep reinforcement learning*, Transportmetrica B (2025), https://doi.org/10.1080/21680566.2025.2561863 |
+| Metoda (GAT + RL), verzija koju pratimo | Holliday, El-Geneidy, Dudek, *Learning Heuristics for Transit Network Design and Improvement with Deep Reinforcement Learning*, https://arxiv.org/abs/2404.05894 (REINFORCE) |
+| Objavljena verzija iste metode | Transportmetrica B 13(1), 2025, https://doi.org/10.1080/21680566.2025.2561863 — trenira PPO-om i kombinuje sa evolutivnim algoritmom; mi pratimo raniju, jednostavniju varijantu |
 | MDP formulacija i trening | Holliday, *Applications of deep reinforcement learning to urban transit network design*, doktorska teza, https://arxiv.org/abs/2502.17758 |
-| MCTS dekodiranje | *AlphaTransit: Learning to Design City-scale Transit Routes*, https://arxiv.org/abs/2605.28730 |
+| Politika kao operator u metaheuristici | Holliday, Dudek, *Neural Bee Colony Optimization*, https://arxiv.org/abs/2306.00720; *A Neural-Evolutionary Algorithm for Autonomous Transit Network Design*, ICRA 2024, https://arxiv.org/abs/2403.07917 |
+| MCTS dekodiranje | *AlphaTransit: Learning to Design City-scale Transit Routes*, https://arxiv.org/abs/2605.28730; prethodnik: https://arxiv.org/abs/2512.19767 |
 | REINFORCE baseline i sampling dekodiranje | Kool, van Hoof, Welling, *Attention, Learn to Solve Routing Problems!*, ICLR 2019 |
-| Benchmark instance i objavljeni cost | https://github.com/RenatoArbex/TransitNetworkDesign |
+| Benchmark instance | Mumford, *A metaheuristic approach to the urban transit routing problem* (2013); Nikolić, Teodorović, *Transit network design by Bee Colony Optimization* (2013); John, Mumford, Lewis (2014) — konvencija u kojoj računamo `C_p` |
+| Fajlovi instanci i objavljena rešenja | https://github.com/RenatoArbex/TransitNetworkDesign |
+| Pregled oblasti | *Transit network design problem: a half century of methodological research*, Innovative Infrastructure Solutions (2025), https://doi.org/10.1007/s41062-025-02356-5 |

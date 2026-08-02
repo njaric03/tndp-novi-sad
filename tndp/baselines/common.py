@@ -1,26 +1,46 @@
 import numpy as np
 
-from tndp.core.assignment import assign, normalized_cost
+from tndp.core.assignment import assign, objective
+from tndp.core.network import is_duplicate  # noqa: F401  (re-export za baselines)
 
 
-# leksikografski cilj: prvo minimalan nepokriven demand, pa normalizovani
-# cost (isti koji RL trenira, pa je poređenje na istom skalaru). scales iz
-# cost_scales; leksikografski deo izbegava magične penal konstante
+# tačno ista skalarna funkcija cilja koju RL trenira i po kojoj se izveštava.
+# ranije je ovde stajao leksikografski (d_un, cost) — baselines su onda
+# optimizovali drugi cilj nego onaj po kome se ocenjuju, i to degenerisan
+# (spreman da žrtvuje neograničeno cost-a za ε manje d_un).
 def network_objective(city, network, scales, alpha=0.5):
     res = assign(city, network, compute_transfers=False)
-    return (res.d["d_un"], normalized_cost(res, scales, alpha))
+    return objective(res, scales, alpha)
 
 
-# slučajna prosta putanja u uličnom grafu: slučajan start pa nasumično
-# proširivanje sa oba kraja do ciljne dužine
+# čvorovi na kojima linija sme da počne ili se završi (Mandl instance nose
+# tu masku; kod sintetike su svi čvorovi dozvoljeni)
+def terminal_nodes(city):
+    return np.flatnonzero(city.terminal)
+
+
+# oba kraja linije moraju biti dozvoljeni terminali. slučajno proširivanje
+# to ne poštuje samo po sebi, pa se višak skida sa kraja koji nije dozvoljen
+# dok se ne naiđe na terminal ili dok se ne dođe do min_len.
+def trim_to_terminals(route, city, min_len):
+    while len(route) > min_len and not city.terminal[route[0]]:
+        route = route[1:]
+    while len(route) > min_len and not city.terminal[route[-1]]:
+        route = route[:-1]
+    if len(route) < min_len or not (city.terminal[route[0]] and city.terminal[route[-1]]):
+        return None
+    return route
+
+
+# slučajna prosta putanja u uličnom grafu: slučajan dozvoljen start pa
+# nasumično proširivanje sa oba kraja do ciljne dužine
 def random_route(city, rng, min_len, max_len, max_tries=50):
-    n = city.n
-    finite = np.isfinite(city.street_time) & ~np.eye(n, dtype=bool)
-    neighbors = [np.flatnonzero(finite[i]) for i in range(n)]
+    neighbors = city.neighbors
+    starts = terminal_nodes(city)
 
     for _ in range(max_tries):
         target = int(rng.integers(min_len, max_len + 1))
-        route = [int(rng.integers(n))]
+        route = [int(starts[rng.integers(len(starts))])]
         while len(route) < target:
             options = [(side, int(c)) for side, end in enumerate([route[0], route[-1]])
                        for c in neighbors[end] if c not in route]
@@ -28,6 +48,7 @@ def random_route(city, rng, min_len, max_len, max_tries=50):
                 break
             side, chosen = options[int(rng.integers(len(options)))]
             route.insert(0, chosen) if side == 0 else route.append(chosen)
-        if len(route) >= min_len:
+        route = trim_to_terminals(route, city, min_len)
+        if route is not None:
             return route
     return None

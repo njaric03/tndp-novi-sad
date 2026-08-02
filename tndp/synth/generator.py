@@ -2,9 +2,8 @@ import numpy as np
 from scipy.sparse.csgraph import connected_components
 from scipy.spatial import Delaunay
 
+from tndp.core.assignment import BUS_SPEED_KMH  # deljeno sa cost funkcijom
 from tndp.core.city import CityGraph
-
-BUS_SPEED_KMH = 20.0
 
 
 def _connected(adj):
@@ -31,19 +30,27 @@ def generate_city(n=None, seed=0, demand_mode="gravity", n_range=(20, 60),
     edges = list(edges)
     lengths = {e: float(np.linalg.norm(coords[e[0]] - coords[e[1]])) for e in edges}
     med = np.median(list(lengths.values()))
-    edges = [e for e in edges if lengths[e] <= 2.5 * med]
 
     adj = np.zeros((n, n), dtype=bool)
     for i, j in edges:
         adj[i, j] = adj[j, i] = True
 
-    # proređivanje: pokušaj da izbaciš deo ivica, ali ne kvari povezanost
-    for i, j in sorted(edges, key=lambda e: rng.random()):
-        if rng.random() < edge_keep:
-            continue
+    # izbacivanje dugih ivica i proređivanje idu kroz istu proveru: ivica se
+    # sme skinuti samo ako graf ostane povezan. ranije su duge ivice padale
+    # bez provere, pa je ~1% gradova izlazio nepovezan — a nepovezan grad
+    # daje beskonačnu donju granicu putničkog troška, što je u staroj
+    # funkciji cilja tiho gasilo ceo putnički član (deljenje sa inf).
+    def drop_if_safe(i, j):
         adj[i, j] = adj[j, i] = False
         if not _connected(adj):
             adj[i, j] = adj[j, i] = True
+
+    for e in sorted(edges, key=lambda e: -lengths[e]):
+        if lengths[e] > 2.5 * med:
+            drop_if_safe(*e)
+    for e in sorted(edges, key=lambda e: rng.random()):
+        if adj[e[0], e[1]] and rng.random() >= edge_keep:
+            drop_if_safe(*e)
 
     dist = np.linalg.norm(coords[:, None] - coords[None, :], axis=2)
     street = np.where(adj, dist / BUS_SPEED_KMH * 60, np.inf)  # minuti
@@ -64,8 +71,12 @@ def generate_city(n=None, seed=0, demand_mode="gravity", n_range=(20, 60),
     np.fill_diagonal(demand, 0.0)
     demand *= total_trips / demand.sum()
 
-    return CityGraph(coords=coords, street_time=street, demand=demand,
+    city = CityGraph(coords=coords, street_time=street, demand=demand,
                      name=f"synth-{demand_mode}-{seed}")
+    problems = city.validate()
+    if problems:  # nikad ne vraćaj grad koji ne prolazi sopstvenu validaciju
+        raise RuntimeError(f"generator dao nevalidan grad (seed={seed}): {problems}")
+    return city
 
 
 # brz vizuelni pregled: python -m tndp.synth.generator

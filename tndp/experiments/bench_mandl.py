@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 
 from tndp.baselines.greedy import greedy_network
+from tndp.baselines.hill_climb import hill_climb
 from tndp.baselines.random_search import random_search
 from tndp.core.assignment import assign
 from tndp.core.io import load_benchmark_city, load_literature_solutions
@@ -17,6 +18,9 @@ DATA = Path(__file__).parent.parent.parent / "data" / "benchmarks" / "Mandl" / "
 MIN_LEN, MAX_LEN = 2, 8
 
 
+# C_p je ovde prosek nad opsluzenim parovima, jer je to konvencija u kojoj
+# su objavljeni brojevi iz literature; sve objavljene mreze su povezane
+# (d_un = 0) pa je C_p == C_p_all i poredjenje je korektno
 def row(name: str, city, net: TransitNetwork) -> str:
     res = assign(city, net)
     d = res.d
@@ -51,8 +55,11 @@ def main() -> None:
             num_samples=args.samples, alpha=args.alpha, seed=args.seed,
         )
         greedy_net, _ = greedy_network(city, r, MIN_LEN, MAX_LEN, alpha=args.alpha)
+        climb_net, _ = hill_climb(city, r, MIN_LEN, MAX_LEN, alpha=args.alpha,
+                                  seed=args.seed)
         lines.append(row(f"random najbolja od {args.samples}, R={r}", city, rand_net))
         lines.append(row(f"greedy, R={r}", city, greedy_net))
+        lines.append(row(f"hill climbing, R={r}", city, climb_net))
         ref = f"Nikolic (2013) {r} routes"
         if ref in solutions:
             lines.append(row(f"literatura: {ref}", city, TransitNetwork(solutions[ref])))

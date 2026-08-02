@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from tndp.core.assignment import assign
+from tndp.core.assignment import UNSERVED_FACTOR, assign
 from tndp.core.city import CityGraph
 from tndp.core.network import TransitNetwork
 
@@ -31,6 +31,8 @@ def test_toy_example_by_hand(toy_city):
     assert res.travel_time[0, 3] == pytest.approx(25.0)
     assert res.transfers[0, 3] == 1
     assert res.C_p == pytest.approx((200 * 20 + 100 * 25) / 300)
+    # mreza je povezana, pa nema sta da se naplacuje mimo nje
+    assert res.C_p_all == pytest.approx(res.C_p)
     assert res.C_o == pytest.approx(30.0)
     assert res.d["d_0"] == pytest.approx(200 / 300)
     assert res.d["d_1"] == pytest.approx(100 / 300)
@@ -48,6 +50,20 @@ def test_unserved_pairs(toy_city):
     assert np.isinf(res.travel_time[0, 3])
     assert res.d["d_un"] == pytest.approx(100 / 300)
     assert not res.is_connected
+    # C_p gleda samo opsluzene parove (0<->2, 20 min), a C_p_all naplacuje
+    # nepokriven par 0<->3 sa UNSERVED_FACTOR * ulicno najkrace (20 min)
+    assert res.C_p == pytest.approx(20.0)
+    assert res.C_p_all == pytest.approx(
+        (200 * 20 + 100 * UNSERVED_FACTOR * 20) / 300)
+
+
+# udeli demanda po broju presedanja moraju da se saberu na 1, inace se deo
+# demanda tiho gubi u rekonstrukciji puteva
+def test_demand_shares_sum_to_one(toy_city):
+    for routes in ([[0, 1, 2], [1, 3]], [[0, 1, 2]], [[1, 3]]):
+        d = assign(toy_city, TransitNetwork(routes=routes)).d
+        assert sum(d[k] for k in ("d_0", "d_1", "d_2", "d_3p", "d_un")) \
+            == pytest.approx(1.0)
 
 
 def test_constraints_check(toy_city):

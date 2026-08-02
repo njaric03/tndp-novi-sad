@@ -29,8 +29,13 @@ def main():
         ax.set_xlabel("iteracija")
 
     fig.tight_layout()
-    fig.savefig(run / "curves.png", dpi=120)
-    print(f"snimljeno u {run / 'curves.png'}")
+    # runs/ je van gita, pa slika ide i u results/ odakle se predaje
+    results = Path(__file__).parent.parent.parent / "results"
+    results.mkdir(exist_ok=True)
+    out = [run / "curves.png", results / f"curves_{run.name}.png"]
+    for p in out:
+        fig.savefig(p, dpi=120)
+    print("snimljeno u " + " i ".join(str(p) for p in out))
 
 
 if __name__ == "__main__":
