@@ -196,26 +196,34 @@ tndp/
   baselines/   random search, greedy, hill climbing
   synth/       generator sintetičkih gradova (uniform i gravity demand)
   rl/          MDP env, GATv2 + pointer model, REINFORCE trening, dekoderi, MCTS
-  novisad/     zoniranje i graf Novog Sada (nije još implementirano)
+  novisad/     preuzimanje i sređivanje podataka o Novom Sadu; zoniranje i graf tek dolaze
   experiments/ skripte koje proizvode tabele i slike u results/
   viz/         mape mreža i krive treninga
 configs/       yaml konfiguracije treninga i ablacija
 data/benchmarks/  Mandl i Mumford instance (izvor: RenatoArbex/TransitNetworkDesign)
+data/novisad/  podaci o Novom Sadu (gitignore; pravi se skriptama iz tndp/novisad/)
 results/       tabele i slike koje se predaju
 tests/         acceptance test na Mandlu, toy assignment, smoke
 tools/         provere invarijanti i osetljivosti
-docs/          metodološka procena i redosled popravki
+docs/          metodološka procena i opis podataka za Novi Sad
 ```
 
 ## Status
 
 Sintetika, baselines, RL trening i evaluacija su gotovi; rezultate treba pregenerisati
-posle izmena funkcije cilja. Ostaje primena na graf Novog Sada iz otvorenih podataka
-(OSM ulična mreža, Overture zgrade i OSM sadržaji za gravity tražnju) i poređenje sa
-postojećom GSP mrežom po istim merama.
+posle izmena funkcije cilja. Podaci za Novi Sad su prikupljeni i sređeni — mreža linija
+i stajališta ЈГСП-а, granice mesnih zajednica, stanovništvo po zonama i merena
+opterećenja linija iz brojanja 2017. Ostaje zoniranje, gravity matrica kalibrisana na
+ta opterećenja, ulična mreža preko `osmnx` i poređenje sa postojećom GSP mrežom.
+
+```bash
+python -m tndp.novisad.preuzmi && python -m tndp.novisad.sredi
+```
 
 [docs/metodoloska-procena.md](docs/metodoloska-procena.md) drži pregled slabih tačaka
 eksperimentalnog dizajna, šta je od toga popravljeno i šta ostaje.
+[docs/novi-sad.md](docs/novi-sad.md) opisuje svaki izvor podataka za studiju slučaja,
+šta je pouzdano i šta je odbačeno.
 
 ## Ograničenja modela
 

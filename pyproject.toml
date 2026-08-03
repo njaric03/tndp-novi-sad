@@ -16,10 +16,11 @@ rl = [
     "torch",
     "torch-geometric",
 ]
-# Novi Sad pipeline (geo podaci)
+# Novi Sad pipeline (geo podaci); gtfs-kit nema šta da radi jer GTFS za Novi Sad
+# ne postoji — vidi docs/novi-sad.md
 geo = [
+    "requests",
     "osmnx",
-    "gtfs-kit",
     "h3",
     "geopandas",
     "shapely",
