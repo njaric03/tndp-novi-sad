@@ -10,6 +10,7 @@ import numpy as np
 from tndp.baselines.greedy import greedy_network
 from tndp.baselines.hill_climb import hill_climb
 from tndp.baselines.random_search import random_search
+from tndp.core.assignment import UNSERVED_FACTOR
 from tndp.experiments.common import (evaluate_method, fmt_p, held_out_cities,
                                      load_policy, paired_vs, scales_for)
 from tndp.rl.evaluate import decode, decode_sampling
@@ -52,7 +53,8 @@ def main():
         f"# Held-out sintetika ({args.cities} gradova, n {cfg['n_range']}, "
         f"R={R}, alpha={a}, model {args.checkpoint})", "",
         "`cilj` = alpha * C_p_all/donja_granica + (1-alpha) * C_o/MST; manje je bolje.",
-        "Nepokrivena tražnja je već u C_p_all (nepokriven par se naplaćuje 2x uličnim",
+        f"Nepokrivena tražnja je već u C_p_all (nepokriven par se naplaćuje "
+        f"{UNSERVED_FACTOR:g}x uličnim",
         "najkraćim vremenom), pa nema zasebne kazne. `C_p` je prosek samo nad opsluženim",
         "parovima i dat je radi poređenja sa literaturom — između metoda sa različitim",
         "`d_un` nije uporediv, za to služi `C_p_all`.", "",

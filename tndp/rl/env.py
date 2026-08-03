@@ -73,7 +73,7 @@ class TndpEnv:
             # TAIL davali istu liniju (jedna je obrnuta druga) — nudi se samo TAIL
             for side, end in sides:
                 for c in self.neighbors[end]:
-                    if c not in self.current:
+                    if c not in self.current and not self._dead_end(side, c):
                         mask[side, c] = True
 
         # halt je zabranjen ako bi linija bila duplikat neke već sagrađene.
@@ -91,15 +91,48 @@ class TndpEnv:
             return HALT, mask
         return EXTEND, mask
 
+    # Da li potez vodi u stanje iz kog se ne može izaći ispravno: linija bi
+    # bila duplikat već sagrađene, a nema se čime dalje produžiti. Halt je
+    # tada jedini potez i duplikat izlazi napolje uprkos maski — tako je
+    # greedy dekod na synth-gravity-20007 vratio istu liniju dvaput.
+    # Provera je jedan korak unapred, dovoljno jer je duplikat moguć tek na
+    # punoj dužini linije ili u čvoru bez slobodnih suseda.
+    def _dead_end(self, side, node):
+        nxt = ([node] + self.current) if side == HEAD else (self.current + [node])
+        if not is_duplicate(nxt, self.routes):
+            return False
+        if len(nxt) >= self.max_len:
+            return True
+        return not any(c not in nxt for end in (nxt[0], nxt[-1])
+                       for c in self.neighbors[end])
+
+    # Poslednja odbrana od duplikata. Maska iz _dead_end pokriva skoro sve, ali
+    # ne sve: linija može postati duplikat na dužini manjoj od max_len, pa da
+    # joj i svako proširenje bude dead end — tada je halt jedini potez i
+    # duplikat izlazi napolje. Tada se linija skraćuje sa repa dok ne prestane
+    # da bude duplikat, uz očuvanje min_len i dozvoljenih terminala.
+    # Ovo je projekcija akcije na dopustiv skup, ne izbor politike, pa se
+    # broji u self.stuck.
+    def _dedup(self, route):
+        if not is_duplicate(route, self.routes):
+            return route
+        cut = route[:]
+        while len(cut) > self.min_len:
+            cut = cut[:-1]
+            if not is_duplicate(cut, self.routes) and self.city.terminal[cut[-1]]:
+                return cut
+        return route  # nije uspelo; check() će ovo prijaviti
+
     # akcija: ravan indeks u masku (side * n + node), ili -1 za kraj linije
     def step(self, action):
         if action == -1:
             # brojanje ide ovde a ne u decision(), jer decision() nad istim
             # stanjem zovu i MCTS i rollout po više puta — kao sporedni efekat
             # čitanja stanja brojač bi bio naduvan i besmislen
-            if len(self.current) < self.min_len:
+            route = self._dedup(self.current)
+            if len(route) < self.min_len or route is not self.current:
                 self.stuck += 1
-            self.routes.append(self.current)
+            self.routes.append(route)
             self.current = []
             return
         side, node = divmod(int(action), self.city.n)

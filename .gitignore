@@ -16,3 +16,4 @@ data/novisad/
 # OS / editor
 .DS_Store
 Thumbs.db
+results/overnight.log

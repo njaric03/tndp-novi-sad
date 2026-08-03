@@ -93,10 +93,17 @@ def hill_climb(city, num_routes, min_len, max_len, alpha=0.5, seed=0,
         raise RuntimeError(f"{city.name}: ne mogu da sastavim {num_routes} "
                            f"različitih linija (dobio {len(routes)})")
 
+    # greedy init je bolji start, ali greedy kandidati su najkraći putevi pa
+    # ih na instancama sa velikim min_len ume da bude manje od num_routes
+    # (Mumford1: 6 kandidata za 15 linija). tada se kreće od slučajnog.
+    cur = None
     if init == "greedy":
-        cur = [r[:] for r in greedy_network(city, num_routes, min_len, max_len,
-                                            alpha=alpha)[0].routes]
-    else:
+        try:
+            cur = [r[:] for r in greedy_network(city, num_routes, min_len,
+                                                max_len, alpha=alpha)[0].routes]
+        except ValueError:
+            cur = None
+    if cur is None:
         cur = fresh()
     cur_obj = score(cur)
     best, best_obj = [r[:] for r in cur], cur_obj
