@@ -53,8 +53,19 @@ def decode_sampling(policy, city, num_routes, k=32, min_len=2, max_len=8,
     gen = torch.Generator().manual_seed(seed)
     env = TndpEnv(city, num_routes, min_len, max_len, alpha)
     best_net, best_res, best_r = None, None, -np.inf
+    any_net, any_res, any_r = None, None, -np.inf  # i ako nijedna nije validna
     for _ in range(k):
         net, reward, res, _, _ = rollout(policy, env, sample=True, gen=gen)
+        if reward > any_r:
+            any_net, any_res, any_r = net, res, reward
+        # maskiranje ne garantuje validnost van distribucije treninga (na
+        # Mumfordu je min_len=10 pa se linija ume zaglaviti kraća), a uzorak
+        # ionako ima k kandidata — nevalidni se preskaču umesto da jedan
+        # pokvari ceo rezultat
+        if net.check(city, num_routes, min_len, max_len):
+            continue
         if reward > best_r:
             best_net, best_res, best_r = net, res, reward
+    if best_net is None:  # nijedan uzorak nije validan; neka pozivalac vidi
+        return any_net, any_res
     return best_net, best_res

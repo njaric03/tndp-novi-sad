@@ -69,6 +69,12 @@ def _mutate(routes, city, rng, min_len, max_len):
 # poređenje metoda pod istim budžetom uopšte bilo moguće.
 # trace: ako se prosledi lista, u nju idu (evaluacija, sekunde, najbolji cilj)
 # posle svakog poboljšanja, za anytime krive.
+#
+# init: "greedy", "random", ili gotova TransitNetwork/lista linija. Poslednje
+# je hibrid iz literature (Holliday: naučena politika kao operator unutar
+# metaheuristike, ne kao samostalna metoda) — pretraga kreće iz mreže koju
+# je dala politika. Restart posle `patience` uvek ide na slučajnu mrežu, da
+# se ne bi vrtelo oko istog početka.
 def hill_climb(city, num_routes, min_len, max_len, alpha=0.5, seed=0,
                max_evals=3000, max_seconds=None, init="greedy",
                patience=300, trace=None):
@@ -93,11 +99,16 @@ def hill_climb(city, num_routes, min_len, max_len, alpha=0.5, seed=0,
         raise RuntimeError(f"{city.name}: ne mogu da sastavim {num_routes} "
                            f"različitih linija (dobio {len(routes)})")
 
-    # greedy init je bolji start, ali greedy kandidati su najkraći putevi pa
-    # ih na instancama sa velikim min_len ume da bude manje od num_routes
-    # (Mumford1: 6 kandidata za 15 linija). tada se kreće od slučajnog.
     cur = None
-    if init == "greedy":
+    if isinstance(init, TransitNetwork):
+        cur = [r[:] for r in init.routes]
+    elif not isinstance(init, str):
+        cur = [list(r) for r in init]
+    elif init == "greedy":
+        # greedy init je bolji start, ali greedy kandidati su najkraći putevi
+        # pa ih na instancama sa velikim min_len ume da bude manje od
+        # num_routes (Mumford1: 6 kandidata za 15 linija). tada se kreće od
+        # slučajnog.
         try:
             cur = [r[:] for r in greedy_network(city, num_routes, min_len,
                                                 max_len, alpha=alpha)[0].routes]

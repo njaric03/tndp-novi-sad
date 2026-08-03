@@ -39,21 +39,28 @@ def shortest_path_candidates(city, min_len, max_len):
     return candidates
 
 
-# u svakoj iteraciji dodaj kandidata koji najviše popravlja skalarni cilj
-def greedy_network(city, num_routes, min_len, max_len, alpha=0.5):
+# u svakoj iteraciji dodaj kandidata koji najviše popravlja skalarni cilj.
+# evals: ako se prosledi lista, u nju ide ukupan broj evaluacija cilja. greedy
+# nije besplatan — proba svakog kandidata u svakoj rundi, što je red veličine
+# vise od npr. RL sampling-32. Bez toga poređenje startnih tačaka u
+# experiments/hybrid.py greedy-ju poklanja ceo njegov budžet.
+def greedy_network(city, num_routes, min_len, max_len, alpha=0.5, evals=None):
     scales = cost_scales(city)
     candidates = shortest_path_candidates(city, min_len, max_len)
     if len(candidates) < num_routes:
         raise ValueError(f"samo {len(candidates)} kandidata za {num_routes} linija")
-    routes, best_obj = [], None
+    routes, best_obj, count = [], None, 0
     for _ in range(num_routes):
         best_cand, step_best = None, None
         for cand in candidates:
             if is_duplicate(cand, routes):
                 continue
             obj = network_objective(city, TransitNetwork(routes=routes + [cand]), scales, alpha)
+            count += 1
             if step_best is None or obj < step_best:
                 best_cand, step_best = cand, obj
         routes.append(best_cand)
         best_obj = step_best
+    if evals is not None:
+        evals.append(count)
     return TransitNetwork(routes=routes), best_obj

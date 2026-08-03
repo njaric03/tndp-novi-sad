@@ -8,7 +8,6 @@
 #
 # pokretanje: python -m tools.metodoloske_provere
 
-import sys
 
 import numpy as np
 
@@ -28,12 +27,6 @@ R, MIN_LEN, MAX_LEN, ALPHA, N_RANGE = 4, 2, 8, 0.5, (15, 30)
 def cities(k=NUM_CITIES):
     return [generate_city(seed=SEED_BASE + i, demand_mode="gravity",
                           n_range=N_RANGE) for i in range(k)]
-
-
-# Windows konzola je podrazumevano cp1252 i pukne na prvom "č" u naslovu.
-# ispis je ceo na srpskom, pa se stdout eksplicitno prebacuje na utf-8.
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
 
 
 def hdr(t):

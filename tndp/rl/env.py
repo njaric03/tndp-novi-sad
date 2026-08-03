@@ -91,20 +91,25 @@ class TndpEnv:
             return HALT, mask
         return EXTEND, mask
 
-    # Da li potez vodi u stanje iz kog se ne može izaći ispravno: linija bi
-    # bila duplikat već sagrađene, a nema se čime dalje produžiti. Halt je
-    # tada jedini potez i duplikat izlazi napolje uprkos maski — tako je
-    # greedy dekod na synth-gravity-20007 vratio istu liniju dvaput.
-    # Provera je jedan korak unapred, dovoljno jer je duplikat moguć tek na
-    # punoj dužini linije ili u čvoru bez slobodnih suseda.
+    # Da li potez vodi u stanje iz kog se ne može izaći ispravno. Dva načina:
+    #  - linija bi ostala kraća od min_len a nema se čime produžiti (tako je
+    #    RL sampling na Mumford1 vratio liniju dužine 9 pri min_len=10),
+    #  - linija bi bila duplikat već sagrađene a nema se čime produžiti, pa je
+    #    halt jedini potez i duplikat izlazi uprkos maski (synth-gravity-20007
+    #    je tako dobio istu liniju dvaput).
+    # Provera je jedan korak unapred. Ne hvata sve — pitanje "može li se
+    # odavde uopšte stići do min_len" je pitanje o postojanju dovoljno duge
+    # proste putanje i preskupo je da se rešava u maski — ali hvata sve
+    # slučajeve viđene na sintetici, Mandlu i Mumfordu.
     def _dead_end(self, side, node):
         nxt = ([node] + self.current) if side == HEAD else (self.current + [node])
-        if not is_duplicate(nxt, self.routes):
-            return False
-        if len(nxt) >= self.max_len:
-            return True
-        return not any(c not in nxt for end in (nxt[0], nxt[-1])
-                       for c in self.neighbors[end])
+        free = any(c not in nxt for end in (nxt[0], nxt[-1])
+                   for c in self.neighbors[end])
+        if len(nxt) < self.min_len:
+            return not free
+        if is_duplicate(nxt, self.routes):
+            return len(nxt) >= self.max_len or not free
+        return False
 
     # Poslednja odbrana od duplikata. Maska iz _dead_end pokriva skoro sve, ali
     # ne sve: linija može postati duplikat na dužini manjoj od max_len, pa da

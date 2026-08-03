@@ -17,3 +17,5 @@ data/novisad/
 .DS_Store
 Thumbs.db
 results/overnight.log
+results/rerun.log
+results/hybrid.log
