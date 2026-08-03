@@ -28,6 +28,8 @@ class AssignmentResult:
     C_p_all: float           # isto, ali nepokriveni naplaćeni po UNSERVED_FACTOR
     C_o: float               # ukupno vreme vožnje linija u jednom smeru
     d: dict                  # d_0, d_1, d_2, d_3p, d_un udeli demanda
+    boardings: np.ndarray = None  # (R,) ulazaka po liniji; None ako se ne računa
+    max_load: np.ndarray = None   # (R,) najopterećenija deonica linije
 
     @property
     def is_connected(self):
@@ -63,12 +65,19 @@ def objective(result, scales, alpha=0.5):
 # silazak 0, pa put sa k presedanja plati (k+1) penala; prvi se oduzme na
 # kraju. compute_transfers=False preskače rekonstrukciju puteva (d_k
 # statistike), dovoljno i duplo brže za RL reward.
-def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfers=True):
+def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfers=True,
+           compute_loads=False, headways=None):
     n = city.n
     routes = network.routes
     offsets = np.cumsum([0] + [len(r) for r in routes])
     num_platforms = int(offsets[-1])
     ground = num_platforms  # zemaljski čvor grada i ima indeks ground + i
+
+    # ulazak košta ili fiksni penal iz literature ili, kad su frekvencije
+    # poznate, pola intervala sleđenja te linije (prosečno čekanje pri
+    # slučajnom dolasku putnika na stajalište)
+    board = ([transfer_penalty] * len(routes) if headways is None
+             else [float(h) / 2.0 for h in headways])
 
     rows, cols, weights = [], [], []
     for ri, route in enumerate(routes):
@@ -81,20 +90,28 @@ def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfe
         for p, node in enumerate(route):
             rows += [ground + node, base + p]
             cols += [base + p, ground + node]
-            weights += [transfer_penalty, 0.0]
+            weights += [board[ri], 0.0]
 
     size = num_platforms + n
     graph = csr_matrix((np.array(weights), (np.array(rows), np.array(cols))),
                        shape=(size, size))
 
     ground_ids = np.arange(ground, ground + n)
-    if compute_transfers:
+    trace = compute_transfers or compute_loads
+    if trace:
         dist, pred = dijkstra(graph, directed=True, indices=ground_ids,
                               return_predecessors=True)
     else:
         dist = dijkstra(graph, directed=True, indices=ground_ids)
 
-    travel_time = dist[:, ground_ids] - transfer_penalty  # skini prvi penal
+    # sa fiksnim penalom put sa k presedanja plati (k+1) penala, pa se prvi
+    # skida — penal je tu proxy za neugodnost presedanja, ne za čekanje.
+    # sa frekvencijama je prvo čekanje stvarno vreme koje putnik provede na
+    # stajalištu, pa se ne skida; uz to je po liniji različito i ne bi se
+    # ni moglo skinuti jednim oduzimanjem.
+    travel_time = dist[:, ground_ids]
+    if headways is None:
+        travel_time = travel_time - transfer_penalty
     np.fill_diagonal(travel_time, 0.0)
 
     demand = city.demand
@@ -111,10 +128,11 @@ def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfe
     C_p_all = float((demand * charged).sum() / total)
     C_o = float(network.route_times(city).sum())
 
-    transfers = None
+    transfers, boardings, max_load = None, None, None
     d = {"d_0": 0.0, "d_1": 0.0, "d_2": 0.0, "d_3p": 0.0}
-    if compute_transfers:
-        transfers = _count_transfers(pred, ground_ids, num_platforms, n)
+    if trace:
+        transfers, boardings, max_load = _trace(
+            pred, ground_ids, num_platforms, n, offsets, demand, routes, compute_loads)
         transfers[~served] = -1
         np.fill_diagonal(transfers, 0)
         offdiag = ~np.eye(n, dtype=bool)
@@ -125,27 +143,63 @@ def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfe
     d["d_un"] = float(demand[~served].sum() / total)
 
     return AssignmentResult(travel_time=travel_time, transfers=transfers,
-                            C_p=C_p, C_p_all=C_p_all, C_o=C_o, d=d)
+                            C_p=C_p, C_p_all=C_p_all, C_o=C_o, d=d,
+                            boardings=boardings, max_load=max_load)
 
 
-# broj presedanja = broj ukrcavanja (prelaz zemlja -> platforma) minus 1;
-# hod po predecessor matrici, grafovi su mali pa je python petlja ok
-def _count_transfers(pred, ground_ids, num_platforms, n):
+# hod unazad po predecessor matrici, od cilja ka izvoru. iz njega se čitaju
+# dve stvari: broj presedanja (= broj ukrcavanja minus 1) i, kad se traži,
+# opterećenje — koliko putovanja uđe u koju liniju i koliko ih se vozi kroz
+# koju deonicu. deonice trebaju za frekvencije (najopterećenija deonica
+# određuje interval sleđenja), ulasci za kalibraciju tražnje na brojanja.
+# grafovi su mali pa je python petlja ok, ali je O(n^2 * dužina puta) pa se
+# opterećenje ne računa u RL nagradi.
+def _trace(pred, ground_ids, num_platforms, n, offsets, demand, routes, want_loads):
     transfers = np.full((n, n), -1, dtype=int)
+    if not want_loads:
+        boardings = seg = None
+    else:
+        boardings = np.zeros(len(routes))
+        seg = [np.zeros(max(len(r) - 1, 0)) for r in routes]
+        # platforma -> (linija, pozicija na liniji)
+        plat_route = np.zeros(num_platforms, dtype=int)
+        plat_pos = np.zeros(num_platforms, dtype=int)
+        for ri, route in enumerate(routes):
+            base = int(offsets[ri])
+            plat_route[base:base + len(route)] = ri
+            plat_pos[base:base + len(route)] = np.arange(len(route))
+
     for si in range(n):
         p_row = pred[si]
         for tj in range(n):
             if si == tj:
                 continue
             cur = ground_ids[tj]
-            boardings = 0
+            nboard = 0
+            usao, vozio = [], []
             while True:
                 prev = p_row[cur]
                 if prev < 0:
                     break
                 if prev >= num_platforms and cur < num_platforms:
-                    boardings += 1
+                    nboard += 1
+                    if want_loads:
+                        usao.append(plat_route[cur])
+                elif want_loads and prev < num_platforms and cur < num_platforms:
+                    # jedine ivice platforma-platforma su susedne pozicije
+                    # iste linije, pa je deonica ona sa manjim indeksom
+                    vozio.append((plat_route[cur], min(plat_pos[cur], plat_pos[prev])))
                 cur = prev
-            if cur == ground_ids[si] and boardings > 0:
-                transfers[si, tj] = boardings - 1
-    return transfers
+            if cur == ground_ids[si] and nboard > 0:
+                transfers[si, tj] = nboard - 1
+                if want_loads:
+                    w = demand[si, tj]
+                    for ri in usao:
+                        boardings[ri] += w
+                    for ri, s in vozio:
+                        seg[ri][s] += w
+
+    max_load = None
+    if want_loads:
+        max_load = np.array([s.max() if s.size else 0.0 for s in seg])
+    return transfers, boardings, max_load

@@ -22,6 +22,9 @@ def main():
     ap.add_argument("checkpoint")
     ap.add_argument("--cities", type=int, default=50)
     ap.add_argument("--alpha", type=float, default=None)
+    # ime izlaza bez ekstenzije; ablacije i seed-ovi pišu u svoj fajl da ne
+    # prepišu glavnu tabelu
+    ap.add_argument("--out", default="bench_synth")
     args = ap.parse_args()
 
     policy, cfg = load_policy(args.checkpoint)
@@ -77,10 +80,10 @@ def main():
             f"| {s['d_un'].mean():.3f} | {times[name]:.2f} |")
 
     results = Path(__file__).parent.parent.parent / "results"
-    (results / "bench_synth.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (results / f"{args.out}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     plot_synth({k: {m: float(v.mean()) for m, v in s.items()}
-                for k, s in stats.items()}, results / "bench_synth.png")
-    print(f"snimljeno u {results / 'bench_synth.md'} i .png")
+                for k, s in stats.items()}, results / f"{args.out}.png")
+    print(f"snimljeno u {results / (args.out + '.md')} i .png")
 
 
 if __name__ == "__main__":

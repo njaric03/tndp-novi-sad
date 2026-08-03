@@ -1,0 +1,22 @@
+# trening na skali Novog Sada. politika se NE trenira na samom Novom Sadu nego
+# na sintetičkim gradovima čija veličina i broj linija odgovaraju njegovim, pa
+# se primenjuje u jednom prolazu — to je tvrdnja koju rad proverava.
+#
+# R = 19, ne 24: red vožnje ima 24 bazne gradske linije, ali u zonskom grafu od
+# 32 mesne zajednice preživi 19 (vidi tndp/novisad/grad.py i
+# results/novisad_kalibracija.md). Poređenje sa GSP mrežom traži isti R.
+#
+# dužina linije [4, 20] prati GSP trase prevedene u zone: median oko 12 zona,
+# najduža 27. n_range je opseg oko 32 a ne tačno 32, da politika ne nauči
+# jednu veličinu grafa napamet.
+name: novisad-r19
+iters: 3000
+batch: 16
+n_range: [28, 36]
+num_routes: 19
+min_len: 4
+max_len: 20
+demand_mode: gravity
+eval_every: 100
+eval_cities: 16
+alpha_eval: 0.5

@@ -5,10 +5,19 @@ import numpy as np
 from tndp.novisad import izvori
 from tndp.novisad.ulice import ucitaj_zone
 
-# eksponent opadanja sa daljinom; 2.0 je podrazumevana vrednost u
-# synth/generator.py, ovde je početna pretpostavka koju treba kalibrisati na
-# opterećenja linija iz 2017
-BETA = 2.0
+# eksponent opadanja sa daljinom. NIJE kalibrisan na opterećenja linija —
+# ta kalibracija se ne može uraditi, razlog je u results/novisad_kalibracija.md
+# (jedanaest od 33 linije dobija nula putnika pri svakoj beti, jer dodela ide
+# najkraćim putem pa jedna linija u koridoru uzme sve). Vrednost je izabrana po
+# uverljivosti prosečne dužine putovanja: pri 2.0 je ona 1.42 km i 81% tražnje
+# pada na parove kraće od 2 km, što nije autobusko putovanje; pri 0.5 je 2.56 km.
+BETA = 0.5
+
+# zbir matrice. Brojanje iz 2017 daje 172.687 ULAZAKA, a matrica nosi PUTOVANJA
+# — putnik koji presedne broji se dvaput. Odnos meren na GSP mreži pri BETA je
+# 1.289, pa je zbir 172687 / 1.289. Ranije je ovde stajalo samih 172.687, što je
+# precenjivalo tražnju za taj faktor.
+PUTOVANJA = 133_947
 
 # donja granica rastojanja, ista kao u generatoru: sprečava da bliske zone dobiju
 # beskonačnu tražnju
@@ -49,7 +58,7 @@ def izgradi(beta=BETA, mera="euklidsko", ukupno=None):
     n = len(zone)
     prod = np.array([float(r["stanovnika"]) for r in zone])
     attr = _privlacnost(zone)
-    ukupno = ukupno or izvori.TREND_PUTNIKA[2017]
+    ukupno = ukupno or PUTOVANJA
 
     d = _rastojanja(zone) if mera == "euklidsko" else _tau(zone)
     d = np.maximum(d, MIN_KM if mera == "euklidsko" else 1.0)
@@ -82,7 +91,8 @@ def main():
     n = len(imena)
     gore = np.triu_indices(n, 1)
 
-    print(f"traznja.csv: {n}x{n}, ukupno {traznja.sum():,.0f} putovanja".replace(",", "."))
+    ukupno_str = f"{traznja.sum():,.0f}".replace(",", ".")
+    print(f"traznja.csv: {n}x{n}, ukupno {ukupno_str} putovanja")
     print(f"  parova sa tražnjom > 100: {(traznja[gore] > 100).sum()} od {len(gore[0])}")
 
     zbir = traznja.sum(axis=1)
@@ -112,10 +122,11 @@ def main():
         print(f"{b:5.1f} {(w * d[gore]).sum() / w.sum():13.2f} km "
               f"{100 * w[d[gore] < 2].sum() / w.sum():11.0f}% "
               f"{100 * w[d[gore] > 5].sum() / w.sum():11.0f}%")
-    print("\nBETA JE NEKALIBRISAN. pri beta=2.0 je 81% tražnje na parovima kraćim od\n"
-          "2 km, što za autobusko putovanje nije uverljivo. čak i beta=0 daje prosek\n"
-          "od 3.04 km jer je sam raspored zona gust. vrednost se bira tek kalibracijom\n"
-          "na opterećenja linija iz 2017; do tada je matrica privremena.")
+    print(f"\nBETA = {BETA} je izabrana po uverljivosti prosečne dužine putovanja, NE\n"
+          "kalibrisana na opterećenja linija — ta kalibracija nije moguća sa dodelom\n"
+          "bez frekvencija (11 od 33 linije dobija nula putnika pri svakoj beti).\n"
+          "Detalji i tabela: results/novisad_kalibracija.md, pravi se sa\n"
+          "python -m tndp.novisad.kalibracija")
 
 
 if __name__ == "__main__":
