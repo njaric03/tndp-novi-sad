@@ -1,7 +1,6 @@
 # glavni trening na sintetici, gravity demand
 # alpha se uzorkuje U[0,1] po epizodi (Holliday), pa jedna politika pokriva
 # ceo Pareto front; alpha_eval je tacka na kojoj se meri validacija
-name: gravity-v1
 iters: 3000
 batch: 16
 n_range: [15, 30]

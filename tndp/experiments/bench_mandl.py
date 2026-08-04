@@ -1,5 +1,5 @@
 # random i greedy baselines na Mandlu; ispisuje markdown tabelu
-# i snima je u results/bench_mandl.md
+# i snima je u results/bench-mandl.md
 # pokretanje: python -m tndp.experiments.bench_mandl [--alpha 0.5] [--samples 1000]
 
 import argparse
@@ -70,7 +70,7 @@ def main() -> None:
     print(table)
     out = Path(__file__).parent.parent.parent / "results"
     out.mkdir(exist_ok=True)
-    (out / "bench_mandl.md").write_text(table + "\n", encoding="utf-8")
+    (out / "bench-mandl.md").write_text(table + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

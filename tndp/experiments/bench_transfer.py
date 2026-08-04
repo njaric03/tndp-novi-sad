@@ -84,7 +84,7 @@ def main():
             lines.append(row)
             print("  " + row)
 
-    out = Path(__file__).parent.parent.parent / "results" / "bench_transfer.md"
+    out = Path(__file__).parent.parent.parent / "results" / "bench-transfer.md"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"\nsnimljeno u {out}")
 

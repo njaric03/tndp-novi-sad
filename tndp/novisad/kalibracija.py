@@ -23,8 +23,8 @@ import numpy as np
 from tndp.core.assignment import assign
 from tndp.core.city import CityGraph
 from tndp.core.frequencies import H_MAX, H_MIN
-from tndp.novisad import izvori, traznja
-from tndp.novisad.grad import gsp_mreza, ucitaj
+from tndp.novisad import konstante, traznja
+from tndp.novisad.instanca import gsp_mreza, ucitaj
 
 BETE = [0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 MERE = ["euklidsko", "tau"]
@@ -45,7 +45,7 @@ def _osnovna(oznaka):
 
 
 def opterecenja_2017():
-    with open(izvori.DATA / "putnici_2017.csv", encoding="utf-8") as f:
+    with open(konstante.DATA / "putnici_2017.csv", encoding="utf-8") as f:
         return {r["linija"]: float(r["voznji_radni_dan"]) for r in csv.DictReader(f)}
 
 
@@ -55,7 +55,7 @@ def opterecenja_2017():
 # dobija najređi dozvoljen interval.
 def intervali_iz_reda_voznje():
     po_liniji = defaultdict(list)
-    with open(izvori.DATA / "polasci.csv", encoding="utf-8") as f:
+    with open(konstante.DATA / "polasci.csv", encoding="utf-8") as f:
         for r in csv.DictReader(f):
             if r["rezim"] != "gradski" or r["dan"] != "radni dan" or r["smer"] != "A":
                 continue
@@ -185,7 +185,7 @@ def _izvestaj(nalazi, najbolji, poredak, u, cilj, h, vrh, res):
           "svaku betu; razlikuje ih tek korelacija rangova, i to u trećoj decimali",
           "(beta 2.5 daje +0.564, beta 2.0 daje +0.554). Kod je zato usvojio",
           "**beta = 2.0**, ne 2.5: razlika je unutar šuma, a 2.0 je vrednost koju",
-          "koristi `synth/generator.py`, pa se raspodela tražnje na Novom Sadu ne",
+          "koristi `synth.py`, pa se raspodela tražnje na Novom Sadu ne",
           "razlikuje od one na kojoj je politika trenirana. Isti razlog zbog kog",
           "featuri idu kroz rang transformaciju.", "",
           "## Profil po linijama pri izabranoj beti", "",
@@ -206,8 +206,8 @@ def _izvestaj(nalazi, najbolji, poredak, u, cilj, h, vrh, res):
           "umesto puta). Taj model ovde nije implementiran i to je gornja granica",
           "tačnosti svakog poređenja po linijama u ovom radu.", ""]
     REZULTATI.mkdir(exist_ok=True)
-    (REZULTATI / "novisad_kalibracija.md").write_text("\n".join(r), encoding="utf-8")
-    print(f"\n-> {REZULTATI / 'novisad_kalibracija.md'}")
+    (REZULTATI / "novisad-kalibracija.md").write_text("\n".join(r), encoding="utf-8")
+    print(f"\n-> {REZULTATI / 'novisad-kalibracija.md'}")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,6 @@
 # ablacija: alpha zakljucan na 0.5 umesto uzorkovanja.
 # pitanje: koliko se gubi na alpha=0.5 kad se politika trenira samo na njoj,
 # i da li uslovljavanje na alpha uopste nesto kosta
-name: abl-alpha-fixed
 iters: 3000
 batch: 16
 n_range: [15, 30]

@@ -21,7 +21,7 @@ import torch
 
 from tndp.core.network import TransitNetwork
 from tndp.rl.env import HALT, TndpEnv
-from tndp.rl.model import edge_tensors, node_features
+from tndp.rl.features import edge_tensors, node_features
 from tndp.viz.maps import LINE_COLORS, draw_network
 from tndp.viz.style import save
 
@@ -39,7 +39,7 @@ def _streets(ax, city):
 @torch.no_grad()
 def step_probs(policy, env, edge_index, edge_attr):
     decision, mask = env.decision()
-    h = policy.encode(node_features(env), edge_index, edge_attr)
+    h = policy.encode(node_features(env, policy.version), edge_index, edge_attr)
     logits = policy.action_logits(h, decision, mask, env.ends)
     p = torch.softmax(logits, dim=0).numpy()
     n = env.city.n
@@ -56,7 +56,7 @@ def heatmap(policy, city, cfg, alpha, out, panels=4):
         probs, halt, decision = step_probs(policy, env, edge_index, edge_attr)
         if len(env.routes) == 0:
             snaps.append((env.current[:], probs.copy(), halt))
-        h = policy.encode(node_features(env), edge_index, edge_attr)
+        h = policy.encode(node_features(env, policy.version), edge_index, edge_attr)
         logits = policy.action_logits(h, decision, env.decision()[1], env.ends)
         a = int(logits.argmax())
         env.step(-1 if (decision == HALT and a == len(logits) - 1) else a)
@@ -101,7 +101,7 @@ def filmstrip(policy, city, cfg, alpha, out):
     stages = []
     while not env.done:
         decision, mask = env.decision()
-        h = policy.encode(node_features(env), edge_index, edge_attr)
+        h = policy.encode(node_features(env, policy.version), edge_index, edge_attr)
         logits = policy.action_logits(h, decision, mask, env.ends)
         a = int(logits.argmax())
         is_halt = decision == HALT and a == len(logits) - 1
@@ -134,7 +134,7 @@ def main():
     out = Path(__file__).parent.parent.parent / "results"
     out.mkdir(exist_ok=True)
     print("snimljeno u " + ", ".join(
-        heatmap(policy, city, cfg, a, out / "policy_heatmap")
+        heatmap(policy, city, cfg, a, out / "policy-heatmap")
         + filmstrip(policy, city, cfg, a, out / "filmstrip")))
 
 

@@ -7,7 +7,7 @@ from scipy.stats import wilcoxon
 
 from tndp.core.assignment import assign, cost_scales, objective
 from tndp.rl.model import TndpPolicy
-from tndp.synth.generator import generate_city
+from tndp.synth import generate_city
 
 SEED_BASE = 20_000  # van trening poola (0..pool) i validacije (10k+)
 
@@ -17,7 +17,10 @@ SEED_BASE = 20_000  # van trening poola (0..pool) i validacije (10k+)
 def load_policy(path):
     ckpt = torch.load(path, weights_only=False)
     cfg = ckpt["cfg"]
-    policy = TndpPolicy(hidden=cfg["hidden"], layers=cfg["layers"])
+    # checkpointi napravljeni pre uvođenja v2 featura nemaju ključ; svi su v1
+    cfg.setdefault("features", "v1")
+    policy = TndpPolicy(hidden=cfg["hidden"], layers=cfg["layers"],
+                        version=cfg["features"])
     policy.load_state_dict(ckpt["state_dict"])
     policy.eval()
     # stariji configi su imali fiksni "alpha"; noviji "alpha_eval"

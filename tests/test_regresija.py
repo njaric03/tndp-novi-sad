@@ -12,7 +12,7 @@ from tndp.baselines.random_search import random_search
 from tndp.core.assignment import assign, cost_scales, objective
 from tndp.core.network import TransitNetwork
 from tndp.rl.env import EXTEND, HALT, HEAD, TAIL, TndpEnv
-from tndp.synth.generator import generate_city
+from tndp.synth import generate_city
 
 R, LO, HI = 3, 2, 6
 
@@ -117,3 +117,27 @@ def test_policy_and_decoders(city):
         assert dec()[0].check(city, R, LO, HI) == []
     # uzorkovanje ne sme da dira globalni RNG
     assert torch.initial_seed() == 0
+
+
+# v1 mora ostati bit-identican jer su svi objavljeni modeli na njemu; v2 se
+# proverava da je dobio tacno tri kolone vise i da su sve konacne
+def test_verzije_featura(city):
+    pytest.importorskip("torch")
+    pytest.importorskip("torch_geometric")
+    from tndp.rl.features import NUM_FEATURES, node_features
+    from tndp.rl.model import TndpPolicy
+
+    env = TndpEnv(city, R, LO, HI)
+    x1 = node_features(env, "v1")
+    x2 = node_features(env, "v2")
+    assert x1.shape[1] == NUM_FEATURES["v1"]
+    assert x2.shape[1] == NUM_FEATURES["v2"]
+    assert bool(x2.isfinite().all())
+    # kolona 4 je stepen: v1 ga deli konstantom pa je uvek pozitivan, v2 ga
+    # provlaci kroz rang transformaciju pa je centriran oko nule
+    assert x1[:, 4].min() > 0
+    assert abs(float(x2[:, 4].mean())) < 0.5
+    # tri nove kolone su rangovi, dakle takodje centrirane
+    for k in range(6, 9):
+        assert abs(float(x2[:, k].mean())) < 0.5
+    assert TndpPolicy(version="v2").embed.in_features == NUM_FEATURES["v2"]

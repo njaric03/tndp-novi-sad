@@ -1,0 +1,26 @@
+# trening na skali Novog Sada. politika se NE trenira na samom Novom Sadu nego
+# na sintetičkim gradovima čija veličina i broj linija odgovaraju njegovim, pa
+# se primenjuje u jednom prolazu — to je tvrdnja koju rad proverava.
+#
+# R = 19: NSmart vodi 34 oznake gradskih linija, ali su to varijante 19
+# osnovnih (1GL i 1J su linija 1, 18A i 18B linija 18). Poređenje sa GSP
+# mrežom traži isti R.
+#
+# dužina linije [2, 14] su izmerene granice GSP mreže prevedene u zonski graf
+# (tndp/novisad/grad.py: min 2, medijana 8, maksimum 14 zona). Ranije je ovde
+# stajalo [4, 20] po broju zonskih koraka SIROVE trase, a sirova trasa sadrži
+# oba smera pa istu zonu broji dvaput; model gradi proste puteve i takva
+# granica mu je davala prostor za linije kakvih u gradu nema.
+#
+# n_range je opseg oko 32 a ne tačno 32, da politika ne nauči jednu veličinu
+# grafa napamet.
+iters: 3000
+batch: 16
+n_range: [28, 36]
+num_routes: 19
+min_len: 2
+max_len: 14
+demand_mode: gravity
+eval_every: 100
+eval_cities: 16
+alpha_eval: 0.5

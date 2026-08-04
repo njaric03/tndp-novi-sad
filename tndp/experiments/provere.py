@@ -6,7 +6,7 @@
 # Za stanje pre popravki i za merenja koja su ih motivisala videti
 # docs/metodoloska-procena.md (brojevi su iz commita 9e23840).
 #
-# pokretanje: python -m tools.metodoloske_provere
+# pokretanje: python -m tndp.experiments.provere
 
 
 import numpy as np
@@ -18,7 +18,7 @@ from tndp.baselines.random_search import random_search
 from tndp.core.assignment import assign, cost_scales, objective
 from tndp.core.io import load_benchmark_city
 from tndp.core.network import TransitNetwork
-from tndp.synth.generator import generate_city
+from tndp.synth import generate_city
 
 SEED_BASE, NUM_CITIES = 20_000, 12
 R, MIN_LEN, MAX_LEN, ALPHA, N_RANGE = 4, 2, 8, 0.5, (15, 30)
@@ -169,7 +169,7 @@ def check_input_scale():
         from scipy.stats import skew
 
         from tndp.rl.env import TndpEnv
-        from tndp.rl.model import edge_tensors, node_features
+        from tndp.rl.features import edge_tensors, node_features
     except ImportError:
         print("  torch nije instaliran, preskočeno")
         return
@@ -211,7 +211,7 @@ def check_reward_variance(cs):
     print(f"    unutar grada            {within:.4f}  ({within / total:.0%})  signal")
     print(f"    između gradova          {between:.4f}  ({between / total:.0%})  "
           f"gornja granica za value(s0)")
-    print("  -> self-critical baseline (abl_selfcritical.yaml) hvata i deo")
+    print("  -> self-critical baseline (abl-selfcritical.yaml) hvata i deo")
     print("     unutar-gradske varijanse; verovatno bolji default od value glave")
 
 

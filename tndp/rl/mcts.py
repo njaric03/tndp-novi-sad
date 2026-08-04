@@ -5,7 +5,7 @@ import torch
 from tndp.core.assignment import assign
 from tndp.core.network import TransitNetwork
 from tndp.rl.env import HALT, TndpEnv
-from tndp.rl.model import edge_tensors, node_features
+from tndp.rl.features import edge_tensors, node_features
 
 # MCTS dekodiranje sa naučenim priorima (PUCT), po uzoru na AlphaTransit.
 #
@@ -56,7 +56,7 @@ class _Bounds:
 @torch.no_grad()
 def _priors(policy, env, edge_index, edge_attr):
     decision, mask = env.decision()
-    h = policy.encode(node_features(env), edge_index, edge_attr)
+    h = policy.encode(node_features(env, policy.version), edge_index, edge_attr)
     logits = policy.action_logits(h, decision, mask, env.ends)
     probs = torch.softmax(logits, dim=0)
     flat = mask.reshape(-1)
@@ -81,7 +81,7 @@ def _make_node(policy, env, edge_index, edge_attr):
 def _rollout_value(policy, env, edge_index, edge_attr):
     while not env.done:
         decision, mask = env.decision()
-        h = policy.encode(node_features(env), edge_index, edge_attr)
+        h = policy.encode(node_features(env, policy.version), edge_index, edge_attr)
         logits = policy.action_logits(h, decision, mask, env.ends)
         a = int(logits.argmax())
         is_halt = decision == HALT and a == len(logits) - 1

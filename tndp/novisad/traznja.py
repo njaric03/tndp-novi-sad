@@ -2,13 +2,13 @@ import csv
 
 import numpy as np
 
-from tndp.novisad import izvori
+from tndp.novisad import konstante
 from tndp.novisad.ulice import ucitaj_zone
 
 # eksponent opadanja sa daljinom. Kalibracija na opterećenja linija iz 2017.
-# (tndp/novisad/kalibracija.py, results/novisad_kalibracija.md) NE razlikuje
+# (tndp/novisad/kalibracija.py, results/novisad-kalibracija.md) NE razlikuje
 # betu: greška poklapanja je ista na tri decimale za svaku betu u [0.5, 2.0].
-# Zadržava se 2.0, ista vrednost koju koristi synth/generator.py — tako se
+# Zadržava se 2.0, ista vrednost koju koristi synth.py — tako se
 # raspodela tražnje na Novom Sadu ne razlikuje od one na kojoj je politika
 # trenirana, iz istog razloga zbog kog featuri idu kroz rang transformaciju.
 BETA = 2.0
@@ -37,7 +37,7 @@ def _rastojanja(zone):
 
 
 def _tau(zone):
-    with open(izvori.DATA / "tau.csv", encoding="utf-8") as f:
+    with open(konstante.DATA / "tau.csv", encoding="utf-8") as f:
         redovi = list(csv.reader(f))
     zaglavlje = redovi[0][1:]
     poredak = [zaglavlje.index(r["mz"]) for r in zone]
@@ -46,12 +46,12 @@ def _tau(zone):
 
 
 def _privlacnost(zone):
-    with open(izvori.DATA / "privlacnost.csv", encoding="utf-8") as f:
+    with open(konstante.DATA / "privlacnost.csv", encoding="utf-8") as f:
         po_zoni = {r["mz"]: float(r["privlacnost"]) for r in csv.DictReader(f)}
     return np.array([po_zoni[r["mz"]] for r in zone])
 
 
-# gravitacioni model, ista formula kao u synth/generator.py da se trening i test
+# gravitacioni model, ista formula kao u synth.py da se trening i test
 # raspodela ne bi razlikovale: produkcija puta privlačnost kroz rastojanje na
 # beta, pa simetrizacija i skaliranje na ukupan broj putovanja. razlika je što
 # su ovde produkcija i privlačnost mereni, a ne izvučeni iz lognormalne, i što
@@ -62,7 +62,7 @@ def izgradi(beta=BETA, mera="euklidsko", ukupno=None, prag=PESACKI_PRAG):
     n = len(zone)
     prod = np.array([float(r["stanovnika"]) for r in zone])
     attr = _privlacnost(zone)
-    ukupno = ukupno or izvori.TREND_PUTNIKA[2017]
+    ukupno = ukupno or konstante.TREND_PUTNIKA[2017]
 
     euklid = _rastojanja(zone)
     d = euklid if mera == "euklidsko" else _tau(zone)
@@ -80,8 +80,8 @@ def izgradi(beta=BETA, mera="euklidsko", ukupno=None, prag=PESACKI_PRAG):
 
 
 def _upisi(imena, traznja):
-    izvori.DATA.mkdir(parents=True, exist_ok=True)
-    with open(izvori.DATA / "traznja.csv", "w", encoding="utf-8", newline="") as f:
+    konstante.DATA.mkdir(parents=True, exist_ok=True)
+    with open(konstante.DATA / "traznja.csv", "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["mz"] + imena)
         for i, ime in enumerate(imena):
@@ -131,7 +131,7 @@ def main():
               f"{100 * w[d[gore] < 2].sum() / w.sum():11.0f}% "
               f"{100 * w[d[gore] > 5].sum() / w.sum():11.0f}%")
     print(f"\nprag od {PESACKI_PRAG} km je kalibrisan na opterećenja linija iz 2017.\n"
-          "(results/novisad_kalibracija.md); bez njega je pri beta=2.0 čak 81% tražnje\n"
+          "(results/novisad-kalibracija.md); bez njega je pri beta=2.0 čak 81% tražnje\n"
           "padalo na parove kraće od 2 km, što za autobusko putovanje nije uverljivo.\n"
           "BETA se kalibracijom NE razlikuje — greška poklapanja je ista na tri\n"
           "decimale za svaku betu — pa ostaje 2.0, koliko koristi i sintetički\n"

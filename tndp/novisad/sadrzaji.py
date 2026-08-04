@@ -1,7 +1,7 @@
 import csv
 import json
 
-from tndp.novisad import izvori
+from tndp.novisad import konstante
 
 # kategorije preslikane iz njaric03/mu-novi-sad-tipologija-zgrada; redosled je
 # bitan jer svaka tačka pada u prvu kategoriju koja se poklopi
@@ -41,13 +41,13 @@ def izgradi():
 
     zone = ucitaj_zone()
     imena = [r["mz"] for r in zone]
-    fc = json.loads((izvori.DATA / "mz.geojson").read_text(encoding="utf-8"))
+    fc = json.loads((konstante.DATA / "mz.geojson").read_text(encoding="utf-8"))
     geom = {f["properties"]["naziv"]: shape(f["geometry"]) for f in fc["features"]}
     poligoni = [geom[ime] for ime in imena]
     stablo = STRtree(poligoni)
 
-    sirovo = json.loads((izvori.RAW / "sadrzaji.geojson").read_text(encoding="utf-8"))
-    kategorije = list(izvori.TEZINE_SADRZAJA)
+    sirovo = json.loads((konstante.RAW / "sadrzaji.geojson").read_text(encoding="utf-8"))
+    kategorije = list(konstante.TEZINE_SADRZAJA)
     broj = {ime: dict.fromkeys(kategorije, 0) for ime in imena}
     bez_kategorije = van_zona = 0
 
@@ -72,11 +72,11 @@ def izgradi():
     redovi = []
     for ime in imena:
         b = broj[ime]
-        tezinski = sum(izvori.TEZINE_SADRZAJA[k] * b[k] for k in kategorije)
+        tezinski = sum(konstante.TEZINE_SADRZAJA[k] * b[k] for k in kategorije)
         redovi.append([ime] + [b[k] for k in kategorije] + [sum(b.values()),
                                                             f"{tezinski:.1f}"])
     redovi.sort(key=lambda r: -float(r[-1]))
-    with open(izvori.DATA / "privlacnost.csv", "w", encoding="utf-8", newline="") as f:
+    with open(konstante.DATA / "privlacnost.csv", "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["mz"] + kategorije + ["ukupno", "privlacnost"])
         w.writerows(redovi)
@@ -93,7 +93,7 @@ def izgradi():
 def main():
     redovi = izgradi()
     print(f"\n{'mesna zajednica':30s} {'ukupno':>7s} {'težinski':>9s}  najjače kategorije")
-    kategorije = list(izvori.TEZINE_SADRZAJA)
+    kategorije = list(konstante.TEZINE_SADRZAJA)
     for r in redovi[:15]:
         top = sorted(zip(kategorije, r[1:1 + len(kategorije)]), key=lambda x: -x[1])[:3]
         print(f"{r[0]:30s} {r[-2]:7d} {r[-1]:>9s}  "

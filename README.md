@@ -79,11 +79,11 @@ ta dva člana je ~1.4:1. **Nema zasebne kazne za nepokrivenu tražnju**: ona je 
 `C_p_all`. **Ista funkcija se koristi u RL nagradi i u baseline cilju.**
 
 Dve konstante ostaju stvar izbora — `UNSERVED_FACTOR` i `alpha`. Osetljivost na obe
-ispisuje `python -m tools.metodoloske_provere` i **treba da ide uz rezultate**.
+ispisuje `python -m tndp.experiments.provere` i **treba da ide uz rezultate**.
 
 ### Sintetički gradovi
 
-[generator.py](tndp/synth/generator.py) baca slučajne tačke, povezuje ih Delaunay
+[generator.py](tndp/synth.py) baca slučajne tačke, povezuje ih Delaunay
 triangulacijom, izbacuje predugačke ivice i proređuje ostatak do realistične gustine
 ulica. Ivica se skida samo ako graf ostane povezan, i grad se na kraju validira — nepovezan
 grad ima beskonačnu donju granicu putničkog troška i ne sme da izađe iz generatora.
@@ -133,8 +133,8 @@ sintetičkih gradova. Čuvaju se dva checkpointa: `policy.pt` (poslednji) i `bes
 (najbolji na validaciji) — evaluacija treba da koristi `best.pt`.
 
 ```bash
-python -m tndp.rl.train --config configs/rl_default.yaml          # runs/<ime>/best.pt
-python -m tndp.rl.train --config configs/rl_default.yaml --seed 1 # drugi seed
+python -m tndp.rl.train --config configs/gravity-v1.yaml          # runs/<ime>/best.pt
+python -m tndp.rl.train --config configs/gravity-v1.yaml --seed 1 # drugi seed
 ```
 
 ### Dekodiranje
@@ -157,7 +157,7 @@ prostor akcija i generator su se promenili, pa stari brojevi više ne važe i ni
 uporedivi sa novima. Redosled:
 
 ```bash
-python -m tndp.rl.train --config configs/rl_default.yaml
+python -m tndp.rl.train --config configs/gravity-v1.yaml
 python -m tndp.experiments.bench_synth     runs/gravity-v1/best.pt   # glavna tabela
 python -m tndp.experiments.bench_transfer  runs/gravity-v1/best.pt   # Mandl + Mumford
 python -m tndp.experiments.pareto          runs/gravity-v1/best.pt   # Pareto front
@@ -172,7 +172,7 @@ referentnu metodu (Wilcoxon, iste instance), jer se gradovi po težini razlikuju
 nego metode među sobom. Svaki eksperiment validira mrežu koju metoda vrati i pada ako
 prekrši ograničenja.
 
-[bench_mandl.md](results/bench_mandl.md) i dalje služi kao provera implementacije
+[bench-mandl.md](results/bench-mandl.md) i dalje služi kao provera implementacije
 assignment-a naspram objavljenih vrednosti, ne kao poređenje metoda.
 
 Ablacije (`value` vs self-critical baseline, fiksni vs uzorkovani `alpha`, gravity vs
@@ -185,7 +185,7 @@ python -m venv .venv && .venv\Scripts\activate
 pip install -e .[dev]        # core: numpy, scipy, matplotlib
 pip install -e .[rl]         # torch, torch-geometric (trening i evaluacija)
 pytest                       # Mandl acceptance + toy assignment + smoke
-python -m tools.metodoloske_provere   # invarijante i osetljivost na konstante
+python -m tndp.experiments.provere   # invarijante i osetljivost na konstante
 ```
 
 ## Struktura

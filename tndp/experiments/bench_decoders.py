@@ -63,7 +63,7 @@ def main():
                      f"| {s['C_o'].mean():.0f} | {s['d_un'].mean():.3f} "
                      f"| {times[name]:.2f} |")
 
-    out = Path(__file__).parent.parent.parent / "results" / "bench_decoders.md"
+    out = Path(__file__).parent.parent.parent / "results" / "bench-decoders.md"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"snimljeno u {out}")
 

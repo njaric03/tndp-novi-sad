@@ -1,6 +1,5 @@
 # ablacija: self-critical baseline (greedy rollout, Kool et al.) umesto
 # naucene value glave. oba su implementirana, nikad nisu uporedjena
-name: abl-selfcritical
 iters: 3000
 batch: 16
 n_range: [15, 30]

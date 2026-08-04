@@ -121,7 +121,7 @@ def main():
         lines.append(f"| putovanja dnevno | {pd:,} | {o['flota']:.0f} | "
                      f"{o['cekanje']:.2f} | {np.median(o['h']):.1f} |".replace(",", "."))
 
-    out = Path(__file__).parent.parent.parent / "results" / "bench_freq.md"
+    out = Path(__file__).parent.parent.parent / "results" / "bench-freq.md"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"\nsnimljeno u {out}")
 

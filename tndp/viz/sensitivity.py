@@ -1,5 +1,5 @@
 # Osetljivost zaključaka na dve konstante koje u funkciji cilja ostaju stvar
-# izbora: UNSERVED_FACTOR i alpha. tools/metodoloske_provere.py ih ispisuje kao
+# izbora: UNSERVED_FACTOR i alpha. tndp/experiments/provere.py ih ispisuje kao
 # tabele; ovde su iscrtane, jer se tek sa slike vidi DA LI I GDE se metode
 # presecaju — a to je ono što odlučuje koliko je zaključak rada stabilan.
 #

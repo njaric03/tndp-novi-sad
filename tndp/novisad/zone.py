@@ -2,7 +2,7 @@ import csv
 import json
 import unicodedata
 
-from tndp.novisad import izvori
+from tndp.novisad import konstante
 
 # područje studije je ono što opslužuje GRADSKI saobraćaj, a ne tarifna zona I.
 # zona I je zona u kojoj važi gradska karta i šira je: od njenih 603 stajališta
@@ -37,19 +37,19 @@ def _kljuc(naziv):
 def _ucitaj_mz():
     from shapely.geometry import shape
 
-    fc = json.loads((izvori.DATA / "mz.geojson").read_text(encoding="utf-8"))
+    fc = json.loads((konstante.DATA / "mz.geojson").read_text(encoding="utf-8"))
     return [(f["properties"]["naziv"], f["properties"]["ref"], shape(f["geometry"]))
             for f in fc["features"]]
 
 
 def _ucitaj_stajalista():
-    with open(izvori.DATA / "stajalista.csv", encoding="utf-8") as f:
+    with open(konstante.DATA / "stajalista.csv", encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 
 # stajališta kroz koja prolazi bar jedna linija traženog tipa
 def _stajalista_tipa(tip=TIP_LINIJE):
-    with open(izvori.DATA / "linije.csv", encoding="utf-8") as f:
+    with open(konstante.DATA / "linije.csv", encoding="utf-8") as f:
         na_rutama = set()
         for r in csv.DictReader(f):
             if r["tip"] == tip:
@@ -58,7 +58,7 @@ def _stajalista_tipa(tip=TIP_LINIJE):
 
 
 def _ucitaj_stanovnistvo():
-    with open(izvori.DATA / "mz_stanovnistvo.csv", encoding="utf-8") as f:
+    with open(konstante.DATA / "mz_stanovnistvo.csv", encoding="utf-8") as f:
         return {_kljuc(r["mz"]): (int(r["stanovnika"]), int(r["povrsina_m2"]))
                 for r in csv.DictReader(f)}
 
@@ -67,11 +67,11 @@ def _ucitaj_stanovnistvo():
 # Grad daju 414.789 naspram popisnih 368.967; udeli po MZ se zadržavaju, a
 # nivoi se spuštaju faktorom popis/evidencija računatim po naselju
 def _faktori_popisa():
-    with open(izvori.DATA / "naselja_stanovnistvo.csv", encoding="utf-8") as f:
+    with open(konstante.DATA / "naselja_stanovnistvo.csv", encoding="utf-8") as f:
         evidencija = {_kljuc(r["naselje"]): int(r["stanovnika"])
                       for r in csv.DictReader(f)}
-    return {k: izvori.POPIS_2022[n] / evidencija[k]
-            for n in izvori.POPIS_2022 if (k := _kljuc(n)) in evidencija}
+    return {k: konstante.POPIS_2022[n] / evidencija[k]
+            for n in konstante.POPIS_2022 if (k := _kljuc(n)) in evidencija}
 
 
 def izgradi():
@@ -121,8 +121,8 @@ def izgradi():
                        len(svoja), len(zona1), len(na_gradskoj), int(u_studiji)])
 
     redovi.sort(key=lambda r: (-r[11], -r[2]))
-    izvori.DATA.mkdir(parents=True, exist_ok=True)
-    with open(izvori.DATA / "zone.csv", "w", encoding="utf-8", newline="") as f:
+    konstante.DATA.mkdir(parents=True, exist_ok=True)
+    with open(konstante.DATA / "zone.csv", "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["mz", "ref", "stanovnika", "stanovnika_evidencija", "povrsina_m2",
                     "povrsina_km2", "lat", "lon", "stajalista", "stajalista_zona1",
@@ -135,7 +135,7 @@ def izgradi():
     veza = sorted(((s["id"], naziv, int(naziv in u_zoni))
                    for naziv, svoja in pripadnost.items() for s in svoja),
                   key=lambda x: (-x[2], x[1]))
-    with open(izvori.DATA / "stajalista_zone.csv", "w", encoding="utf-8", newline="") as f:
+    with open(konstante.DATA / "stajalista_zone.csv", "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["stajaliste_id", "mz", "u_studiji"])
         w.writerows(veza)

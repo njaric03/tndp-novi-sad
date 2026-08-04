@@ -9,7 +9,7 @@ from tndp.baselines.hill_climb import hill_climb
 from tndp.baselines.random_search import random_search
 from tndp.experiments.common import load_policy
 from tndp.rl.evaluate import decode_sampling
-from tndp.synth.generator import generate_city
+from tndp.synth import generate_city
 
 from tndp.viz.maps import compare_networks
 

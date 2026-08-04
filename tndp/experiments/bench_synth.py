@@ -24,7 +24,7 @@ def main():
     ap.add_argument("--alpha", type=float, default=None)
     # ime izlaza bez ekstenzije; ablacije i seed-ovi pišu u svoj fajl da ne
     # prepišu glavnu tabelu
-    ap.add_argument("--out", default="bench_synth")
+    ap.add_argument("--out", default="bench-synth")
     args = ap.parse_args()
 
     policy, cfg = load_policy(args.checkpoint)

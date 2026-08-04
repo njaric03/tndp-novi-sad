@@ -2,11 +2,11 @@ import csv
 
 import numpy as np
 
-from tndp.novisad import izvori
+from tndp.novisad import konstante
 
 
 def ucitaj_zone(samo_studija=True):
-    with open(izvori.DATA / "zone.csv", encoding="utf-8") as f:
+    with open(konstante.DATA / "zone.csv", encoding="utf-8") as f:
         redovi = [r for r in csv.DictReader(f)
                   if not samo_studija or r["u_studiji"] == "1"]
     return redovi
@@ -20,7 +20,7 @@ def izgradi(prag_snap_m=500):
     import osmnx as ox
 
     zone = ucitaj_zone()
-    g = ox.load_graphml(izvori.RAW / "ulice.graphml")
+    g = ox.load_graphml(konstante.RAW / "ulice.graphml")
     print(f"ulična mreža: {g.number_of_nodes()} čvorova, {g.number_of_edges()} grana")
 
     lat = np.array([float(r["lat"]) for r in zone])
@@ -54,7 +54,7 @@ def izgradi(prag_snap_m=500):
           f"maksimum {asimetrija.max():.2f} min")
     tau = (tau + tau.T) / 2.0
 
-    with open(izvori.DATA / "tau.csv", "w", encoding="utf-8", newline="") as f:
+    with open(konstante.DATA / "tau.csv", "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["mz"] + [r["mz"] for r in zone])
         for i, r in enumerate(zone):
@@ -72,14 +72,14 @@ def susedstvo():
     from shapely.geometry import shape
 
     zone = {r["mz"] for r in ucitaj_zone()}
-    fc = json.loads((izvori.DATA / "mz.geojson").read_text(encoding="utf-8"))
+    fc = json.loads((konstante.DATA / "mz.geojson").read_text(encoding="utf-8"))
     geom = {f["properties"]["naziv"]: shape(f["geometry"]) for f in fc["features"]
             if f["properties"]["naziv"] in zone}
     imena = sorted(geom)
 
     parovi = [(a, b) for i, a in enumerate(imena) for b in imena[i + 1:]
               if geom[a].buffer(1e-6).intersects(geom[b])]
-    with open(izvori.DATA / "susedstvo.csv", "w", encoding="utf-8", newline="") as f:
+    with open(konstante.DATA / "susedstvo.csv", "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["a", "b"])
         w.writerows(parovi)

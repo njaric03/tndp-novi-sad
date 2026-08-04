@@ -3,7 +3,7 @@
 # iz tau.csv, tražnja iz traznja.csv. Uz graf se rekonstruiše i postojeća GSP
 # mreža prevedena u iste zone — ona je referentna mreža sa kojom se model
 # poredi.
-# pokretanje: python -m tndp.novisad.grad
+# pokretanje: python -m tndp.novisad.instanca
 
 import csv
 import re
@@ -13,7 +13,7 @@ from scipy.sparse.csgraph import dijkstra
 
 from tndp.core.city import CityGraph
 from tndp.core.network import TransitNetwork
-from tndp.novisad import izvori
+from tndp.novisad import konstante
 from tndp.novisad.ulice import ucitaj_zone
 
 # stepeni -> kilometri na geografskoj širini Novog Sada, isto kao u traznja.py
@@ -22,7 +22,7 @@ KM_PO_STEPENU_LON = 78.0
 
 
 def _matrica(ime, imena):
-    with open(izvori.DATA / ime, encoding="utf-8") as f:
+    with open(konstante.DATA / ime, encoding="utf-8") as f:
         redovi = list(csv.reader(f))
     zaglavlje = redovi[0][1:]
     poredak = [zaglavlje.index(m) for m in imena]
@@ -33,7 +33,7 @@ def _matrica(ime, imena):
 def _susedstvo(imena):
     mesto = {m: i for i, m in enumerate(imena)}
     adj = np.zeros((len(imena), len(imena)), dtype=bool)
-    with open(izvori.DATA / "susedstvo.csv", encoding="utf-8") as f:
+    with open(konstante.DATA / "susedstvo.csv", encoding="utf-8") as f:
         for r in csv.DictReader(f):
             if r["a"] in mesto and r["b"] in mesto:
                 adj[mesto[r["a"]], mesto[r["b"]]] = True
@@ -80,7 +80,7 @@ def _osnovna(oznaka):
 
 
 def _stajaliste_u_zonu():
-    with open(izvori.DATA / "stajalista_zone.csv", encoding="utf-8") as f:
+    with open(konstante.DATA / "stajalista_zone.csv", encoding="utf-8") as f:
         return {r["stajaliste_id"]: r["mz"] for r in csv.DictReader(f)
                 if r["u_studiji"] == "1"}
 
@@ -137,7 +137,7 @@ def _u_zone(ruta, u_zonu, mesto):
 def gsp_mreza(city, imena):
     mesto = {m: i for i, m in enumerate(imena)}
     u_zonu = _stajaliste_u_zonu()
-    with open(izvori.DATA / "linije.csv", encoding="utf-8") as f:
+    with open(konstante.DATA / "linije.csv", encoding="utf-8") as f:
         linije = [r for r in csv.DictReader(f) if r["tip"] == "gradska"]
 
     najbolja = {}

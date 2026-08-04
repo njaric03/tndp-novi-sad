@@ -19,7 +19,8 @@ class CityGraph:
     _sp: np.ndarray = field(default=None, repr=False, compare=False)
     _mst: float = field(default=None, repr=False, compare=False)
     _nb: list = field(default=None, repr=False, compare=False)
-    _feat: np.ndarray = field(default=None, repr=False, compare=False)
+    _feat: dict = field(default=None, repr=False, compare=False)
+    _netfeat: np.ndarray = field(default=None, repr=False, compare=False)
     _edge: tuple = field(default=None, repr=False, compare=False)
 
     def __post_init__(self):

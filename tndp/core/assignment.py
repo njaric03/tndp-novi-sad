@@ -15,7 +15,7 @@ TRANSFER_PENALTY_MIN = 5.0
 # Vrednost je bitna: mereno na greedy rešenjima, opslužen par putuje samo
 # ~1.04x duže od uličnog najkraćeg vremena, pa faktor blizu 1 znači da
 # "ne opslužiti" košta koliko i "opslužiti" i pokrivenost se uruši.
-# Osetljivost je u tools/metodoloske_provere.py i mora ići uz rezultate.
+# Osetljivost je u tndp/experiments/provere.py i mora ići uz rezultate.
 BUS_SPEED_KMH, WALK_SPEED_KMH = 20.0, 5.0
 UNSERVED_FACTOR = BUS_SPEED_KMH / WALK_SPEED_KMH
 

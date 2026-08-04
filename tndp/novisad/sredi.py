@@ -3,7 +3,7 @@ import json
 import math
 import re
 
-from tndp.novisad import izvori
+from tndp.novisad import konstante
 
 # prag rastojanja za spajanje NSmart stanice sa GSP stajalištem; dve baze su
 # nezavisno digitalizovane pa se ista tačka razlikuje i do dvadesetak metara
@@ -17,12 +17,12 @@ TIPOVI = {"1": "gradska", "2": "prigradska", "3": "medjumesna"}
 
 
 def _ucitaj(ime):
-    return json.loads((izvori.RAW / ime).read_text(encoding="utf-8"))
+    return json.loads((konstante.RAW / ime).read_text(encoding="utf-8"))
 
 
 def _upisi_csv(ime, zaglavlje, redovi):
-    izvori.DATA.mkdir(parents=True, exist_ok=True)
-    with open(izvori.DATA / ime, "w", encoding="utf-8", newline="") as f:
+    konstante.DATA.mkdir(parents=True, exist_ok=True)
+    with open(konstante.DATA / ime, "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(zaglavlje)
         w.writerows(redovi)
@@ -137,7 +137,7 @@ def polasci():
                 if m.group(1):
                     sat = int(m.group(1))
                 elif sat is not None:
-                    redovi.append([izvori.REZIMI[rezim], izvori.DANI[dan], kod,
+                    redovi.append([konstante.REZIMI[rezim], konstante.DANI[dan], kod,
                                    zapis["naziv"], smer, f"{sat:02d}:{m.group(3)}",
                                    (m.group(4) or "").strip(),
                                    int("niskopodni" in (m.group(2) or ""))])
@@ -168,14 +168,14 @@ def mesne_zajednice():
                       "properties": {"osm_id": el["id"], "naziv": naziv,
                                      "ref": el["tags"].get("ref:RS:mesna_zajednica", "")},
                       "geometry": mapping(geom)})
-    (izvori.DATA / "mz.geojson").write_text(
+    (konstante.DATA / "mz.geojson").write_text(
         json.dumps({"type": "FeatureCollection", "features": feats}, ensure_ascii=False),
         encoding="utf-8")
     print(f"  mz.geojson: {len(feats)} mesnih zajednica")
 
 
 def _tabela(ime):
-    html = (izvori.RAW / ime).read_text(encoding="utf-8")
+    html = (konstante.RAW / ime).read_text(encoding="utf-8")
     redovi = []
     for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", html, re.S):
         celije = [re.sub(r"<[^>]+>", "", c).strip()
@@ -201,7 +201,7 @@ def stanovnistvo():
 
 def putnici():
     _upisi_csv("putnici_2017.csv", ["linija", "voznji_radni_dan"],
-               [[k, v] for k, v in izvori.PUTNICI_2017.items()])
+               [[k, v] for k, v in konstante.PUTNICI_2017.items()])
 
 
 def main():
@@ -217,7 +217,7 @@ def main():
     stanovnistvo()
     print("brojanje putnika 2017")
     putnici()
-    print(f"\ngotovo, sređeni podaci u {izvori.DATA}")
+    print(f"\ngotovo, sređeni podaci u {konstante.DATA}")
 
 
 if __name__ == "__main__":

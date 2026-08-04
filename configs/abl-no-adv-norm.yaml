@@ -1,5 +1,4 @@
 # ablacija: bez standardizacije advantage-a unutar batch-a
-name: abl-no-adv-norm
 iters: 3000
 batch: 16
 n_range: [15, 30]

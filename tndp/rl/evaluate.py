@@ -4,7 +4,7 @@ import torch
 from tndp.core.assignment import assign
 from tndp.core.network import TransitNetwork
 from tndp.rl.env import HALT, TndpEnv
-from tndp.rl.model import edge_tensors, node_features
+from tndp.rl.features import edge_tensors, node_features
 
 
 # odigraj epizodu politikom; sample=True vuče iz distribucije (trening),
@@ -18,7 +18,7 @@ def rollout(policy, env, sample=True, gen=None):
     env.reset()
     while not env.done:
         decision, mask = env.decision()
-        h = policy.encode(node_features(env), edge_index, edge_attr)
+        h = policy.encode(node_features(env, policy.version), edge_index, edge_attr)
         logits = policy.action_logits(h, decision, mask, env.ends)
         dist = torch.distributions.Categorical(logits=logits)
         if sample:

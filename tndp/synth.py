@@ -79,7 +79,7 @@ def generate_city(n=None, seed=0, demand_mode="gravity", n_range=(20, 60),
     return city
 
 
-# brz vizuelni pregled: python -m tndp.synth.generator
+# brz vizuelni pregled: python -m tndp.synth
 if __name__ == "__main__":
     import time
     from pathlib import Path
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     dt = time.perf_counter() - t0
     print(f"10 gradova za {dt:.2f} s")
 
-    out = Path(__file__).parent.parent.parent / "results" / "synth_preview.png"
+    out = Path(__file__).parent.parent.parent / "results" / "synth-preview.png"
     fig.tight_layout()
     fig.savefig(out, dpi=120)
     print(f"snimljeno u {out}")
