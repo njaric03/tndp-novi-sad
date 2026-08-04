@@ -124,14 +124,14 @@ def test_policy_and_decoders(city):
 def test_verzije_featura(city):
     pytest.importorskip("torch")
     pytest.importorskip("torch_geometric")
-    from tndp.rl.features import NUM_FEATURES, node_features
+    from tndp.rl.features import DODACI, node_features, num_features
     from tndp.rl.model import TndpPolicy
 
     env = TndpEnv(city, R, LO, HI)
     x1 = node_features(env, "v1")
     x2 = node_features(env, "v2")
-    assert x1.shape[1] == NUM_FEATURES["v1"]
-    assert x2.shape[1] == NUM_FEATURES["v2"]
+    assert x1.shape[1] == num_features("v1")
+    assert x2.shape[1] == num_features("v2")
     assert bool(x2.isfinite().all())
     # kolona 4 je stepen: v1 ga deli konstantom pa je uvek pozitivan, v2 ga
     # provlaci kroz rang transformaciju pa je centriran oko nule
@@ -140,4 +140,12 @@ def test_verzije_featura(city):
     # tri nove kolone su rangovi, dakle takodje centrirane
     for k in range(6, 9):
         assert abs(float(x2[:, k].mean())) < 0.5
-    assert TndpPolicy(version="v2").embed.in_features == NUM_FEATURES["v2"]
+    assert TndpPolicy(features="v2").embed.in_features == num_features("v2")
+    # svaki dodatak se moze traziti sam; to je i poenta razdvajanja
+    for ime in DODACI:
+        assert node_features(env, [ime]).shape[1] == num_features("v1") + 1
+        assert TndpPolicy(features=[ime]).embed.in_features == num_features("v1") + 1
+    # rank-degree ne dodaje kolonu nego menja postojecu
+    xr = node_features(env, ["rank-degree"])
+    assert xr.shape[1] == num_features("v1")
+    assert abs(float(xr[:, 4].mean())) < 0.5 and x1[:, 4].min() > 0

@@ -1,0 +1,12 @@
+# ablacija: samo jedan dodatak na osnovni skup featura, sve ostalo isto kao
+# gravity-v1. Zajedno sa abl-akm.yaml (sva cetiri odjednom) razdvaja koji
+# dodatak nosi efekat - abl-akm sam po sebi menja cetiri stvari odjednom.
+iters: 3000
+batch: 16
+n_range: [15, 30]
+num_routes: 4
+demand_mode: gravity
+eval_every: 100
+eval_cities: 16
+alpha_eval: 0.5
+features: [coreness]

@@ -74,7 +74,7 @@ def main():
 
     torch.manual_seed(cfg["seed"])
     policy = TndpPolicy(hidden=cfg["hidden"], layers=cfg["layers"],
-                        version=cfg["features"])
+                        features=cfg["features"])
     opt = torch.optim.Adam(policy.parameters(), lr=cfg["lr"])
 
     out = Path("runs") / cfg["name"]
@@ -175,7 +175,7 @@ def main():
             else:
                 # value glava predviđa nagradu iz početnog stanja
                 env.reset()
-                h0 = policy.encode(node_features(env, policy.version), *edge_tensors(city))
+                h0 = policy.encode(node_features(env, policy.features), *edge_tensors(city))
                 value = policy.state_value(h0)
                 adv = reward - value.item()
                 vloss = (value - reward) ** 2

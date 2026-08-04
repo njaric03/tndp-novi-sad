@@ -27,14 +27,38 @@ def rank_normal(v):
     return norm.ppf(rankdata(v) / (len(v) + 1.0))
 
 
-# Verzije skupa featurea. Stara se zadržava jer su svi dosadašnji modeli na
-# njoj trenirani, a checkpoint nosi svoju verziju u cfg-u: evaluirati star
-# model novim featurima znači tiho mu promeniti ulaz.
+# Skup featurea se zadaje kao lista dodataka na osnovnih 13. Ranije je to bio
+# jedan string, "v1" ili "v2", i to je bila greška u dizajnu ablacije: "v2" je
+# menjao ČETIRI stvari odjednom (skaliranje stepena plus tri mere), pa se iz
+# jednog runa nije moglo videti koja je od njih pomogla a koja odmogla.
 #
-#   v1  13 featurea, stepen skaliran konstantom
-#   v2  16 featurea: stepen kroz rang transformaciju, plus tri mere iz analize
-#       kompleksnih mreža (prolaznost, koreness, bliskost)
-NUM_FEATURES = {"v1": 13, "v2": 16}
+#   rank-degree   stepen kroz rang transformaciju umesto deljenja konstantom;
+#                 ne dodaje kolonu, menja postojeću
+#   betweenness   udeo tražnje koja prolazi kroz čvor
+#   coreness      k-core dekompozicija
+#   closeness     bliskost
+#
+# Stari stringovi rade i dalje jer ih nose checkpointi već istreniranih modela:
+# "v1" je prazna lista, "v2" su sva četiri dodatka.
+DODACI = ("betweenness", "coreness", "closeness")   # svaki dodaje jednu kolonu
+SVI = ("rank-degree",) + DODACI
+ALIJASI = {"v1": (), "v2": SVI}
+OSNOVNIH = 13
+
+
+# lista dodataka u kanonskom redosledu, iz stringa ili iz liste
+def spec(features):
+    if isinstance(features, str):
+        features = ALIJASI[features]
+    trazeno = set(features)
+    nepoznato = trazeno - set(SVI)
+    if nepoznato:
+        raise ValueError(f"nepoznat feature: {sorted(nepoznato)}; dozvoljeni {SVI}")
+    return tuple(f for f in SVI if f in trazeno)
+
+
+def num_features(features):
+    return OSNOVNIH + sum(1 for f in spec(features) if f in DODACI)
 
 
 # Udeo tražnje koja PROLAZI kroz čvor idući najkraćim uličnim putem, ne
@@ -81,29 +105,36 @@ def _coreness(city):
     return coreness
 
 
-# tri mere iz analize kompleksnih mreža, sve kroz istu rang transformaciju kao
-# i ostali featuri. Računaju se jednom po gradu i keširaju.
-def _network_features(city):
+# mere iz analize kompleksnih mreža, sve kroz istu rang transformaciju kao i
+# ostali featuri. Računaju se jednom po gradu i keširaju POJEDINAČNO, da run sa
+# samo jednom merom ne plaća računanje ostalih.
+def _network_features(city, dodaci):
     if city._netfeat is None:
-        closeness = (city.n - 1) / np.maximum(city.street_shortest.sum(1), 1e-9)
-        city._netfeat = np.column_stack([
-            rank_normal(_betweenness(city)),
-            rank_normal(_coreness(city)),
-            rank_normal(closeness),
-        ])
-    return city._netfeat
+        city._netfeat = {}
+    for ime in dodaci:
+        if ime in city._netfeat:
+            continue
+        if ime == "betweenness":
+            v = _betweenness(city)
+        elif ime == "coreness":
+            v = _coreness(city)
+        else:
+            v = (city.n - 1) / np.maximum(city.street_shortest.sum(1), 1e-9)
+        city._netfeat[ime] = rank_normal(v)
+    return np.column_stack([city._netfeat[i] for i in dodaci])
 
 
 # Deo feature-a ne zavisi od stanja epizode nego samo od grada. Računa se
 # jednom i kešira — ranije se sve ovo (uključujući sortiranja) računalo na
 # svakom potezu, a poteza ima ~25 po epizodi.
-# keš je rečnik po verziji, ne jedna matrica: benchmark skripte puštaju više
-# modela preko ISTE liste gradova, pa bi model na v2 featurima inače pokupio
-# ono što je keširao model na v1 i to bez ijedne greške
-def _static_node_features(city, version="v1"):
+# keš je rečnik po skupu featura, ne jedna matrica: benchmark skripte puštaju
+# više modela preko ISTE liste gradova, pa bi model sa drugim featurima inače
+# pokupio ono što je keširao prethodni, i to bez ijedne greške
+def _static_node_features(city, dodaci):
+    kljuc = "rank-degree" in dodaci
     if city._feat is None:
         city._feat = {}
-    if version not in city._feat:
+    if kljuc not in city._feat:
         n = city.n
         coords = (city.coords - city.coords.mean(0)) / (city.coords.std(0) + 1e-6)
         # v1 deli stepen konstantom 4.0, a to je ista greška koju rang
@@ -111,30 +142,31 @@ def _static_node_features(city, version="v1"):
         # zonski graf Novog Sada 5.3, Mumford instance nešto treće, pa se
         # raspodela ulaza razlikuje između treninga i testa.
         degree_raw = [len(nb) for nb in city.neighbors]
-        degree = (np.array(degree_raw) / 4.0 if version == "v1"
-                  else rank_normal(degree_raw))
+        degree = rank_normal(degree_raw) if kljuc else np.array(degree_raw) / 4.0
         # koliko je tražnja koncentrisana: udeo u top 10% parova. rang
         # transformacija briše ovu informaciju iz dem_out/dem_in, pa se
         # vraća kao jedan skalar po gradu
         vals = np.sort(city.demand[np.triu_indices(n, 1)])[::-1]
         conc = float(vals[:max(1, len(vals) // 10)].sum() / vals.sum())
-        city._feat[version] = np.column_stack([
+        city._feat[kljuc] = np.column_stack([
             coords,
             rank_normal(city.demand.sum(1)),
             rank_normal(city.demand.sum(0)),
             degree,
             np.full(n, conc),
         ])
-    return city._feat[version]
+    return city._feat[kljuc]
 
 
 # feature vektor po čvoru za trenutno stanje epizode
-def node_features(env, version="v1"):
+def node_features(env, features="v1"):
     city = env.city
     n = city.n
-    static = _static_node_features(city, version)
-    if version != "v1":
-        static = np.column_stack([static, _network_features(city)])
+    dodaci = spec(features)
+    static = _static_node_features(city, dodaci)
+    mere = [d for d in dodaci if d in DODACI]
+    if mere:
+        static = np.column_stack([static, _network_features(city, mere)])
     covered = np.zeros(n)
     for r in env.routes:
         covered[r] = 1.0

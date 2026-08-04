@@ -27,6 +27,22 @@ MIN_KM = 0.3
 # je ravan i biciklistički grad, a zone su guste, pa je granica visoka.
 PESACKI_PRAG = 3.5
 
+# Zbir matrice. Brojanje iz 2017. daje 172.687 VOŽNJI, dakle ULAZAKA u vozilo, a
+# matrica tražnje nosi PUTOVANJA — putnik koji presedne broji se dvaput. Ranije
+# je ovde stajalo samih 172.687 i to je precenjivalo tražnju za ceo taj faktor.
+#
+# Odnos je meren na rekonstruisanoj GSP mreži pri BETA i PESACKI_PRAG, sa
+# intervalima iz reda vožnje: 1.779 ulazaka po opsluženom putovanju. Dodela je
+# invarijantna na razmeru (najkraći putevi ne zavise od veličine tražnje), pa
+# odnos ne zavisi od samog zbira i nema kružnosti.
+#
+# 1.78 je visok broj — 78% putovanja presedne. Posledica je agregacije: 32 zone
+# i 19 linija daju malo direktnih veza, a prag je izbacio baš kratka putovanja
+# koja bi bila direktna. Treba ga čitati kao svojstvo zonskog modela, ne kao
+# procenu stvarnog udela presedanja u Novom Sadu.
+ULAZAKA_PO_PUTOVANJU = 1.779
+PUTOVANJA = round(172_687 / ULAZAKA_PO_PUTOVANJU)
+
 
 def _rastojanja(zone):
     lat = np.array([float(r["lat"]) for r in zone])
@@ -62,7 +78,7 @@ def izgradi(beta=BETA, mera="euklidsko", ukupno=None, prag=PESACKI_PRAG):
     n = len(zone)
     prod = np.array([float(r["stanovnika"]) for r in zone])
     attr = _privlacnost(zone)
-    ukupno = ukupno or konstante.TREND_PUTNIKA[2017]
+    ukupno = ukupno or PUTOVANJA
 
     euklid = _rastojanja(zone)
     d = euklid if mera == "euklidsko" else _tau(zone)
@@ -136,6 +152,9 @@ def main():
           "BETA se kalibracijom NE razlikuje — greška poklapanja je ista na tri\n"
           "decimale za svaku betu — pa ostaje 2.0, koliko koristi i sintetički\n"
           "generator, da se trening i test raspodela ne bi razlikovale.")
+    print(f"\nzbir matrice je {PUTOVANJA} PUTOVANJA, ne 172.687 iz brojanja — to su\n"
+          f"vožnje, a putnik koji presedne se broji dvaput ({ULAZAKA_PO_PUTOVANJU} "
+          "ulazaka po putovanju).")
 
 
 if __name__ == "__main__":

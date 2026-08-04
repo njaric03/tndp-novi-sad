@@ -18,7 +18,7 @@ def rollout(policy, env, sample=True, gen=None):
     env.reset()
     while not env.done:
         decision, mask = env.decision()
-        h = policy.encode(node_features(env, policy.version), edge_index, edge_attr)
+        h = policy.encode(node_features(env, policy.features), edge_index, edge_attr)
         logits = policy.action_logits(h, decision, mask, env.ends)
         dist = torch.distributions.Categorical(logits=logits)
         if sample:

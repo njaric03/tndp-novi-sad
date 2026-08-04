@@ -6,15 +6,15 @@ import torch.nn as nn
 from torch_geometric.nn import GATv2Conv
 
 from tndp.rl.env import HALT
-from tndp.rl.features import NUM_FEATURES
+from tndp.rl.features import num_features, spec
 
 class TndpPolicy(nn.Module):
-    def __init__(self, hidden=64, layers=3, heads=4, version="v1"):
+    def __init__(self, hidden=64, layers=3, heads=4, features="v1"):
         super().__init__()
         # verzija se čuva na modelu da bi je svako mesto koje zove
         # node_features moglo pročitati sa politike umesto da je prosleđuje
-        self.version = version
-        self.embed = nn.Linear(NUM_FEATURES[version], hidden)
+        self.features = spec(features)
+        self.embed = nn.Linear(num_features(features), hidden)
         self.convs = nn.ModuleList([
             GATv2Conv(hidden, hidden // heads, heads=heads, edge_dim=2)
             for _ in range(layers)])

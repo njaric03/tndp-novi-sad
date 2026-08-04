@@ -20,7 +20,7 @@ def load_policy(path):
     # checkpointi napravljeni pre uvođenja v2 featura nemaju ključ; svi su v1
     cfg.setdefault("features", "v1")
     policy = TndpPolicy(hidden=cfg["hidden"], layers=cfg["layers"],
-                        version=cfg["features"])
+                        features=cfg["features"])
     policy.load_state_dict(ckpt["state_dict"])
     policy.eval()
     # stariji configi su imali fiksni "alpha"; noviji "alpha_eval"
