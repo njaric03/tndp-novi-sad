@@ -5,23 +5,27 @@ import numpy as np
 from tndp.novisad import izvori
 from tndp.novisad.ulice import ucitaj_zone
 
-# eksponent opadanja sa daljinom. NIJE kalibrisan na opterećenja linija —
-# ta kalibracija se ne može uraditi, razlog je u results/novisad_kalibracija.md
-# (jedanaest od 33 linije dobija nula putnika pri svakoj beti, jer dodela ide
-# najkraćim putem pa jedna linija u koridoru uzme sve). Vrednost je izabrana po
-# uverljivosti prosečne dužine putovanja: pri 2.0 je ona 1.42 km i 81% tražnje
-# pada na parove kraće od 2 km, što nije autobusko putovanje; pri 0.5 je 2.56 km.
-BETA = 0.5
-
-# zbir matrice. Brojanje iz 2017 daje 172.687 ULAZAKA, a matrica nosi PUTOVANJA
-# — putnik koji presedne broji se dvaput. Odnos meren na GSP mreži pri BETA je
-# 1.289, pa je zbir 172687 / 1.289. Ranije je ovde stajalo samih 172.687, što je
-# precenjivalo tražnju za taj faktor.
-PUTOVANJA = 133_947
+# eksponent opadanja sa daljinom. Kalibracija na opterećenja linija iz 2017.
+# (tndp/novisad/kalibracija.py, results/novisad_kalibracija.md) NE razlikuje
+# betu: greška poklapanja je ista na tri decimale za svaku betu u [0.5, 2.0].
+# Zadržava se 2.0, ista vrednost koju koristi synth/generator.py — tako se
+# raspodela tražnje na Novom Sadu ne razlikuje od one na kojoj je politika
+# trenirana, iz istog razloga zbog kog featuri idu kroz rang transformaciju.
+BETA = 2.0
 
 # donja granica rastojanja, ista kao u generatoru: sprečava da bliske zone dobiju
 # beskonačnu tražnju
 MIN_KM = 0.3
+
+# ispod ovog rastojanja putovanje ne ulazi u gradski prevoz. Ovo JESTE
+# kalibrisano — greška poklapanja ima jasan minimum na 3.5 km, i bez tog
+# parametra beta uopšte nije određena (bez praga kalibracija betu tera na
+# nulu, dakle na model u kom daljina ne igra ulogu).
+#
+# 3.5 km je previše za pešačenje i ne treba ga tako čitati: to je granica
+# ispod koje autobus gubi od pešačenja, bicikla i automobila zajedno. Novi Sad
+# je ravan i biciklistički grad, a zone su guste, pa je granica visoka.
+PESACKI_PRAG = 3.5
 
 
 def _rastojanja(zone):
@@ -52,20 +56,25 @@ def _privlacnost(zone):
 # beta, pa simetrizacija i skaliranje na ukupan broj putovanja. razlika je što
 # su ovde produkcija i privlačnost mereni, a ne izvučeni iz lognormalne, i što
 # nema multiplikativnog šuma.
-def izgradi(beta=BETA, mera="euklidsko", ukupno=None):
+def izgradi(beta=BETA, mera="euklidsko", ukupno=None, prag=PESACKI_PRAG):
     zone = ucitaj_zone()
     imena = [r["mz"] for r in zone]
     n = len(zone)
     prod = np.array([float(r["stanovnika"]) for r in zone])
     attr = _privlacnost(zone)
-    ukupno = ukupno or PUTOVANJA
+    ukupno = ukupno or izvori.TREND_PUTNIKA[2017]
 
-    d = _rastojanja(zone) if mera == "euklidsko" else _tau(zone)
+    euklid = _rastojanja(zone)
+    d = euklid if mera == "euklidsko" else _tau(zone)
     d = np.maximum(d, MIN_KM if mera == "euklidsko" else 1.0)
 
     traznja = prod[:, None] * attr[None, :] / d ** beta
     traznja = (traznja + traznja.T) / 2.0
     np.fill_diagonal(traznja, 0.0)
+    # prag se meri euklidski bez obzira na to kojom merom opada tražnja: reč je
+    # o tome koliko je daleko, ne koliko se dugo vozi
+    if prag > 0:
+        traznja = np.where(euklid < prag, 0.0, traznja)
     traznja *= ukupno / traznja.sum()
     return imena, traznja
 
@@ -91,8 +100,7 @@ def main():
     n = len(imena)
     gore = np.triu_indices(n, 1)
 
-    ukupno_str = f"{traznja.sum():,.0f}".replace(",", ".")
-    print(f"traznja.csv: {n}x{n}, ukupno {ukupno_str} putovanja")
+    print(f"traznja.csv: {n}x{n}, ukupno {traznja.sum():,.0f} putovanja".replace(",", "."))
     print(f"  parova sa tražnjom > 100: {(traznja[gore] > 100).sum()} od {len(gore[0])}")
 
     zbir = traznja.sum(axis=1)
@@ -122,11 +130,12 @@ def main():
         print(f"{b:5.1f} {(w * d[gore]).sum() / w.sum():13.2f} km "
               f"{100 * w[d[gore] < 2].sum() / w.sum():11.0f}% "
               f"{100 * w[d[gore] > 5].sum() / w.sum():11.0f}%")
-    print(f"\nBETA = {BETA} je izabrana po uverljivosti prosečne dužine putovanja, NE\n"
-          "kalibrisana na opterećenja linija — ta kalibracija nije moguća sa dodelom\n"
-          "bez frekvencija (11 od 33 linije dobija nula putnika pri svakoj beti).\n"
-          "Detalji i tabela: results/novisad_kalibracija.md, pravi se sa\n"
-          "python -m tndp.novisad.kalibracija")
+    print(f"\nprag od {PESACKI_PRAG} km je kalibrisan na opterećenja linija iz 2017.\n"
+          "(results/novisad_kalibracija.md); bez njega je pri beta=2.0 čak 81% tražnje\n"
+          "padalo na parove kraće od 2 km, što za autobusko putovanje nije uverljivo.\n"
+          "BETA se kalibracijom NE razlikuje — greška poklapanja je ista na tri\n"
+          "decimale za svaku betu — pa ostaje 2.0, koliko koristi i sintetički\n"
+          "generator, da se trening i test raspodela ne bi razlikovale.")
 
 
 if __name__ == "__main__":

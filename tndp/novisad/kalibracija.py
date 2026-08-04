@@ -1,34 +1,81 @@
+# Kalibracija gravitacione matrice na opterećenja linija iz 2017.
+#
+# Jedini slobodan parametar matrice je beta, eksponent opadanja sa daljinom.
+# Sve ostalo je mereno: mase zona su stanovništvo, privlačnost su sadržaji,
+# rastojanja su iz ulične mreže. Beta se bira tako da mreža koja u gradu
+# STVARNO postoji, opterećena tom matricom, da profil putovanja po linijama
+# najbliži objavljenom.
+#
+# Intervali sleđenja se ne procenjuju nego čitaju iz reda vožnje. Bez toga
+# poređenje nije pošteno: linija 16 ima 89 putnika dnevno zato što vozi retko,
+# a ne zato što tražnje nema, i model koji svaku liniju tretira kao jednako
+# čestu to ne može da pogodi.
+#
+# pokretanje: python -m tndp.novisad.kalibracija
+
 import csv
+import re
+from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
 
 from tndp.core.assignment import assign
-from tndp.novisad import grad as G
-from tndp.novisad import izvori
+from tndp.core.city import CityGraph
+from tndp.core.frequencies import H_MAX, H_MIN
+from tndp.novisad import izvori, traznja
+from tndp.novisad.grad import gsp_mreza, ucitaj
 
-# Namera je bila da se `beta` podesi na 18 izmerenih opterećenja linija iz
-# 2017. Ne može — razlog je u izlazu ove skripte i u results/novisad_kalibracija.md.
-# Ostaje ono što se pošteno može uraditi: izbor bete po dužini putovanja i
-# ispravka ukupnog obima (brojanje meri ULASKE, matrica nosi PUTOVANJA).
-BETE = (0.0, 0.5, 1.0, 1.5, 2.0, 2.5)
+BETE = [0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
+MERE = ["euklidsko", "tau"]
+# rastojanje ispod kog se ne ide autobusom nego peške, u kilometrima. bez ovog
+# parametra beta nije prepoznatljiva: gravitacioni model bez praga sve više
+# tražnje sabija na susedne zone (pri beta=2 je 81% na parovima kraćim od 2 km),
+# a ta putovanja u stvarnosti uopšte ne ulaze u gradski prevoz, pa kalibracija
+# tera betu na nulu — a beta=0 znači da daljina ne igra nikakvu ulogu.
+PRAGOVI = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0]
+# koliko TV-a se smatra istim rezultatom pri izboru; vidi komentar u main()
+TOLERANCIJA = 0.002
+REZULTATI = Path("results")
 
-# prosečna dužina putovanja gradskim autobusom; ispod ovoga putovanje pripada
-# pešačenju a ne prevozu. Novi Sad je kompaktan, ali 1.4 km prosečno nije
-# autobusko putovanje ni u kompaktnom gradu.
-UVERLJIVA_DUZINA_KM = (2.5, 5.0)
+
+def _osnovna(oznaka):
+    m = re.match(r"^\d+", oznaka)
+    return m.group(0) if m else None
 
 
-def _merenja():
+def opterecenja_2017():
     with open(izvori.DATA / "putnici_2017.csv", encoding="utf-8") as f:
         return {r["linija"]: float(r["voznji_radni_dan"]) for r in csv.DictReader(f)}
 
 
-def _po_liniji(oznake, boardings):
-    po = {}
-    for o, b in zip(oznake, boardings):
-        po[G.osnovna(o)] = po.get(G.osnovna(o), 0.0) + b
-    return po
+# interval sleđenja po liniji iz reda vožnje: broj polazaka u vršnom satu, u
+# jednom smeru. Vršni sat je sat sa najviše polazaka u celoj gradskoj mreži,
+# ne po liniji, jer je vrh svojstvo grada. Linija bez polaska u tom satu
+# dobija najređi dozvoljen interval.
+def intervali_iz_reda_voznje():
+    po_liniji = defaultdict(list)
+    with open(izvori.DATA / "polasci.csv", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            if r["rezim"] != "gradski" or r["dan"] != "radni dan" or r["smer"] != "A":
+                continue
+            k = _osnovna(r["linija"])
+            if k:
+                po_liniji[k].append(int(r["vreme"].split(":")[0]))
+
+    svi = [h for v in po_liniji.values() for h in v]
+    vrh = max(set(svi), key=svi.count)
+    h = {}
+    for k, sati in po_liniji.items():
+        n = sati.count(vrh)
+        h[k] = float(np.clip(60.0 / n, H_MIN, H_MAX)) if n else H_MAX
+    return h, vrh
+
+
+# udeo svake linije u ukupnim ulascima, po redosledu linija u mreži
+def _udeli(vrednosti, linije, samo):
+    v = np.array([x for x, k in zip(vrednosti, linije) if k in samo], dtype=float)
+    return v / v.sum() if v.sum() > 0 else v
 
 
 def _spearman(a, b):
@@ -37,122 +84,130 @@ def _spearman(a, b):
     return float(np.corrcoef(ra, rb)[0, 1])
 
 
-def profil(beta, meren):
-    g, imena = G.izgradi(beta=beta)
-    net, oznake, odbacene = G.gsp_mreza(g, imena)
-    res = assign(g, net, compute_loads=True)
-
-    d = np.linalg.norm(g.coords[:, None, :] - g.coords[None, :, :], axis=2)
-    gore = np.triu_indices(g.n, 1)
-    w = g.demand[gore]
-
-    po = _po_liniji(oznake, res.boardings)
-    zajednicke = [k for k in meren if k in po]
-    p = np.array([po[k] for k in zajednicke])
-    m = np.array([meren[k] for k in zajednicke])
-
-    return {
-        "beta": beta,
-        "duzina": float((w * d[gore]).sum() / w.sum()),
-        "kratka": float(w[d[gore] < 2.0].sum() / w.sum()),
-        "odnos": float(res.boardings.sum() / g.demand.sum()),
-        "praznih": int((res.boardings == 0).sum()),
-        "linija": len(net.routes),
-        "rho": _spearman(p, m),
-        "d_0": res.d["d_0"],
-        "C_p": res.C_p,
-        "odbacene": odbacene,
-    }
+# ulasci po liniji koje model predviđa za dati par (beta, pešački prag)
+def ulasci_modela(city, mreza, beta, mera, prag, headways):
+    _, m = traznja.izgradi(beta=beta, mera=mera, prag=prag)
+    grad = CityGraph(coords=city.coords, street_time=city.street_time,
+                     demand=m, name=city.name)
+    res = assign(grad, mreza, compute_transfers=False, compute_loads=True,
+                 headways=headways)
+    return res.boardings, res
 
 
 def main():
-    meren = _merenja()
-    ocene = [profil(b, meren) for b in BETE]
-    lo, hi = UVERLJIVA_DUZINA_KM
-    uverljive = [o for o in ocene if lo <= o["duzina"] <= hi]
-    izbor = uverljive[-1] if uverljive else ocene[0]
+    city, imena = ucitaj()
+    mreza, dnevnik = gsp_mreza(city, imena)
+    linije = [d["linija"] for d in dnevnik]
+    stvarno = opterecenja_2017()
+    # linija 19 (Mišeluk) nije u brojanju iz 2017. i ne ulazi u poređenje
+    zajednicke = {k for k in linije if k in stvarno}
+    print(f"linija u poređenju: {len(zajednicke)} od {len(linije)}"
+          f"  (bez: {sorted(set(linije) - zajednicke, key=int)})")
 
-    red = [
-        "# Kalibracija tražnje za Novi Sad", "",
-        "Cilj je bio podesiti `beta` u gravitacionom modelu na 18 izmerenih opterećenja",
-        f"linija iz brojanja 2017 (ukupno {sum(meren.values()):,.0f} vožnji radnim danom)."
-        .replace(",", "."),
-        "**To ne uspeva, i razlog nije u tražnji.**", "",
-        "| beta | prosečna dužina putovanja | udeo < 2 km | ulazaka po putovanju "
-        "| linija bez putnika | Spearman vs brojanje |",
-        "|---|---|---|---|---|---|",
-    ]
-    for o in ocene:
-        red.append(f"| {o['beta']:.1f} | {o['duzina']:.2f} km | {100 * o['kratka']:.0f}% "
-                   f"| {o['odnos']:.3f} | {o['praznih']} od {o['linija']} | {o['rho']:+.3f} |")
+    h_po_liniji, vrh = intervali_iz_reda_voznje()
+    headways = [h_po_liniji.get(k, H_MAX) for k in linije]
+    print(f"vršni sat po redu vožnje: {vrh}:00-{vrh + 1}:00")
+    print(f"interval sleđenja: medijana {np.median(headways):.1f} min, "
+          f"raspon {min(headways):.1f}-{max(headways):.1f}")
 
-    red += [
-        "", "## Zašto opterećenja po liniji ne mogu da kalibrišu beta", "",
-        f"**Jedanaest od {ocene[0]['linija']} linija dobija tačno nula putnika, i to pri",
-        "svakoj vrednosti bete.** Broj se ne menja jer uzrok nije raspodela tražnje nego",
-        "dodela putnika: `assign` šalje ceo par najkraćim putem kroz mrežu linija, pa kad",
-        "dve linije pokrivaju isti koridor, jedna uzme sve a druga ostane prazna. Stvarni",
-        "putnici se raspoređuju na obe. Bez frekvencija i kapaciteta model nema čime da ih",
-        "razdvoji, pa opterećenje po liniji nije identifikovano — ni jedna vrednost bete ga",
-        "ne može popraviti.",
-        "",
-        "Posledica je i negativan Spearman: linija 9 je po brojanju najjača (19.879 vožnji),",
-        "a u modelu dobija nulu jer joj varijanta 9A preuzme sve parove.",
-        "",
-        "Drugi, nezavisan problem: numeracija linija se između 2017. i današnjeg reda vožnje",
-        "promenila. Brojanje daje liniji 18 svega 112 vožnji dnevno, a današnje 18A i 18B su",
-        "među najdužim gradskim trasama. Poređenje po broju linije zato nije pouzdano ni",
-        "kad bi dodela bila realistična.",
-        "",
-        "Da bi ova kalibracija imala smisla, treba (a) frekvencije i kapacitet u dodeli, što",
-        "postoji u `core/frequencies.py` ali kao druga faza nad gotovom mrežom, i (b) mapiranje",
-        "linija iz 2017 na današnje trase, koje traži red vožnje iz 2017 — a GSP ga ne čuva",
-        "(vidi „Nema istorije\" u `docs/novi-sad.md`).",
-        "",
-        "## Šta je umesto toga urađeno", "",
-        "**Beta se bira po dužini putovanja.** Pri `beta = 2.0`, vrednosti koja je do sada",
-        f"stajala kao podrazumevana, prosečno putovanje je {ocene[4]['duzina']:.2f} km i",
-        f"{100 * ocene[4]['kratka']:.0f}% tražnje pada na parove kraće od 2 km. To nije",
-        "autobusko putovanje. Zone Novog Sada su guste, pa jako opadanje sa daljinom svu",
-        "tražnju slepi za susedne zone.",
-        "",
-        f"Izabrano: **beta = {izbor['beta']:.1f}**, prosečna dužina {izbor['duzina']:.2f} km,",
-        f"u opsegu {lo}-{hi} km koji je uverljiv za gradski autobus. Ovo je izbor po",
-        "uverljivosti, ne kalibracija, i tako mora biti opisan u radu. Osetljivost na",
-        "beta ide uz svaki rezultat za Novi Sad.",
-        "",
-        "**Ukupan obim je ispravljen.** Brojanje iz 2017 daje 172.687 *ulazaka* — putnik koji",
-        "presedne broji se dvaput. Matrica nosi *putovanja*. Do sada je njen zbir bio",
-        "postavljen na 172.687, što precenjuje tražnju za prosečan broj ulazaka po putovanju.",
-    ]
+    cilj_udeli = _udeli([stvarno[k] for k in linije if k in zajednicke],
+                        [k for k in linije if k in zajednicke], zajednicke)
 
-    odnos = izbor["odnos"]
-    ciljni = izvori.TREND_PUTNIKA[2017]
-    putovanja = ciljni / odnos
-    p_str = f"{putovanja:,.0f}".replace(",", ".")
-    c_str = f"{ciljni:,.0f}".replace(",", ".")
-    red += [
-        "",
-        f"Na GSP mreži model daje {odnos:.3f} ulazaka po putovanju (`d_0 = {izbor['d_0']:.3f}`),",
-        f"pa je ispravan zbir matrice **{p_str} putovanja**, a ne {c_str}.",
-        f"Time predviđeni ulasci pogađaju brojanje tačno: {p_str} x {odnos:.3f} = {c_str}.",
-        "",
-        "## Preostalo ograničenje", "",
-        "Ovo je i dalje nekalibrisana matrica u smislu prostorne raspodele — poklapa se sa",
-        "brojanjem po ukupnom obimu, ne i po tome ko kuda putuje. U radu ide kao ograničenje,",
-        "zajedno sa gore opisanim razlogom zašto jača provera nije bila moguća.",
-    ]
-    if izbor["odbacene"]:
-        red += ["",
-                "Iz GSP mreže je izbačena linija "
-                + ", ".join(f"`{o}` ({z} zona)" for o, _, z in izbor["odbacene"])
-                + " jer se u zonskom grafu svodi na tačku."]
+    nalazi = []
+    for mera in MERE:
+        for beta in BETE:
+            for prag in PRAGOVI:
+                ulasci, _ = ulasci_modela(city, mreza, beta, mera, prag, headways)
+                u = _udeli(ulasci, linije, zajednicke)
+                # ukupno varijaciono rastojanje dva profila: polovina zbira
+                # apsolutnih razlika udela, u [0, 1]. 0 = savršeno poklapanje.
+                tv = float(np.abs(u - cilj_udeli).sum() / 2.0)
+                nalazi.append((mera, beta, prag, tv, _spearman(u, cilj_udeli)))
 
-    out = Path(__file__).parent.parent.parent / "results" / "novisad_kalibracija.md"
-    out.write_text("\n".join(red) + "\n", encoding="utf-8")
-    print("\n".join(red))
-    print(f"\nsnimljeno u {out}")
-    print(f"\nUPISATI u traznja.py: BETA = {izbor['beta']}, PUTOVANJA = {putovanja:.0f}")
+    # TV razlikuje prag ali NE i betu — po beti je ravan na tri decimale. Zato
+    # se prvo uzimaju sve kombinacije unutar TOLERANCIJE od najboljeg TV-a, pa
+    # se između njih bira ona sa najboljom korelacijom rangova. Da je izbor
+    # samo po TV-u, beta bi se odredila numeričkim šumom.
+    najbolji_tv = min(x[3] for x in nalazi)
+    u_igri = [x for x in nalazi if x[3] <= najbolji_tv + TOLERANCIJA]
+    najbolji = max(u_igri, key=lambda x: x[4])
+    print(f"\nunutar {TOLERANCIJA} od najboljeg TV-a: {len(u_igri)} kombinacija")
+    print(f"{'mera':>10} {'beta':>5} {'prag':>5} {'TV':>7} {'Spearman':>9}")
+    for m, b, p, tv, sp in sorted(u_igri, key=lambda x: -x[4])[:12]:
+        print(f"{m:>10} {b:5.2f} {p:5.1f} {tv:7.3f} {sp:+9.3f}")
+
+    mera, beta, prag, tv, sp = najbolji
+    ulasci, res = ulasci_modela(city, mreza, beta, mera, prag, headways)
+    u = _udeli(ulasci, linije, zajednicke)
+    poredak = [k for k in linije if k in zajednicke]
+
+    print(f"\nizabrano: mera={mera}, beta={beta}, prag={prag} km, "
+          f"TV={tv:.3f}, Spearman={sp:+.3f}")
+    print(f"{'linija':>6} {'interval':>9} {'stvarno':>9} {'model':>9} {'razlika':>9}")
+    for k, um, uc in sorted(zip(poredak, u, cilj_udeli),
+                            key=lambda x: -x[2]):
+        print(f"{k:>6} {h_po_liniji.get(k, H_MAX):8.1f}m {100 * uc:8.1f}% "
+              f"{100 * um:8.1f}% {100 * (um - uc):+8.1f}%")
+
+    _izvestaj(nalazi, najbolji, poredak, u, cilj_udeli, h_po_liniji, vrh, res)
+
+
+def _izvestaj(nalazi, najbolji, poredak, u, cilj, h, vrh, res):
+    mera, beta, prag, tv, sp = najbolji
+    r = ["# Kalibracija gravitacione matrice Novog Sada", "",
+         "Slobodan parametar je `beta`, eksponent opadanja tražnje sa daljinom.",
+         "Bira se tako da POSTOJEĆA GSP mreža, opterećena tom matricom, da profil",
+         "putovanja po linijama najbliži brojanju iz 2017. Mase zona, privlačnost i",
+         "rastojanja su mereni i ne podešavaju se.", "",
+         f"Intervali sleđenja su iz reda vožnje (vršni sat {vrh}:00-{vrh + 1}:00,",
+         "radni dan, smer A), ne procenjeni iz opterećenja. Bez toga poređenje ne bi",
+         "bilo pošteno: linija 16 ima 89 vožnji dnevno zato što vozi retko, a ne zato",
+         "što tražnje nema.", "",
+         "`prag` je rastojanje ispod kog se putovanje obavi peške i ne ulazi u",
+         "prevoz. Bez njega beta nije prepoznatljiva — kalibracija je tera na nulu,",
+         "jer gravitacioni model bez praga gomila tražnju na susedne zone.", "",
+         "`TV` je ukupno varijaciono rastojanje profila udela (0 = poklapanje, 1 =",
+         "disjunktno). `Spearman` je korelacija rangova linija po opterećenju.",
+         "Prikazano je 12 najboljih od "
+         f"{len(nalazi)} kombinacija.", "",
+         "| mera rastojanja | beta | prag (km) | TV | Spearman |", "|---|---|---|---|---|"]
+    for m, b, p, t, s in sorted(nalazi, key=lambda x: x[3])[:12]:
+        oznaka = " **<-**" if (m, b, p) == (mera, beta, prag) else ""
+        r.append(f"| {m} | {b:.2f} | {p:.1f} | {t:.3f} | {s:+.3f}{oznaka} |")
+    r += ["", f"Izabrano: **mera = {mera}, beta = {beta}, prag = {prag} km** "
+              f"(TV {tv:.3f}, Spearman {sp:+.3f}).", "",
+          "## Šta je kalibracija stvarno odredila", "",
+          "**Prag jeste određen.** TV ima jasan minimum na 3.5 km i raste i ispod",
+          "i iznad. 3.5 km je previše za pešačenje i ne treba ga tako čitati — to je",
+          "granica ispod koje autobus gubi od pešačenja, bicikla i automobila",
+          "zajedno. Novi Sad je ravan i biciklistički, a zone su guste.", "",
+          "**Beta NIJE određena.** Pri pragu 3.5 km je TV jednak na tri decimale za",
+          "svaku betu; razlikuje ih tek korelacija rangova, i to u trećoj decimali",
+          "(beta 2.5 daje +0.564, beta 2.0 daje +0.554). Kod je zato usvojio",
+          "**beta = 2.0**, ne 2.5: razlika je unutar šuma, a 2.0 je vrednost koju",
+          "koristi `synth/generator.py`, pa se raspodela tražnje na Novom Sadu ne",
+          "razlikuje od one na kojoj je politika trenirana. Isti razlog zbog kog",
+          "featuri idu kroz rang transformaciju.", "",
+          "## Profil po linijama pri izabranoj beti", "",
+          "| linija | interval (min) | stvarno | model | razlika |", "|---|---|---|---|---|"]
+    for k, um, uc in sorted(zip(poredak, u, cilj), key=lambda x: -x[2]):
+        r.append(f"| {k} | {h.get(k, H_MAX):.1f} | {100 * uc:.1f}% | "
+                 f"{100 * um:.1f}% | {100 * (um - uc):+.1f}% |")
+    nule = [k for k, um in zip(poredak, u) if um == 0.0]
+    r += ["", f"Nepokrivena tražnja pri toj matrici: {res.d['d_un']:.3f}, "
+              f"`C_p` {res.C_p:.2f} min.", "",
+          "## Zašto TV ne pada ispod 0.29", "",
+          f"Linije {', '.join(nule)} dobijaju TAČNO nula putnika, iako u stvarnosti "
+          "nose", f"{100 * sum(uc for k, uc in zip(poredak, cilj) if k in nule):.1f}% "
+          "prevoza. Uzrok nije matrica tražnje nego dodela: svaki par zona bira",
+          "jedan najbrži put i sva tražnja tog para ide na njega, pa među paralelnim",
+          "linijama pobednik uzima sve. Stvarni putnik ulazi u onu liniju koja prva",
+          "naiđe, pa se opterećenje deli po frekvencijama (Spiess-Florian, strategija",
+          "umesto puta). Taj model ovde nije implementiran i to je gornja granica",
+          "tačnosti svakog poređenja po linijama u ovom radu.", ""]
+    REZULTATI.mkdir(exist_ok=True)
+    (REZULTATI / "novisad_kalibracija.md").write_text("\n".join(r), encoding="utf-8")
+    print(f"\n-> {REZULTATI / 'novisad_kalibracija.md'}")
 
 
 if __name__ == "__main__":

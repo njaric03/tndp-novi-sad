@@ -152,9 +152,9 @@ izabrane akcije se zadržava.
 
 ## Rezultati
 
-Tabele i slike u `results/` su generisane posle izmene funkcije cilja, prostora akcija
-i generatora; brojevi objavljeni pre toga nisu uporedivi sa njima. Redosled kojim se
-regenerišu:
+**Rezultati u `results/` su obrisani i treba ih regenerisati** — funkcija cilja,
+prostor akcija i generator su se promenili, pa stari brojevi više ne važe i nisu
+uporedivi sa novima. Redosled:
 
 ```bash
 python -m tndp.rl.train --config configs/rl_default.yaml
@@ -163,7 +163,6 @@ python -m tndp.experiments.bench_transfer  runs/gravity-v1/best.pt   # Mandl + M
 python -m tndp.experiments.pareto          runs/gravity-v1/best.pt   # Pareto front
 python -m tndp.experiments.anytime         runs/gravity-v1/best.pt   # kvalitet vs vreme
 python -m tndp.experiments.bench_decoders  runs/gravity-v1/best.pt   # greedy/sampling/MCTS
-python -m tndp.experiments.bench_freq      runs/gravity-v1/best.pt   # frekvencije i flota
 python -m tndp.experiments.show_networks   runs/gravity-v1/best.pt   # slika mreža
 python -m tndp.viz.curves                  runs/gravity-v1           # kriva treninga
 ```
@@ -176,28 +175,8 @@ prekrši ograničenja.
 [bench_mandl.md](results/bench_mandl.md) i dalje služi kao provera implementacije
 assignment-a naspram objavljenih vrednosti, ne kao poređenje metoda.
 
-Ablacije i varijansa po seed-u su sažete u [ablacije.md](results/ablacije.md), sa
-configima u [configs/](configs) kao `abl_*.yaml`. **Glavni nalaz odatle:** rasipanje
-po seed-u treninga (±0.031) je istog reda kao razlika između politike i greedyja
-(0.044), pa nijedna ablacija ne nosi zaključak sama za sebe.
-
-### Gde politika stoji, a gde ne
-
-Tri stvari koje se iz pojedinačnih tabela ne vide:
-
-- **Trening nije konvergirao.** U `runs/gravity-v1/log.csv` validaciona nagrada na
-  iteraciji 3000 još raste monotono (poslednje četvrtine: −1.724, −1.709, −1.697,
-  −1.678), a entropija još pada (1.79 → 0.94). Broj iteracija u `rl_default.yaml` je
-  postavljen po vremenu, ne po konvergenciji. Visoka entropija je i objašnjenje zašto
-  je greedy dekodiranje (1.715) toliko slabije od sampling-a (1.547) — argmax nad
-  razuđenom politikom.
-- **Politika tuče greedy za `alpha ≥ 0.6`** i gubi ispod ([pareto.md](results/pareto.md)),
-  sa prelazom na ≈0.55. Uči pokrivenost, a to putnički ponderisan cilj plaća.
-- **Uslovljavanje na `alpha` košta na `alpha=0.5`**: `abl-alpha-fixed` tamo daje 1.504
-  i tuče greedy, `gravity-v1` daje 1.547 i ne tuče.
-
-Politika gubi od `hill_climb` u svim režimima. To je očekivano i stoji u napomeni o
-obimu na vrhu — kod reference je glavni rezultat hibrid, ne politika sama.
+Ablacije (`value` vs self-critical baseline, fiksni vs uzorkovani `alpha`, gravity vs
+uniform tražnja, standardizacija advantage-a) su u [configs/](configs) kao `abl_*.yaml`.
 
 ## Pokretanje
 
@@ -217,7 +196,7 @@ tndp/
   baselines/   random search, greedy, hill climbing
   synth/       generator sintetičkih gradova (uniform i gravity demand)
   rl/          MDP env, GATv2 + pointer model, REINFORCE trening, dekoderi, MCTS
-  novisad/     preuzimanje i sređivanje podataka Novog Sada, zoniranje, tražnja
+  novisad/     preuzimanje i sređivanje podataka o Novom Sadu; zoniranje i graf tek dolaze
   experiments/ skripte koje proizvode tabele i slike u results/
   viz/         mape mreža i krive treninga
 configs/       yaml konfiguracije treninga i ablacija
@@ -231,11 +210,11 @@ docs/          metodološka procena i opis podataka za Novi Sad
 
 ## Status
 
-Sintetika, baselines, RL trening, dekoderi i tabele u `results/` su gotovi. Podaci za
-Novi Sad su preuzeti i sređeni (32 zone, vremena vožnje, susedstvo, privlačnost,
-gravitaciona tražnja) — opis svakog izvora je u [docs/novi-sad.md](docs/novi-sad.md).
-Ostaje `CityGraph` za Novi Sad, GSP mreža kao `TransitNetwork` i poređenje sa njom po
-istim merama.
+Sintetika, baselines, RL trening i evaluacija su gotovi; rezultate treba pregenerisati
+posle izmena funkcije cilja. Podaci za Novi Sad su prikupljeni i sređeni — mreža linija
+i stajališta ЈГСП-а, granice mesnih zajednica, stanovništvo po zonama i merena
+opterećenja linija iz brojanja 2017. Ostaje zoniranje, gravity matrica kalibrisana na
+ta opterećenja, ulična mreža preko `osmnx` i poređenje sa postojećom GSP mrežom.
 
 ```bash
 python -m tndp.novisad.preuzmi && python -m tndp.novisad.sredi
@@ -246,41 +225,14 @@ eksperimentalnog dizajna, šta je od toga popravljeno i šta ostaje.
 [docs/novi-sad.md](docs/novi-sad.md) opisuje svaki izvor podataka za studiju slučaja,
 šta je pouzdano i šta je odbačeno.
 
-### Frekvencije
-
-[frequencies.py](tndp/core/frequencies.py) je **druga faza nad gotovom mrežom**. Iz
-opterećenja najopterećenije deonice (`assign(..., compute_loads=True)` vraća ulaske po
-liniji i opterećenje po deonici) određuje se interval sleđenja tako da vrh stane u
-kapacitet vozila, iz njega vreme čekanja od pola intervala umesto fiksnih 5 min, i broj
-vozila iz vremena obilaska. Zavisnost je kružna — interval zavisi od opterećenja, a
-opterećenje od dodele koja zavisi od intervala — pa se rešava u par prolaza.
-
-Ovo **nije** u RL nagradi: trase se i dalje biraju TRNDP ciljem. Zato nijedan raniji
-broj ne pada i ništa se ne mora ponovo trenirati, a sve metode prolaze kroz isti
-postupak pa je poređenje pošteno. [bench_freq.md](results/bench_freq.md) daje obe
-ocene jednu do druge; poredak metoda se između njih menja, jer trasa koja dobro
-opslužuje putnike ne mora da bude jeftina za vozni park.
-
-Da frekvencije uđu u samu nagradu, treba im mesto u MDP-u (izbor intervala kao akcija
-posle `halt`-a, uz ograničenje ukupne flote) i ponovni trening svega. To je sledeći
-korak, ne ovaj.
-
 ## Ograničenja modela
 
-Trase se biraju TRNDP ciljem — **bez frekvencija, vremena čekanja, kapaciteta i
-veličine voznog parka**. `C_o` (ukupno vreme vožnje linija u jednom smeru) je *proxy*
-za trošak operatera, ne trošak operatera, i presedanje se u toj fazi naplaćuje fiksnih
-5 min bez obzira na frekvenciju linije. Sloj iznad (gore) to nadoknađuje pri oceni, ali
-ne pri izboru trase — mreža nije optimizovana za flotu, samo je po njoj izmerena.
-
-Kapacitet ne ograničava dodelu ni u drugoj fazi: putnik ide najkraćim putem i kad je
-vozilo puno. Posledica se vidi na Novom Sadu — 11 od 33 GSP linije dobija nula putnika
-jer u koridoru sa dve linije jedna uzme sve
-([novisad_kalibracija.md](results/novisad_kalibracija.md)).
-
-Tražnja je statična i neelastična — mreža ne menja to koliko se putuje. Sve su to
-standardne pretpostavke Mandl/Mumford benchmark postavke, ali ih treba imati u vidu pri
-tumačenju brojeva.
+Rešava se TRNDP, ne pun TNDP: **nema frekvencija, vremena čekanja, kapaciteta ni veličine
+voznog parka**. `C_o` (ukupno vreme vožnje linija u jednom smeru) je *proxy* za trošak
+operatera, ne trošak operatera. Presedanje se naplaćuje fiksnih 5 min bez obzira na
+frekvenciju linije. Tražnja je statična i neelastična — mreža ne menja to koliko se
+putuje. Sve su to standardne pretpostavke Mandl/Mumford benchmark postavke, ali ih treba
+imati u vidu pri tumačenju brojeva.
 
 ## Izvori
 

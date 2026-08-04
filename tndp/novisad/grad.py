@@ -1,3 +1,10 @@
+# graf Novog Sada u obliku koji model razume: 32 mesne zajednice su čvorovi,
+# ulična ivica postoji između zona čije se granice dodiruju, vreme vožnje je
+# iz tau.csv, tražnja iz traznja.csv. Uz graf se rekonstruiše i postojeća GSP
+# mreža prevedena u iste zone — ona je referentna mreža sa kojom se model
+# poredi.
+# pokretanje: python -m tndp.novisad.grad
+
 import csv
 import re
 
@@ -6,109 +13,196 @@ from scipy.sparse.csgraph import dijkstra
 
 from tndp.core.city import CityGraph
 from tndp.core.network import TransitNetwork
-from tndp.novisad import izvori, traznja
+from tndp.novisad import izvori
 from tndp.novisad.ulice import ucitaj_zone
 
-
-# indeks zone po imenu mesne zajednice, redosledom iz zone.csv — isti redosled
-# koriste tau.csv i traznja.csv
-def _indeksi():
-    zone = ucitaj_zone()
-    return zone, {r["mz"]: i for i, r in enumerate(zone)}
+# stepeni -> kilometri na geografskoj širini Novog Sada, isto kao u traznja.py
+KM_PO_STEPENU_LAT = 111.32
+KM_PO_STEPENU_LON = 78.0
 
 
-def _matrica(ime, zone):
+def _matrica(ime, imena):
     with open(izvori.DATA / ime, encoding="utf-8") as f:
         redovi = list(csv.reader(f))
-    poredak = [redovi[0][1:].index(r["mz"]) for r in zone]
+    zaglavlje = redovi[0][1:]
+    poredak = [zaglavlje.index(m) for m in imena]
     m = np.array([[float(x) for x in red[1:]] for red in redovi[1:]])
     return m[np.ix_(poredak, poredak)]
 
 
-# CityGraph Novog Sada. Ulične ivice su parovi zona koje se stvarno graniče
-# (susedstvo.csv), sa vremenom vožnje iz tau.csv; sve ostalo je inf, kao i kod
-# sintetike. Time gustina grafa ostaje u opsegu na kom je politika trenirana —
-# potpuna matrica bi svaki par proglasila direktnom vezom i problem bi nestao.
-def izgradi(beta=traznja.BETA, ukupno=None):
-    zone, idx = _indeksi()
-    n = len(zone)
-    tau = _matrica("tau.csv", zone)
-
-    street = np.full((n, n), np.inf)
+def _susedstvo(imena):
+    mesto = {m: i for i, m in enumerate(imena)}
+    adj = np.zeros((len(imena), len(imena)), dtype=bool)
     with open(izvori.DATA / "susedstvo.csv", encoding="utf-8") as f:
         for r in csv.DictReader(f):
-            i, j = idx[r["a"]], idx[r["b"]]
-            street[i, j] = street[j, i] = tau[i, j]
-    np.fill_diagonal(street, 0.0)
+            if r["a"] in mesto and r["b"] in mesto:
+                adj[mesto[r["a"]], mesto[r["b"]]] = True
+                adj[mesto[r["b"]], mesto[r["a"]]] = True
+    return adj
 
-    _, d = traznja.izgradi(beta=beta, ukupno=ukupno)
 
-    # koordinate u kilometrima, ista konverzija kao u traznja._rastojanja
+# CityGraph očekuje koordinate u ravni; lokalna ekvidistantna projekcija je
+# na ovoj veličini dovoljna (grad je ~15 km širok)
+def _koordinate(zone):
     lat = np.array([float(r["lat"]) for r in zone])
     lon = np.array([float(r["lon"]) for r in zone])
-    coords = np.stack([(lon - lon.mean()) * 78.0, (lat - lat.mean()) * 111.32], axis=1)
-
-    grad = CityGraph(coords=coords, street_time=street, demand=d, name="Novi Sad")
-    problemi = grad.validate()
-    assert problemi == [], problemi
-    return grad, [r["mz"] for r in zone]
+    xy = np.column_stack([lon * KM_PO_STEPENU_LON, lat * KM_PO_STEPENU_LAT])
+    return xy - xy.mean(axis=0)
 
 
-# osnovna oznaka linije: "10APT" i "10MAL" su varijante linije 10, a brojanje
-# iz 2017 meri liniju kao celinu. "11A" i "11B" su dva kraka linije 11 i
-# brojanje ih takođe daje zajedno.
-def osnovna(oznaka):
-    m = re.match(r"\d+", oznaka)
+# tau.csv je najkraće vreme kroz celu uličnu mrežu za SVAKI par zona, dakle
+# metrički zatvarač. CityGraph traži ivice, pa se zadržavaju samo parovi
+# susednih zona; putovanje između udaljenih zona model onda sklapa sam.
+def ucitaj():
+    zone = ucitaj_zone()
+    imena = [r["mz"] for r in zone]
+    n = len(imena)
+    tau = _matrica("tau.csv", imena)
+    adj = _susedstvo(imena)
+
+    street = np.full((n, n), np.inf)
+    street[adj] = tau[adj]
+    np.fill_diagonal(street, 0.0)
+
+    city = CityGraph(coords=_koordinate(zone), street_time=street,
+                     demand=_matrica("traznja.csv", imena), name="NoviSad")
+    return city, imena
+
+
+# --- postojeća GSP mreža -----------------------------------------------------
+
+# oznaka varijante -> osnovna linija: 1GL i 1J su varijante linije 1, 10APT
+# linije 10, 18A i 18B linije 18. Osnovnih gradskih linija ima 19 i to je R
+# sa kojim se model poredi.
+def _osnovna(oznaka):
+    m = re.match(r"^\d+", oznaka)
     return m.group(0) if m else oznaka
 
 
-# GSP mreža prevedena u nizove zona. Uzastopna stajališta u istoj zoni se
-# sažimaju, stajališta van područja studije ispadaju. Ostane li posle toga
-# manje od `min_zona` zona, linija nije ruta u zonskom grafu nego tačka i
-# izbacuje se — to je ograničenje zonskog pristupa, ne greška u podacima.
-def gsp_mreza(grad, imena, min_zona=2):
-    idx = {z: i for i, z in enumerate(imena)}
-    sz = {}
+def _stajaliste_u_zonu():
     with open(izvori.DATA / "stajalista_zone.csv", encoding="utf-8") as f:
-        for r in csv.DictReader(f):
-            sz[r["stajaliste_id"]] = r["mz"]
-
-    # najkraći putevi po zonskom grafu, za popunjavanje skokova
-    sp = dijkstra(np.where(np.isfinite(grad.street_time), grad.street_time, 0.0),
-                  directed=False, return_predecessors=True)[1]
-
-    rute, oznake, odbacene = [], [], []
-    with open(izvori.DATA / "linije.csv", encoding="utf-8") as f:
-        for r in csv.DictReader(f):
-            if r["tip"] != "gradska" or r["varijanta"] != "0":
-                continue
-            seq = []
-            for s in r["ruta"].split(";"):
-                z = sz.get(s)
-                if z is None or z not in idx:
-                    continue
-                if not seq or seq[-1] != idx[z]:
-                    seq.append(idx[z])
-            if len(seq) < min_zona:
-                odbacene.append((r["oznaka"], r["smer"], len(seq)))
-                continue
-            rute.append(_popuni(seq, sp))
-            oznake.append(r["oznaka"])
-    return TransitNetwork(rute), oznake, odbacene
+        return {r["stajaliste_id"]: r["mz"] for r in csv.DictReader(f)
+                if r["u_studiji"] == "1"}
 
 
-# dve uzastopne zone linije ne moraju biti susedne (stajališta između njih su
-# u zoni van studije, ili linija preseca zonu bez stajališta). Umeće se
-# najkraći put po zonskom grafu da bi niz bio putanja u uličnom grafu.
-def _popuni(seq, pred):
-    puna = [seq[0]]
-    for a, b in zip(seq, seq[1:]):
-        if not np.isfinite(pred[a, b]) and pred[a, b] < 0:
-            puna.append(b)
+# model gradi PROSTE puteve, a `ruta` u linije.csv je ceo kružni tok linije:
+# ista zona se javlja i u odlasku i u povratku (npr. A B C D C B A). Uzima se
+# najduži deo trase koji nijednu zonu ne dodiruje dvaput — kod trase u oba
+# smera to je tačno jedan smer. Alternativa, sečenje petlji od prvog do
+# poslednjeg pojavljivanja zone, obriše ceo takav niz i ostavi jednu zonu.
+def _prost_put(niz):
+    najbolji = (0, 0)
+    poslednje = {}
+    pocetak = 0
+    for k, z in enumerate(niz):
+        if z in poslednje and poslednje[z] >= pocetak:
+            pocetak = poslednje[z] + 1
+        poslednje[z] = k
+        if k + 1 - pocetak > najbolji[1] - najbolji[0]:
+            najbolji = (pocetak, k + 1)
+    return niz[najbolji[0]:najbolji[1]]
+
+
+# posle sečenja petlji uzastopne zone ne moraju više biti susedne; isto važi
+# i za zone koje trasa samo proseca bez stajališta. Rupa se popunjava
+# najkraćim putem po susedstvu, ponderisanim vremenom vožnje.
+def _spoji(niz, street):
+    pred = dijkstra(np.where(np.isfinite(street), street, 0.0),
+                    directed=False, return_predecessors=True)[1]
+    out = [niz[0]]
+    for a, b in zip(niz, niz[1:]):
+        if np.isfinite(street[a, b]):
+            out.append(b)
             continue
-        deo, cur = [], b
-        while cur != a and cur >= 0:
-            deo.append(cur)
-            cur = pred[a, cur]
-        puna += deo[::-1] if cur == a else [b]
-    return puna
+        put, c = [], b
+        while c != a and c >= 0:
+            put.append(c)
+            c = pred[a, c]
+        out.extend(reversed(put))
+    return out
+
+
+def _u_zone(ruta, u_zonu, mesto):
+    niz = []
+    for s in ruta.split(";"):
+        z = u_zonu.get(s)
+        if z is not None and z in mesto and (not niz or niz[-1] != mesto[z]):
+            niz.append(mesto[z])
+    return niz
+
+
+# rekonstrukcija postojeće mreže: po jedna trasa za svaku od 19 osnovnih
+# gradskih linija, ona varijanta koja pokriva najviše zona. Vraća i dnevnik
+# koliko je svaka trasa izmenjena pri prevođenju u zonski graf.
+def gsp_mreza(city, imena):
+    mesto = {m: i for i, m in enumerate(imena)}
+    u_zonu = _stajaliste_u_zonu()
+    with open(izvori.DATA / "linije.csv", encoding="utf-8") as f:
+        linije = [r for r in csv.DictReader(f) if r["tip"] == "gradska"]
+
+    najbolja = {}
+    for r in linije:
+        sirovo = _u_zone(r["ruta"], u_zonu, mesto)
+        if len(sirovo) < 2:
+            continue
+        k = _osnovna(r["oznaka"])
+        if k not in najbolja or len(sirovo) > len(najbolja[k][0]):
+            najbolja[k] = (sirovo, r)
+
+    rute, dnevnik = [], []
+    for k in sorted(najbolja, key=int):
+        sirovo, r = najbolja[k]
+        put = sirovo
+        for _ in range(10):
+            novi = _spoji(_prost_put(put), city.street_time)
+            if novi == put:
+                break
+            put = novi
+        put = _prost_put(put)
+        rute.append(put)
+        dnevnik.append({"linija": k, "varijanta": r["oznaka"],
+                        "zona_sirovo": len(sirovo), "zona_trasa": len(put),
+                        "umetnuto": len([z for z in put if z not in sirovo]),
+                        "izbaceno": len([z for z in sirovo if z not in put]),
+                        "naziv": r["naziv"]})
+    return TransitNetwork(routes=rute), dnevnik
+
+
+def main():
+    city, imena = ucitaj()
+    print(f"graf: {city.n} zona, {len(city.street_edges)} uličnih ivica, "
+          f"prosečan stepen {2 * len(city.street_edges) / city.n:.1f}")
+    problemi = city.validate()
+    print("validate():", problemi or "bez prekršaja")
+
+    tau = _matrica("tau.csv", imena)
+    gore = np.triu_indices(city.n, 1)
+    odnos = city.street_shortest[gore] / np.maximum(tau[gore], 1e-9)
+    print(f"put kroz zonski graf vs tau po uličnoj mreži: medijana "
+          f"{np.median(odnos):.3f}, maksimum {odnos.max():.3f} "
+          f"(1.0 = zonski graf ne produžava putovanje)")
+    print(f"MST {city.mst_time:.1f} min, donja granica putničkog vremena "
+          f"{city.street_shortest_mean_demand:.2f} min")
+
+    mreza, dnevnik = gsp_mreza(city, imena)
+    print(f"\nGSP mreža: {len(mreza.routes)} osnovnih gradskih linija")
+    print(f"{'linija':>6} {'varijanta':>9} {'sirovo':>7} {'trasa':>6} "
+          f"{'umetnuto':>9} {'izbačeno':>9}  naziv")
+    for d in dnevnik:
+        print(f"{d['linija']:>6} {d['varijanta']:>9} {d['zona_sirovo']:7d} "
+              f"{d['zona_trasa']:6d} {d['umetnuto']:9d} {d['izbaceno']:9d}  "
+              f"{d['naziv'][:40]}")
+
+    duz = [len(r) for r in mreza.routes]
+    print(f"\ndužina linije u zonama: min {min(duz)}, medijana "
+          f"{int(np.median(duz))}, maksimum {max(duz)}")
+    pokrivene = {v for r in mreza.routes for v in r}
+    print(f"zona na bar jednoj liniji: {len(pokrivene)} od {city.n}")
+    if len(pokrivene) < city.n:
+        print("  bez linije:", [imena[i] for i in range(city.n)
+                                if i not in pokrivene])
+    print("prekršaji mreže:", mreza.check(city) or "nema")
+
+
+if __name__ == "__main__":
+    main()
