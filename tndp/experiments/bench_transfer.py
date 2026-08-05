@@ -39,6 +39,7 @@ def main():
     ap.add_argument("--instances", nargs="+", default=DEFAULT, choices=list(INSTANCES))
     ap.add_argument("--alpha", type=float, default=None)
     ap.add_argument("--samples", type=int, default=32)
+    ap.add_argument("--out", default="bench-transfer")
     args = ap.parse_args()
 
     policy, cfg = load_policy(args.checkpoint)
@@ -84,7 +85,7 @@ def main():
             lines.append(row)
             print("  " + row)
 
-    out = Path(__file__).parent.parent.parent / "results" / "bench-transfer.md"
+    out = Path(__file__).parent.parent.parent / "results" / f"{args.out}.md"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"\nsnimljeno u {out}")
 

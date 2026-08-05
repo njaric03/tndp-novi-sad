@@ -225,7 +225,7 @@ data/benchmarks/  Mandl i Mumford instance (izvor: RenatoArbex/TransitNetworkDes
 data/novisad/  podaci o Novom Sadu (gitignore; pravi se skriptama iz tndp/novisad/)
 results/       tabele i slike koje se predaju
 tests/         acceptance test na Mandlu, toy assignment, smoke
-tools/         provere invarijanti i osetljivosti
+tndp/experiments/provere.py  invarijante i osetljivost na konstante
 docs/          metodološka procena i opis podataka za Novi Sad
 ```
 

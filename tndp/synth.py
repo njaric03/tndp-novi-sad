@@ -104,7 +104,7 @@ if __name__ == "__main__":
     dt = time.perf_counter() - t0
     print(f"10 gradova za {dt:.2f} s")
 
-    out = Path(__file__).parent.parent.parent / "results" / "synth-preview.png"
+    out = Path(__file__).parent.parent / "results" / "synth-preview.png"
     fig.tight_layout()
     fig.savefig(out, dpi=120)
     print(f"snimljeno u {out}")

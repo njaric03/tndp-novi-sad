@@ -19,6 +19,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
+from scipy.stats import rankdata
 
 from tndp.core.assignment import assign
 from tndp.core.city import CityGraph
@@ -36,7 +37,7 @@ MERE = ["euklidsko", "tau"]
 PRAGOVI = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0]
 # koliko TV-a se smatra istim rezultatom pri izboru; vidi komentar u main()
 TOLERANCIJA = 0.002
-REZULTATI = Path("results")
+REZULTATI = Path(__file__).resolve().parent.parent.parent / "results"
 
 
 def _osnovna(oznaka):
@@ -78,10 +79,12 @@ def _udeli(vrednosti, linije, samo):
     return v / v.sum() if v.sum() > 0 else v
 
 
+# Spearman preko rankdata, NE preko argsort(argsort). Druga varijanta vezanim
+# vrednostima dodeljuje proizvoljne različite rangove, pa izmišlja poredak tamo
+# gde ga nema. Ovde je to bitno: u validaciji frekvencija je devet linija
+# zakucano na tačno 60 minuta, a u kalibraciji više linija ima nula putnika.
 def _spearman(a, b):
-    ra = np.argsort(np.argsort(a)).astype(float)
-    rb = np.argsort(np.argsort(b)).astype(float)
-    return float(np.corrcoef(ra, rb)[0, 1])
+    return float(np.corrcoef(rankdata(a), rankdata(b))[0, 1])
 
 
 # ulasci po liniji koje model predviđa za dati par (beta, pešački prag)

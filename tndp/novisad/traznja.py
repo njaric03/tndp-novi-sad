@@ -1,6 +1,7 @@
 import csv
 
 import numpy as np
+from scipy.stats import rankdata
 
 from tndp.novisad import konstante
 from tndp.novisad.ulice import ucitaj_zone
@@ -104,10 +105,12 @@ def _upisi(imena, traznja):
             w.writerow([ime] + [f"{x:.1f}" for x in traznja[i]])
 
 
+# Spearman preko rankdata, NE preko argsort(argsort). Druga varijanta vezanim
+# vrednostima dodeljuje proizvoljne različite rangove, pa izmišlja poredak tamo
+# gde ga nema. Ovde je to bitno: u validaciji frekvencija je devet linija
+# zakucano na tačno 60 minuta, a u kalibraciji više linija ima nula putnika.
 def _spearman(a, b):
-    ra = np.argsort(np.argsort(a)).astype(float)
-    rb = np.argsort(np.argsort(b)).astype(float)
-    return float(np.corrcoef(ra, rb)[0, 1])
+    return float(np.corrcoef(rankdata(a), rankdata(b))[0, 1])
 
 
 def main():

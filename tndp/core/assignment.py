@@ -6,18 +6,35 @@ from scipy.sparse.csgraph import dijkstra
 
 # standardni transfer penal iz literature
 TRANSFER_PENALTY_MIN = 5.0
-# Nepokriven par ne kažnjavamo proizvoljnom konstantom nego ga naplaćujemo
-# kao da putnik istu razdaljinu pređe pešice. Faktor je zato odnos brzina:
-# autobus 20 km/h (BUS_SPEED_KMH u generatoru) prema pešaku 5 km/h.
-# Ulazi u C_p_all, dakle u isti putnički član kao i svi ostali parovi — nema
-# zasebne kazne koja bi se odvojeno podešavala.
+# Nepokriven par ne kažnjavamo proizvoljnom konstantom nego ga naplaćujemo kao
+# da putnik istu razdaljinu pređe pešice. Ulazi u C_p_all, dakle u isti
+# putnički član kao svi ostali parovi — nema zasebne kazne koja bi se odvojeno
+# podešavala.
 #
-# Vrednost je bitna: mereno na greedy rešenjima, opslužen par putuje samo
-# ~1.04x duže od uličnog najkraćeg vremena, pa faktor blizu 1 znači da
-# "ne opslužiti" košta koliko i "opslužiti" i pokrivenost se uruši.
+# Faktor ima dva činioca: odnos brzina, autobus 20 km/h prema pešaku 5 km/h,
+# dakle 4; i težinu pešačkog vremena, koje se u planerskoj praksi doživljava
+# kao ~2 minuta vožnje po minutu hoda.
+#
+# KRITERIJUM po kom je vrednost izabrana: nepokriven par mora da košta VIŠE od
+# najgoreg OPSLUŽENOG para. Ako ne košta, optimizatoru se isplati da ispusti
+# baš najteže parove. Tačno to se i desilo na R=19 (nalaz J u
+# docs/metodoloska-procena.md): politika je gradila 15 od 19 linija u
+# minimalnoj dužini i ostavljala 72% tražnje neopsluženo, jer je po tadašnjem
+# faktoru 4 to bilo jeftinije od opsluživanja.
+#
+# Izmereno, odnos vreme_u_mreži / ulično_najkraće po OPSLUŽENIM parovima:
+#   GSP Novi Sad       medijana 1.78, p99 3.98, max 5.12
+#   greedy Novi Sad    medijana 1.72, p99 3.18, max 3.22
+#   hill climb NS      medijana 1.78, p99 3.44, max 4.00
+#   Mumford0 hill c.   medijana 1.67, p99 5.33, max 6.80
+#
+# Raniji komentar je tvrdio da opslužen par putuje ~1.04x duže od uličnog
+# najkraćeg; to je mereno pre nego što je presedanje ušlo u vreme putovanja.
+# Sa penalom od 5 minuta odnos ide do 6.8, pa faktor 4 kriterijum ne ispunjava.
 # Osetljivost je u tndp/experiments/provere.py i mora ići uz rezultate.
 BUS_SPEED_KMH, WALK_SPEED_KMH = 20.0, 5.0
-UNSERVED_FACTOR = BUS_SPEED_KMH / WALK_SPEED_KMH
+TEZINA_PESACENJA = 2.0
+UNSERVED_FACTOR = BUS_SPEED_KMH / WALK_SPEED_KMH * TEZINA_PESACENJA
 
 
 @dataclass

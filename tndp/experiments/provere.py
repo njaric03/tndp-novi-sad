@@ -65,7 +65,7 @@ def check_balance(cs):
 
 # --- 2. osetljivost na UNSERVED_FACTOR --------------------------------------
 def check_unserved_factor(cs):
-    hdr("2. osetljivost na UNSERVED_FACTOR (sada 20/5 = odnos brzina bus/pešak)")
+    hdr("2. osetljivost na UNSERVED_FACTOR (odnos brzina 20/5 puta težina pešačenja 2)")
     base = A.UNSERVED_FACTOR
     ratios = []
     for res, c in zip(greedy_results(cs[:8]), cs[:8]):
@@ -174,7 +174,7 @@ def check_input_scale():
         print("  torch nije instaliran, preskočeno")
         return
     from pathlib import Path
-    data = Path(__file__).parent.parent / "data" / "benchmarks"
+    data = Path(__file__).parent.parent.parent / "data" / "benchmarks"
     sets = [("gravity (trening)", generate_city(seed=SEED_BASE, n_range=N_RANGE)),
             ("uniform", generate_city(seed=1, n_range=N_RANGE, demand_mode="uniform")),
             ("Mandl1", load_benchmark_city(data / "Mandl/Mandl1")),

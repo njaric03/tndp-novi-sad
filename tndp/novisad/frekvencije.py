@@ -16,16 +16,25 @@
 from pathlib import Path
 
 import numpy as np
+from scipy.stats import rankdata
 
 from tndp.core import frequencies as F
 from tndp.novisad.instanca import gsp_mreza, ucitaj
 from tndp.novisad.kalibracija import intervali_iz_reda_voznje
 
-REZULTATI = Path("results")
+REZULTATI = Path(__file__).resolve().parent.parent.parent / "results"
 # vrednosti na kojima se meri osetljivost; srednja je podrazumevana u
 # core/frequencies.py
 KAPACITETI = [60.0, 80.0, 100.0, 120.0]
 UDELI_VRHA = [0.08, 0.10, 0.12]
+
+
+# Spearman preko rankdata, NE preko argsort(argsort). Druga varijanta vezanim
+# vrednostima dodeljuje proizvoljne različite rangove, pa izmišlja poredak tamo
+# gde ga nema. Ovde je to bitno: u validaciji frekvencija je devet linija
+# zakucano na tačno 60 minuta, a u kalibraciji više linija ima nula putnika.
+def _spearman(a, b):
+    return float(np.corrcoef(rankdata(a), rankdata(b))[0, 1])
 
 
 def _mere(model, stvarno):
@@ -34,8 +43,7 @@ def _mere(model, stvarno):
         "medijana |greška|": float(np.median(np.abs(razlika))),
         "prosečna greška": float(np.mean(razlika)),
         "Pearson": float(np.corrcoef(model, stvarno)[0, 1]),
-        "Spearman": float(np.corrcoef(np.argsort(np.argsort(model)),
-                                      np.argsort(np.argsort(stvarno)))[0, 1]),
+        "Spearman": _spearman(model, stvarno),
         "unutar 5 min": float(np.mean(np.abs(razlika) <= 5.0)),
     }
 
