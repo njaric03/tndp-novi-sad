@@ -26,9 +26,10 @@ def _tezista(zone):
             np.array([float(z["lat"]) for z in zone]))
 
 
-def _panel(ax, city, imena, lon, lat, put, net, naslov, podnaslov, boja, prvi=False):
-    # zone su obojene traznjom; traznja je svojstvo zone a ne tacke u njoj
-    podloga.nacrtaj(ax, imena, vrednosti=city.demand.sum(1))
+def _panel(ax, city, imena, lon, lat, put, gustina, net, naslov, podnaslov, boja, prvi=False):
+    # zone su obojene GUSTINOM traznje, ne ukupnom: ukupna bi tamnim obojila
+    # velike periferne zone prosto zato sto su velike, a to je artefakt povrsine
+    podloga.nacrtaj(ax, imena, vrednosti=gustina)
 
     # trasa prati ulice: prava linija izmedju tezista implicira ulicu koje nema
     for k, r in enumerate(net.routes):
@@ -67,8 +68,11 @@ def main(checkpoint=MODEL):
     import matplotlib.pyplot as plt
 
     city, imena = ucitaj()
-    lon, lat = _tezista(ucitaj_zone())
+    zone = ucitaj_zone()
+    lon, lat = _tezista(zone)
     put = podloga.trase(lon, lat)
+    povrsina = np.array([float(z["povrsina_km2"]) for z in zone])
+    gustina = city.demand.sum(1) / np.maximum(povrsina, 0.05)
     gsp, _ = gsp_mreza(city, imena)
     R = len(gsp.routes)
     duz = [len(r) for r in gsp.routes]
@@ -92,12 +96,12 @@ def main(checkpoint=MODEL):
         pod = (f"cilj {objective(res, scales, 0.5):.2f}    "
                f"C_p {res.C_p:.1f} min    "
                f"bez veze {100 * res.d['d_un']:.0f}%")
-        _panel(ax, city, imena, lon, lat, put, net, ime, pod, boja, prvi=(i == 0))
+        _panel(ax, city, imena, lon, lat, put, gustina, net, ime, pod, boja, prvi=(i == 0))
 
     fig.suptitle(f"Novi Sad: {city.n} mesnih zajednica, {R} linija",
                  fontsize=13, y=0.98)
-    fig.text(0.5, 0.005, "trase prate stvarnu uličnu mrežu; zasićenost zone je njena "
-             "ukupna tražnja; tačka je zona kroz koju linija prolazi",
+    fig.text(0.5, 0.005, "trase prate stvarnu uličnu mrežu; zasićenost zone je "
+             "gustina tražnje po km2; tačka je zona kroz koju linija prolazi",
              ha="center", fontsize=8, color="#777777")
     fig.tight_layout(rect=[0, 0.055, 1, 0.955])
     for p in style.save(fig, REZULTATI / "novisad-mreze"):

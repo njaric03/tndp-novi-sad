@@ -36,7 +36,7 @@ def step_probs(policy, env, edge_index, edge_attr):
     return p[:2 * n].reshape(2, n).sum(0), halt, decision
 
 
-def heatmap(policy, city, cfg, alpha, out, panels=4):
+def heatmap(policy, city, cfg, alpha, out, panels=3):
     env = TndpEnv(city, cfg["num_routes"], cfg["min_len"], cfg["max_len"], alpha)
     edge_index, edge_attr = edge_tensors(city)
     env.reset()
@@ -54,31 +54,40 @@ def heatmap(policy, city, cfg, alpha, out, panels=4):
     # jedna skala boje za sve panele: kad politika odluči da završi liniju
     vmax = max(snaps[si][1].max() for si in pick)
     style.primeni()
-    fig, axes = plt.subplots(1, len(pick), figsize=(3.8 * len(pick), 4.4))
+    fig, axes = plt.subplots(1, len(pick), figsize=(4.6 * len(pick), 5.0))
     axes = np.atleast_1d(axes)
     for ax, si in zip(axes, pick):
         cur, probs, halt = snaps[si]
         _streets(ax, city)
+        # svetlo-ka-tamnom umesto viridisa: nula treba da bude skoro bela, jer
+        # je vecina cvorova u svakom potezu nedostupna ili neverovatna
         sc = ax.scatter(city.coords[:, 0], city.coords[:, 1], c=probs,
-                        cmap="viridis", s=90, zorder=3, vmin=0.0, vmax=vmax)
+                        cmap="YlOrRd", s=110, zorder=3, vmin=0.0, vmax=vmax,
+                        edgecolors="#999999", linewidths=0.5)
+        # izgradjen deo linije je plav, ne crven: crvena je gornji kraj skale
+        # verovatnoce, pa bi se trasa stapala sa najverovatnijim cvorom
         if len(cur) > 1:
             pts = city.coords[cur]
-            ax.plot(pts[:, 0], pts[:, 1], color=LINE_COLORS[0], lw=2.6,
+            ax.plot(pts[:, 0], pts[:, 1], color="#1f4e9c", lw=2.6,
                     zorder=2, solid_capstyle="round")
         if cur:
             ax.scatter(city.coords[cur, 0], city.coords[cur, 1],
-                       facecolors="none", edgecolors=LINE_COLORS[0], s=170,
+                       facecolors="none", edgecolors="#1f4e9c", s=170,
                        lw=1.8, zorder=4)
-        title = f"potez {si + 1}, linija {cur if cur else ','}"
+        opis = "linija još prazna" if not cur else f"linija {cur}"
+        title = f"potez {si + 1}: {opis}"
         if halt > 0:
             title += f"\nP(završi liniju) = {halt:.2f}"
-        ax.set_title(title, fontsize=8)
+        ax.set_title(title, fontsize=8.5)
         ax.set_aspect("equal")
         ax.axis("off")
     fig.colorbar(sc, ax=list(axes), fraction=0.02, pad=0.01,
                  label="P(sledeći čvor)")
-    fig.suptitle(f"Šta politika gleda dok gradi prvu liniju, {city.name}, "
-                 f"alpha={alpha}", fontsize=11)
+    fig.suptitle(f"Šta politika gleda dok gradi prvu liniju "
+                 f"(sintetički grad, n={city.n}, alpha={alpha})", fontsize=11.5)
+    fig.text(0.5, 0.03, "boja je verovatnoća da politika taj čvor izabere kao "
+             "sledeći; plavo je već izgrađen deo linije",
+             ha="center", fontsize=8.5, color="#666666")
     return save(fig, out)
 
 

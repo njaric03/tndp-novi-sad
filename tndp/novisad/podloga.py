@@ -92,10 +92,10 @@ def nacrtaj(ax, imena, ulice_alpha=0.7, vrednosti=None, cmap="Blues"):
     # zona se boji svojom vrednoscu; traznja je svojstvo zone, ne tacke u njoj
     po_zoni = granice_po_zoni(tuple(imena))
     if vrednosti is not None:
-        import matplotlib.cm as cm
+        from matplotlib import colormaps
         from matplotlib.colors import Normalize
         norm = Normalize(vmin=float(np.min(vrednosti)), vmax=float(np.max(vrednosti)))
-        boja = cm.get_cmap(cmap)
+        boja = colormaps[cmap]
         for ime, v in zip(imena, vrednosti):
             for pr in po_zoni.get(ime, []):
                 ax.fill(pr[:, 0], pr[:, 1], color=boja(0.12 + 0.62 * norm(v)),
