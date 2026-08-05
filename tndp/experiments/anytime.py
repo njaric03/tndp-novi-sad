@@ -4,9 +4,6 @@ import argparse
 import time
 from pathlib import Path
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 
 from tndp.baselines.greedy import greedy_network
@@ -16,7 +13,7 @@ from tndp.core.assignment import assign, objective
 from tndp.experiments.common import held_out_cities, load_policy, scales_for
 from tndp.rl.evaluate import decode, decode_sampling
 from tndp.rl.mcts import mcts_decode
-from tndp.viz import style
+from tndp.viz import rad
 
 SAMPLES_K = [1, 2, 4, 8, 16, 32, 64]
 RANDOM_N = [25, 100, 400, 1600, 6400]
@@ -59,46 +56,28 @@ def main():
         series["RL + MCTS"] = [(s, lambda c, s=s: mcts_decode(
             policy, c, R, lo, hi, a, sims=s)[0]) for s in MCTS_SIMS]
 
-    curves, rows = {}, ["| metoda | budžet | s/grad | cilj |", "|---|---|---|---|"]
+    rows = ["| metoda | budžet | s/grad | cilj |", "|---|---|---|---|"]
     for name, budgets in series.items():
-        pts = []
         for budget, solve in budgets:
             dt, obj = run(solve, cities, scales, R, lo, hi, a)
-            pts.append((dt, obj))
             rows.append(f"| {name} | {budget} | {dt:.3f} | {obj:.3f} |")
             print(rows[-1])
-        curves[name] = np.array(pts)
 
     # jednokratne metode kao tačke
     for name, solve in [("greedy", lambda c: greedy_network(c, R, lo, hi, alpha=a)[0]),
                         ("RL greedy dekod", lambda c: decode(policy, c, R, lo, hi, a)[0])]:
         dt, obj = run(solve, cities, scales, R, lo, hi, a)
-        curves[name] = np.array([[dt, obj]])
         rows.append(f"| {name} | 1 | {dt:.3f} | {obj:.3f} |")
         print(rows[-1])
 
-    style.primeni()
-    fig, ax = plt.subplots(figsize=(7.5, 5))
-    for name, pts in curves.items():
-        if len(pts) > 1:
-            ax.plot(pts[:, 0], pts[:, 1], "o-", label=name)
-        else:
-            ax.plot(pts[:, 0], pts[:, 1], "*", ms=14, label=name)
-    ax.set_xscale("log")
-    ax.set_xlabel("sekundi po gradu (log)")
-    ax.set_ylabel("cilj (manje je bolje)")
-    ax.set_title(f"Kvalitet pod istim vremenskim budžetom "
-                 f"({args.cities} held-out gradova, alpha={a})")
-    ax.legend()
-    ax.grid(alpha=0.3, which="both")
-
     results = Path(__file__).parent.parent.parent / "results"
-    fig.tight_layout()
-    fig.savefig(results / "anytime.png", dpi=130)
     (results / "anytime.md").write_text(
         "\n".join([f"# Anytime poređenje ({args.cities} gradova, alpha={a}, "
                    f"model {args.checkpoint})", ""] + rows) + "\n", encoding="utf-8")
-    print(f"snimljeno u {results / 'anytime.md'} i anytime.png")
+    # sliku crta viz.rad iz ove iste tabele, da se figura u radu i tabela
+    # ne mogu razići
+    print(f"snimljeno u {results / 'anytime.md'}")
+    print("->", *rad.budzet(results / "slika-budzet"))
 
 
 if __name__ == "__main__":

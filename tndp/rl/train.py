@@ -11,7 +11,7 @@ import yaml
 
 from tndp.baselines.random_search import random_search
 from tndp.rl.env import TndpEnv
-from tndp.rl.evaluate import decode, rollout
+from tndp.rl.evaluate import decode, decode_sampling, rollout
 from tndp.rl.features import edge_tensors, node_features
 from tndp.rl.model import TndpPolicy
 from tndp.synth import generate_city
@@ -31,6 +31,16 @@ DEFAULTS = dict(
     standardize_adv=True,
     # skup ulaznih featura; "v2" dodaje prolaznost, koreness i bliskost i popravlja skaliranje stepena (vidi tndp/rl/model.py)
     features="v1",
+    # koliko uzoraka koristi validacija. 1 je argmax, sto je i bilo ponasanje do
+    # sada i zato ostaje podrazumevano: svi objavljeni modeli su tako birani.
+    # Rezultati se izvestavaju pod uzorkovanjem 32, pa argmax meri drugu stvar.
+    # Mereno na tri semena gravity-v1, poredak modela je isti kod oba dekodera
+    # (Spearman +1.0), ali je nivo pomeren: argmax daje 2.237 tamo gde
+    # uzorkovanje 32 daje 1.877, dok val_samples=8 daje 1.889.
+    # Dakle argmax dobro RANGIRA, ali lose PROCENJUJE. Za izbor najbolje
+    # iteracije unutar runa to je verovatno svejedno; za poredjenje sa
+    # objavljenim brojevima nije.
+    val_samples=1,
 )
 
 
@@ -176,8 +186,14 @@ def main():
             for a in val_alphas:
                 vr = []
                 for env in val_envs[a]:
-                    net, _ = decode(policy, env.city, cfg["num_routes"],
-                                    cfg["min_len"], cfg["max_len"], a)
+                    if cfg["val_samples"] > 1:
+                        net, _ = decode_sampling(
+                            policy, env.city, cfg["num_routes"],
+                            k=cfg["val_samples"], min_len=cfg["min_len"],
+                            max_len=cfg["max_len"], alpha=a)
+                    else:
+                        net, _ = decode(policy, env.city, cfg["num_routes"],
+                                        cfg["min_len"], cfg["max_len"], a)
                     env.routes = net.routes
                     vr.append(env.reward()[0])
                 by_alpha[a] = float(np.mean(vr))
