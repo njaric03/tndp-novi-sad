@@ -1,5 +1,4 @@
-# zajedničko za skripte u experiments/: učitavanje politike, uparena
-# statistika i formatiranje tabela
+# zajedničko za skripte u experiments/: učitavanje politike, uparena statistika i formatiranje tabela
 
 import numpy as np
 import torch
@@ -12,8 +11,7 @@ from tndp.synth import generate_city
 SEED_BASE = 20_000  # van trening poola (0..pool) i validacije (10k+)
 
 
-# učitaj checkpoint; podrazumevano best.pt (najbolji na validaciji) ako
-# postoji, jer policy.pt je samo poslednja iteracija
+# učitaj checkpoint; podrazumevano best.pt (najbolji na validaciji) ako postoji, jer policy.pt je samo poslednja iteracija
 def load_policy(path):
     ckpt = torch.load(path, weights_only=False)
     cfg = ckpt["cfg"]
@@ -33,9 +31,7 @@ def held_out_cities(cfg, count):
                           n_range=tuple(cfg["n_range"])) for k in range(count)]
 
 
-# pusti jednu metodu preko svih gradova. VALIDIRA izlaz svake metode —
-# ranije nijedan eksperiment nije proveravao da mreža poštuje ograničenja,
-# pa bi duplirane ili prekratke linije prošle nezapaženo.
+# pusti jednu metodu preko svih gradova
 def evaluate_method(solve, cities, scales, num_routes, min_len, max_len, alpha):
     per_city = {k: [] for k in ("cilj", "C_p", "C_p_all", "C_o", "d_0", "d_un")}
     for city, sc in zip(cities, scales):
@@ -57,9 +53,7 @@ def scales_for(cities):
     return [cost_scales(c) for c in cities]
 
 
-# uparena razlika u odnosu na referentnu metodu. gradovi se međusobno
-# razlikuju po težini mnogo više nego metode, pa nespareno poređenje troši
-# većinu osetljivosti ni na šta.
+# uparena razlika u odnosu na referentnu metodu
 def paired_vs(values, reference):
     d = reference - values          # >0 znači da je metoda bolja od reference
     se = d.std(ddof=1) / np.sqrt(len(d))
@@ -71,4 +65,18 @@ def paired_vs(values, reference):
 
 
 def fmt_p(p):
-    return "—" if p >= 0.999 else ("<0.001" if p < 0.001 else f"{p:.3f}")
+    return "-" if p >= 0.999 else ("<0.001" if p < 0.001 else f"{p:.3f}")
+
+
+# Holm korekcija za vise poredjenja nad istim podacima
+# jedna tabela testira 4-5 metoda protiv iste reference, pa je sirova p vrednost
+# preoptimisticna: pri 5 testova i pragu 0.05 jedan lazno pozitivan je ocekivan
+def holm(ps):
+    m = len(ps)
+    red = sorted(range(m), key=lambda i: ps[i])
+    izlaz = [0.0] * m
+    dosad = 0.0
+    for k, i in enumerate(red):
+        dosad = max(dosad, min(1.0, (m - k) * ps[i]))
+        izlaz[i] = dosad
+    return izlaz

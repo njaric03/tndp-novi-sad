@@ -1,5 +1,4 @@
-# RL politika protiv baselina na held-out sintetičkim gradovima
-# pokretanje: python -m tndp.experiments.bench_synth runs/gravity-v1/best.pt
+# RL politika protiv baselina na held-out sintetičkim gradovima pokretanje: python -m tndp.experiments.bench_synth
 
 import argparse
 import time
@@ -22,8 +21,7 @@ def main():
     ap.add_argument("checkpoint")
     ap.add_argument("--cities", type=int, default=50)
     ap.add_argument("--alpha", type=float, default=None)
-    # ime izlaza bez ekstenzije; ablacije i seed-ovi pišu u svoj fajl da ne
-    # prepišu glavnu tabelu
+    # ime izlaza bez ekstenzije; ablacije i seed-ovi pišu u svoj fajl da ne prepišu glavnu tabelu
     ap.add_argument("--out", default="bench-synth")
     args = ap.parse_args()
 
@@ -59,7 +57,7 @@ def main():
         f"Nepokrivena tražnja je već u C_p_all (nepokriven par se naplaćuje "
         f"{UNSERVED_FACTOR:g}x uličnim",
         "najkraćim vremenom), pa nema zasebne kazne. `C_p` je prosek samo nad opsluženim",
-        "parovima i dat je radi poređenja sa literaturom — između metoda sa različitim",
+        "parovima i dat je radi poređenja sa literaturom, između metoda sa različitim",
         "`d_un` nije uporediv, za to služi `C_p_all`.", "",
         "± je standardna devijacija po gradovima. Δ i p su **uparene** razlike u `cilj`",
         f"u odnosu na `{ref}` (Wilcoxon, isti gradovi); Δ>0 znači bolje od reference.", "",
@@ -68,8 +66,8 @@ def main():
     ]
     for name, s in stats.items():
         if name == ref:
-            delta = "—"
-            p = "—"
+            delta = "-"
+            p = "-"
         else:
             d, se, pv = paired_vs(s["cilj"], stats[ref]["cilj"])
             delta, p = f"{d:+.3f} ± {se:.3f}", fmt_p(pv)

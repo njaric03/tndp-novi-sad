@@ -3,8 +3,7 @@ import json
 
 from tndp.novisad import konstante
 
-# kategorije preslikane iz njaric03/mu-novi-sad-tipologija-zgrada; redosled je
-# bitan jer svaka tačka pada u prvu kategoriju koja se poklopi
+# kategorije preslikane iz njaric03/mu-novi-sad-tipologija-zgrada; redosled je bitan jer svaka tačka pada u prvu
 GROCERY = {"supermarket", "convenience", "greengrocer", "bakery", "butcher", "deli"}
 FOOD = {"restaurant", "cafe", "fast_food", "bar", "pub", "food_court", "ice_cream"}
 EDU = {"school", "university", "college", "kindergarten", "childcare"}

@@ -6,8 +6,7 @@ from tndp.core.city import CityGraph
 from tndp.core.network import TransitNetwork
 
 
-# put 0-1-2 plus ogranak 1-3, sva vremena 10 min; demand 0->2 ide linijom
-# A direktno, 0->3 mora A pa B sa jednim presedanjem
+# put 0-1-2 plus ogranak 1-3, sva vremena 10 min; demand 0->2 ide linijom A direktno
 @pytest.fixture
 def toy_city():
     n = 4
@@ -24,8 +23,7 @@ def toy_city():
 def test_toy_example_by_hand(toy_city):
     net = TransitNetwork(routes=[[0, 1, 2], [1, 3]])
     res = assign(toy_city, net)
-    # 0->2 direktno linijom A: 20 min; 0->3: A do cvora 1 (10),
-    # presedanje (5), B do cvora 3 (10) = 25 min
+    # 0->2 direktno linijom A: 20 min; 0->3: A do cvora 1 (10), presedanje (5), B do cvora 3 (10) = 25 min
     assert res.travel_time[0, 2] == pytest.approx(20.0)
     assert res.transfers[0, 2] == 0
     assert res.travel_time[0, 3] == pytest.approx(25.0)
@@ -50,15 +48,13 @@ def test_unserved_pairs(toy_city):
     assert np.isinf(res.travel_time[0, 3])
     assert res.d["d_un"] == pytest.approx(100 / 300)
     assert not res.is_connected
-    # C_p gleda samo opsluzene parove (0<->2, 20 min), a C_p_all naplacuje
-    # nepokriven par 0<->3 sa UNSERVED_FACTOR * ulicno najkrace (20 min)
+    # C_p gleda samo opsluzene parove (0<->2, 20 min), a C_p_all naplacuje nepokriven par 0<->3 sa UNSERVED_FACTOR * ulicno
     assert res.C_p == pytest.approx(20.0)
     assert res.C_p_all == pytest.approx(
         (200 * 20 + 100 * UNSERVED_FACTOR * 20) / 300)
 
 
-# udeli demanda po broju presedanja moraju da se saberu na 1, inace se deo
-# demanda tiho gubi u rekonstrukciji puteva
+# udeli demanda po broju presedanja moraju da se saberu na 1, inace se deo demanda tiho gubi u rekonstrukciji puteva
 def test_demand_shares_sum_to_one(toy_city):
     for routes in ([[0, 1, 2], [1, 3]], [[0, 1, 2]], [[1, 3]]):
         d = assign(toy_city, TransitNetwork(routes=routes)).d

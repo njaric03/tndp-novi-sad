@@ -6,32 +6,9 @@ from scipy.sparse.csgraph import dijkstra
 
 # standardni transfer penal iz literature
 TRANSFER_PENALTY_MIN = 5.0
-# Nepokriven par ne kažnjavamo proizvoljnom konstantom nego ga naplaćujemo kao
-# da putnik istu razdaljinu pređe pešice. Ulazi u C_p_all, dakle u isti
-# putnički član kao svi ostali parovi — nema zasebne kazne koja bi se odvojeno
-# podešavala.
-#
-# Faktor ima dva činioca: odnos brzina, autobus 20 km/h prema pešaku 5 km/h,
-# dakle 4; i težinu pešačkog vremena, koje se u planerskoj praksi doživljava
-# kao ~2 minuta vožnje po minutu hoda.
-#
-# KRITERIJUM po kom je vrednost izabrana: nepokriven par mora da košta VIŠE od
-# najgoreg OPSLUŽENOG para. Ako ne košta, optimizatoru se isplati da ispusti
-# baš najteže parove. Tačno to se i desilo na R=19 (nalaz J u
-# docs/metodoloska-procena.md): politika je gradila 15 od 19 linija u
-# minimalnoj dužini i ostavljala 72% tražnje neopsluženo, jer je po tadašnjem
-# faktoru 4 to bilo jeftinije od opsluživanja.
-#
-# Izmereno, odnos vreme_u_mreži / ulično_najkraće po OPSLUŽENIM parovima:
-#   GSP Novi Sad       medijana 1.78, p99 3.98, max 5.12
-#   greedy Novi Sad    medijana 1.72, p99 3.18, max 3.22
-#   hill climb NS      medijana 1.78, p99 3.44, max 4.00
-#   Mumford0 hill c.   medijana 1.67, p99 5.33, max 6.80
-#
-# Raniji komentar je tvrdio da opslužen par putuje ~1.04x duže od uličnog
-# najkraćeg; to je mereno pre nego što je presedanje ušlo u vreme putovanja.
-# Sa penalom od 5 minuta odnos ide do 6.8, pa faktor 4 kriterijum ne ispunjava.
-# Osetljivost je u tndp/experiments/provere.py i mora ići uz rezultate.
+# nepokriven par se naplacuje kao da putnik istu razdaljinu prelazi pesice
+# faktor mora biti iznad najgoreg OPSLUZENOG para, izmereno do 6.8x ulicnog vremena
+# 20/5 je odnos brzina, 2.0 je uobicajena tezina pesackog minuta
 BUS_SPEED_KMH, WALK_SPEED_KMH = 20.0, 5.0
 TEZINA_PESACENJA = 2.0
 UNSERVED_FACTOR = BUS_SPEED_KMH / WALK_SPEED_KMH * TEZINA_PESACENJA
@@ -53,35 +30,18 @@ class AssignmentResult:
         return self.d["d_un"] == 0.0
 
 
-# skale za normalizaciju putničkog i operaterskog člana. obe su DONJE
-# GRANICE istog tipa, da alpha zaista balansira:
-#   cp_scale — demand-ponderisano najkraće vreme ulicom (mreža ide svuda),
-#   co_scale — ukupno vreme minimalnog razapinjućeg stabla (najmanje mreže
-#              koliko treba da svaki čvor bude dostupan).
-# ranija co skala R*(max_len-1)*mean(tau) je bila procena gornje granice i
-# skoro konstanta po gradu, pa je operaterski član imao upola manji uticaj
-# nego putnički. mereno preko kandidat-rešenja, odnos rasipanja ta dva člana
-# je sa ovim skalama ~1.1:1 umesto ~2.1:1.
-# num_routes i max_len se više ne koriste; ostavljeni su u potpisu da
-# pozivaoci ne moraju da se menjaju.
+# skale za normalizaciju putničkog i operaterskog člana
 def cost_scales(city, num_routes=None, max_len=None):
     return city.street_shortest_mean_demand, city.mst_time
 
 
-# jedina funkcija cilja: oba člana su odnos prema svojoj donjoj granici, pa
-# je vrednost ~1 kad je mreža blizu teorijskog poda. nepokrivena tražnja je
-# već uračunata kroz C_p_all, dakle NEMA zasebne kazne ni magične konstante.
-# ovo RL maksimizuje (kao negativnu nagradu) i po ovome se porede sve metode.
+# jedina funkcija cilja: oba člana su odnos prema svojoj donjoj granici
 def objective(result, scales, alpha=0.5):
     cp_scale, co_scale = scales
     return alpha * result.C_p_all / cp_scale + (1 - alpha) * result.C_o / co_scale
 
 
-# passenger assignment preko "route grafa": platforma = (linija, pozicija),
-# plus zemaljski čvor po čvoru grada. ukrcavanje košta transfer_penalty,
-# silazak 0, pa put sa k presedanja plati (k+1) penala; prvi se oduzme na
-# kraju. compute_transfers=False preskače rekonstrukciju puteva (d_k
-# statistike), dovoljno i duplo brže za RL reward.
+# passenger assignment preko "route grafa": platforma = (linija, pozicija), plus zemaljski čvor po čvoru grada
 def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfers=True,
            compute_loads=False, headways=None):
     n = city.n
@@ -90,9 +50,7 @@ def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfe
     num_platforms = int(offsets[-1])
     ground = num_platforms  # zemaljski čvor grada i ima indeks ground + i
 
-    # ulazak košta ili fiksni penal iz literature ili, kad su frekvencije
-    # poznate, pola intervala sleđenja te linije (prosečno čekanje pri
-    # slučajnom dolasku putnika na stajalište)
+    # ulazak košta ili fiksni penal iz literature ili, kad su frekvencije poznate
     board = ([transfer_penalty] * len(routes) if headways is None
              else [float(h) / 2.0 for h in headways])
 
@@ -121,11 +79,7 @@ def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfe
     else:
         dist = dijkstra(graph, directed=True, indices=ground_ids)
 
-    # sa fiksnim penalom put sa k presedanja plati (k+1) penala, pa se prvi
-    # skida — penal je tu proxy za neugodnost presedanja, ne za čekanje.
-    # sa frekvencijama je prvo čekanje stvarno vreme koje putnik provede na
-    # stajalištu, pa se ne skida; uz to je po liniji različito i ne bi se
-    # ni moglo skinuti jednim oduzimanjem.
+    # sa fiksnim penalom put sa k presedanja plati (k+1) penala, pa se prvi skida, penal je tu proxy za neugodnost presedanja
     travel_time = dist[:, ground_ids]
     if headways is None:
         travel_time = travel_time - transfer_penalty
@@ -137,10 +91,7 @@ def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfe
     served_demand = demand[served].sum()
     C_p = float((demand[served] * travel_time[served]).sum() / served_demand) \
         if served_demand > 0 else float("inf")
-    # C_p_all: isti prosek nad SVIM parovima, gde nepokriveni plaćaju
-    # UNSERVED_FACTOR puta ulično najkraće vreme. bez ovoga C_p svake metode
-    # prosečava preko drugog skupa parova (one sa većim d_un ispuštaju baš
-    # najduže parove i time sebi lepšaju C_p), pa nije uporediv.
+    # C_p_all: isti prosek nad SVIM parovima, gde nepokriveni plaćaju UNSERVED_FACTOR puta ulično najkraće vreme
     charged = np.where(served, travel_time, UNSERVED_FACTOR * city.street_shortest)
     C_p_all = float((demand * charged).sum() / total)
     C_o = float(network.route_times(city).sum())
@@ -164,13 +115,7 @@ def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfe
                             boardings=boardings, max_load=max_load)
 
 
-# hod unazad po predecessor matrici, od cilja ka izvoru. iz njega se čitaju
-# dve stvari: broj presedanja (= broj ukrcavanja minus 1) i, kad se traži,
-# opterećenje — koliko putovanja uđe u koju liniju i koliko ih se vozi kroz
-# koju deonicu. deonice trebaju za frekvencije (najopterećenija deonica
-# određuje interval sleđenja), ulasci za kalibraciju tražnje na brojanja.
-# grafovi su mali pa je python petlja ok, ali je O(n^2 * dužina puta) pa se
-# opterećenje ne računa u RL nagradi.
+# hod unazad po predecessor matrici, od cilja ka izvoru
 def _trace(pred, ground_ids, num_platforms, n, offsets, demand, routes, want_loads):
     transfers = np.full((n, n), -1, dtype=int)
     if not want_loads:
@@ -203,8 +148,7 @@ def _trace(pred, ground_ids, num_platforms, n, offsets, demand, routes, want_loa
                     if want_loads:
                         usao.append(plat_route[cur])
                 elif want_loads and prev < num_platforms and cur < num_platforms:
-                    # jedine ivice platforma-platforma su susedne pozicije
-                    # iste linije, pa je deonica ona sa manjim indeksom
+                    # jedine ivice platforma-platforma su susedne pozicije iste linije, pa je deonica ona sa manjim indeksom
                     vozio.append((plat_route[cur], min(plat_pos[cur], plat_pos[prev])))
                 cur = prev
             if cur == ground_ids[si] and nboard > 0:

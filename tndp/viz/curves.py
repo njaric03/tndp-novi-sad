@@ -1,5 +1,4 @@
-# krive treninga iz runs/<ime>/log.csv
-# pokretanje: python -m tndp.viz.curves runs/smoke
+# krive treninga iz runs/<ime>/log.csv pokretanje: python -m tndp.viz.curves runs/smoke
 
 import sys
 from pathlib import Path
@@ -7,6 +6,8 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+from tndp.viz import style
 import numpy as np
 
 
@@ -14,6 +15,7 @@ def main():
     run = Path(sys.argv[1])
     rows = np.genfromtxt(run / "log.csv", delimiter=",", names=True)
 
+    style.primeni()
     fig, axes = plt.subplots(1, 3, figsize=(14, 4))
     axes[0].plot(rows["iter"], rows["reward"], lw=0.8, label="trening")
     has_val = ~np.isnan(rows["val_reward"])

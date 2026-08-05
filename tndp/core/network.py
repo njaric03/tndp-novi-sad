@@ -5,8 +5,7 @@ from pathlib import Path
 import numpy as np
 
 
-# kanonski oblik linije: linija i njen obrnuti redosled su ista linija, pa
-# se provera na duplikate mora raditi preko ovoga a ne preko `route in routes`
+# kanonski oblik linije: linija i njen obrnuti redosled su ista linija
 def canon(route):
     return tuple(min(route, route[::-1]))
 
@@ -20,8 +19,7 @@ def is_duplicate(route, routes):
 class TransitNetwork:
     routes: list
 
-    # prekršaji ograničenja; povezanost se ne proverava ovde nego kroz
-    # assignment (d_un > 0), da validnost i cost dolaze iz istog prolaza
+    # prekršaji ograničenja; povezanost se ne proverava ovde nego kroz assignment (d_un > 0)
     def check(self, city, num_routes=None, min_len=2, max_len=None):
         problems = []
         if num_routes is not None and len(self.routes) != num_routes:

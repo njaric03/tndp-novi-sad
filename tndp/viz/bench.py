@@ -1,11 +1,12 @@
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+from tndp.viz import style
 import numpy as np
 
 
-# poređenje metoda: cilj (glavna metrika), pa razbijanje na putničku stranu
-# (d_0, udeo direktnih putovanja; d_un, nepokriveno) i C_p/C_o kompromis
+# poređenje metoda: cilj (glavna metrika), pa razbijanje na putničku stranu (d_0, udeo direktnih putovanja; d_un
 def plot_synth(stats, out_path):
     names = list(stats)
     x = np.arange(len(names))
@@ -13,6 +14,7 @@ def plot_synth(stats, out_path):
                "tab:purple", "tab:brown"]
     colors = [palette[i % len(palette)] for i in range(len(names))]
 
+    style.primeni()
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
 
     axes[0].bar(x, [stats[n]["cilj"] for n in names], color=colors)

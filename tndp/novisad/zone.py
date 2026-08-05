@@ -4,12 +4,7 @@ import unicodedata
 
 from tndp.novisad import konstante
 
-# područje studije je ono što opslužuje GRADSKI saobraćaj, a ne tarifna zona I.
-# zona I je zona u kojoj važi gradska karta i šira je: od njenih 603 stajališta
-# samo 59% ima gradsku liniju, a Sremska Kamenica, Rumenka, Bukovac, Ledinci,
-# Šangaj i Paragovo nemaju nijednu. GSP i sam vodi Službu gradskog i Službu
-# prigradskog saobraćaja kao odvojene celine (informator o radu), a TNDP
-# redizajnira skup linija koje bi planer redizajnirao zajedno.
+# područje studije je ono što opslužuje GRADSKI saobraćaj
 TIP_LINIJE = "gradska"
 MIN_STAJALISTA_U_ZONI = 1
 
@@ -18,8 +13,7 @@ LATINICA = ["A", "B", "V", "G", "D", "Đ", "E", "Ž", "Z", "I", "J", "K", "L", "
             "M", "N", "NJ", "O", "P", "R", "S", "T", "Ć", "U", "F", "H", "C", "Č",
             "DŽ", "Š"]
 
-# nazivi u OSM-u i u evidenciji JKP Informatika se ponegde razilaze: dve su
-# štamparske greške u OSM-u, jedna je varijanta imena
+# nazivi u OSM-u i u evidenciji JKP Informatika se ponegde razilaze: dve su štamparske greške u OSM-u
 ALIJASI = {"LEDNICI": "LEDINCI", "OMALDINSKIPOKRET": "OMLADINSKIPOKRET",
            "PEJICEVISALASI": "PEJICEVISALASINEMANOVCI"}
 
@@ -63,9 +57,7 @@ def _ucitaj_stanovnistvo():
                 for r in csv.DictReader(f)}
 
 
-# nivoi iz evidencije JKP Informatika broje prijavljene a ne stanovnike i za
-# Grad daju 414.789 naspram popisnih 368.967; udeli po MZ se zadržavaju, a
-# nivoi se spuštaju faktorom popis/evidencija računatim po naselju
+# nivoi iz evidencije JKP Informatika broje prijavljene a ne stanovnike i za Grad daju 414.789 naspram popisnih 368.967
 def _faktori_popisa():
     with open(konstante.DATA / "naselja_stanovnistvo.csv", encoding="utf-8") as f:
         evidencija = {_kljuc(r["naselje"]): int(r["stanovnika"])
@@ -102,9 +94,7 @@ def izgradi():
         na_gradskoj = [r for r in svoja if r["id"] in gradska]
         u_studiji = len(na_gradskoj) >= MIN_STAJALISTA_U_ZONI
 
-        # reprezentativna tačka zone je težište njenih stajališta na gradskim
-        # linijama, a ne geometrijsko težište poligona: velike rubne MZ su
-        # uglavnom njive, a putovanja nastaju tamo gde su stajališta
+        # reprezentativna tačka zone je težište njenih stajališta na gradskim linijama
         osnov = na_gradskoj or zona1 or svoja
         if osnov:
             lon = sum(float(r["lon"]) for r in osnov) / len(osnov)
@@ -129,8 +119,7 @@ def izgradi():
                     "stajalista_gradska", "u_studiji"])
         w.writerows(redovi)
 
-    # pripadnost stajališta zoni je potrebna svakom koraku posle ovoga (prevođenje
-    # GSP ruta u nizove zona), a računa se samo ovde — zato se i upisuje
+    # pripadnost stajališta zoni je potrebna svakom koraku posle ovoga (prevođenje GSP ruta u nizove zona)
     u_zoni = {r[0] for r in redovi if r[11]}
     veza = sorted(((s["id"], naziv, int(naziv in u_zoni))
                    for naziv, svoja in pripadnost.items() for s in svoja),

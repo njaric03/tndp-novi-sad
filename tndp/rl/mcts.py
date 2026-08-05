@@ -7,22 +7,7 @@ from tndp.core.network import TransitNetwork
 from tndp.rl.env import HALT, TndpEnv
 from tndp.rl.features import edge_tensors, node_features
 
-# MCTS dekodiranje sa naučenim priorima (PUCT), po uzoru na AlphaTransit.
-#
-# Dve razlike u odnosu na AlphaTransit, obe svesne:
-#  - AlphaTransit vrednost lista uzima iz value mreže i MCTS koristi i u
-#    treningu, pa value glava uči baš na međustanjima. Kod nas je value glava
-#    trenirana samo na početnom stanju, pa bi na međustanjima bila gora od
-#    rollout-a; zato je vrednost lista greedy rollout iste politike.
-#  - Zbog istog razloga pretraga je samo dekoder, ne ulazi u trening.
-# Kod njih se rollout-i izbegavaju jer nagradu daje saobraćajni simulator
-# (skupo); kod nas je nagrada jedan Dijkstra na malom grafu, pa rollout-i
-# nisu usko grlo.
-#
-# Vrednosti se normalizuju po stablu (MuZero min-max) umesto ranijeg
-# exp(nagrada): sirove vrednosti su bile u uskom opsegu oko 0.26, pa je
-# eksploracioni član PUCT-a bio red veličine veći od razlike među akcijama
-# i pretraga je faktički uzorkovala iz priora.
+# MCTS dekodiranje sa naučenim priorima (PUCT), po uzoru na AlphaTransit
 
 
 class _Node:
@@ -37,8 +22,7 @@ class _Node:
         self.children = {}  # akcija -> _Node
 
 
-# min-max normalizacija vrednosti preko celog stabla, da Q i eksploracioni
-# član PUCT-a budu na istoj skali bez obzira na apsolutni nivo nagrade
+# min-max normalizacija vrednosti preko stabla, da Q i eksploracioni clan PUCT-a budu na istoj skali
 class _Bounds:
     def __init__(self):
         self.lo, self.hi = math.inf, -math.inf
@@ -75,8 +59,7 @@ def _make_node(policy, env, edge_index, edge_attr):
     return node
 
 
-# vrednost stanja = nagrada greedy rollout-a do kraja. greedy je namerno:
-# jedan sampled rollout je previše šumovit i obmane stablo.
+# vrednost stanja = nagrada greedy rollout-a do kraja
 @torch.no_grad()
 def _rollout_value(policy, env, edge_index, edge_attr):
     while not env.done:
@@ -92,9 +75,7 @@ def _rollout_value(policy, env, edge_index, edge_attr):
 def _puct(node, c, bounds):
     total = sum(node.N.values())
     sqrt_total = math.sqrt(total + 1)
-    # FPU: neposećena akcija nasleđuje tekuću procenu roditelja umesto 0.
-    # sa sirovim Q=0 i nagradama oko -1.3 svaka neposećena akcija je
-    # izgledala bolje/gore od svih posećenih, zavisno od znaka.
+    # FPU: neposećena akcija nasleđuje tekuću procenu roditelja umesto 0
     fpu = bounds.norm(sum(node.W.values()) / total) if total > 0 else 0.5
     best, best_score = None, -1e18
     for a, p in node.P.items():
@@ -146,8 +127,7 @@ def mcts_decode(policy, city, num_routes, min_len=2, max_len=8, alpha=0.5,
         best = max(root.N, key=root.N.get)  # najposećenija akcija
         env.set_state(root.state)
         env.step(best)
-        # zadrži podstablo izabrane akcije umesto da se gradi iznova:
-        # ranije se ceo posao od ~30 simulacija bacao posle svakog poteza
+        # zadrži podstablo izabrane akcije umesto da se gradi iznova: ranije se ceo posao od ~30 simulacija bacao posle svakog
         root = root.children[best]
     net = TransitNetwork(routes=env.routes)
     return net, assign(city, net)

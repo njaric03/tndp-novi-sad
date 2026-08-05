@@ -8,17 +8,7 @@ from tndp.baselines.greedy import greedy_network
 from tndp.core.assignment import cost_scales
 from tndp.core.network import TransitNetwork
 
-# Lokalna pretraga nad kompletnim mrežama: ono što u literaturi radi
-# metaheuristika (Mumford 2013 SA, Nikolić 2013 BCO, Holliday EA/BCO oko
-# naučene politike). Bez ovoga jedini protivnici RL-u su random i
-# konstruktivni greedy, koji ne pretražuju uopšte.
-#
-# Potezi su standardni "make small change" nad jednom linijom:
-#   - produži liniju za jednog suseda na nasumičnom kraju,
-#   - skrati liniju za jedan čvor sa nasumičnog kraja,
-#   - zameni celu liniju novom nasumičnom.
-# Prihvata se samo poboljšanje (strogo hill climbing), uz nasumične restarte
-# kad pretraga stane.
+# Lokalna pretraga nad kompletnim mrežama: ono što u literaturi radi metaheuristika (Mumford 2013 SA, Nikolić 2013 BCO
 
 
 def _extend(route, city, rng, max_len):
@@ -26,10 +16,7 @@ def _extend(route, city, rng, max_len):
         return None
     side = int(rng.integers(2))
     end = route[0] if side == 0 else route[-1]
-    # dodati čvor postaje novi kraj linije, pa mora biti dozvoljen terminal.
-    # to sužava potez (ne može se produžiti "kroz" ne-terminal u jednom
-    # koraku), ali potez ostaje ispravan; na sintetici su svi čvorovi
-    # terminali pa se ništa ne menja
+    # dodati čvor postaje novi kraj linije, pa mora biti dozvoljen terminal
     options = [int(c) for c in city.neighbors[end]
                if c not in route and city.terminal[c]]
     if not options:
@@ -64,17 +51,7 @@ def _mutate(routes, city, rng, min_len, max_len):
     return out
 
 
-# hill climbing sa restartima. budžet se zadaje brojem evaluacija cilja
-# (max_evals) i/ili zidnim vremenom (max_seconds) — oba su potrebna da bi
-# poređenje metoda pod istim budžetom uopšte bilo moguće.
-# trace: ako se prosledi lista, u nju idu (evaluacija, sekunde, najbolji cilj)
-# posle svakog poboljšanja, za anytime krive.
-#
-# init: "greedy", "random", ili gotova TransitNetwork/lista linija. Poslednje
-# je hibrid iz literature (Holliday: naučena politika kao operator unutar
-# metaheuristike, ne kao samostalna metoda) — pretraga kreće iz mreže koju
-# je dala politika. Restart posle `patience` uvek ide na slučajnu mrežu, da
-# se ne bi vrtelo oko istog početka.
+# hill climbing sa restartima
 def hill_climb(city, num_routes, min_len, max_len, alpha=0.5, seed=0,
                max_evals=3000, max_seconds=None, init="greedy",
                patience=300, trace=None):
@@ -105,10 +82,7 @@ def hill_climb(city, num_routes, min_len, max_len, alpha=0.5, seed=0,
     elif not isinstance(init, str):
         cur = [list(r) for r in init]
     elif init == "greedy":
-        # greedy init je bolji start, ali greedy kandidati su najkraći putevi
-        # pa ih na instancama sa velikim min_len ume da bude manje od
-        # num_routes (Mumford1: 6 kandidata za 15 linija). tada se kreće od
-        # slučajnog.
+        # greedy init je bolji start, ali greedy kandidati su najkraći putevi pa ih na instancama sa velikim min_len ume da bude
         try:
             cur = [r[:] for r in greedy_network(city, num_routes, min_len,
                                                 max_len, alpha=alpha)[0].routes]

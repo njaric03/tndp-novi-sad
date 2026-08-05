@@ -1,13 +1,4 @@
-# Osetljivost zaključaka na dve konstante koje u funkciji cilja ostaju stvar
-# izbora: UNSERVED_FACTOR i alpha. tndp/experiments/provere.py ih ispisuje kao
-# tabele; ovde su iscrtane, jer se tek sa slike vidi DA LI I GDE se metode
-# presecaju — a to je ono što odlučuje koliko je zaključak rada stabilan.
-#
-# Bitno: pri svakoj vrednosti konstante svaka metoda se pušta IZNOVA, jer
-# konstanta menja funkciju koju metode optimizuju. Poređenje fiksnih rešenja
-# pod promenljivim ciljem ne bi značilo ništa.
-#
-# pokretanje: python -m tndp.viz.sensitivity runs/gravity-v1/best.pt
+# Osetljivost zaključaka na dve konstante koje u funkciji cilja ostaju stvar izbora: UNSERVED_FACTOR i alpha
 
 import argparse
 from pathlib import Path
@@ -23,6 +14,7 @@ from tndp.baselines.hill_climb import hill_climb
 from tndp.baselines.random_search import random_search
 from tndp.core.assignment import assign, cost_scales, objective
 from tndp.viz.style import color_for, save
+from tndp.viz import style
 
 FACTORS = [1.5, 2.0, 3.0, 4.0, 6.0, 8.0]
 ALPHAS = [0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9]
@@ -113,6 +105,7 @@ def main():
     print("sweep po alpha:")
     by_alpha = sweep(policy, cfg, cities, ALPHAS, "alpha")
 
+    style.primeni()
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.6))
     panel(axes[0], FACTORS, by_factor, "UNSERVED_FACTOR (naplata nepokrivenog para)",
           marker_at=A.UNSERVED_FACTOR)

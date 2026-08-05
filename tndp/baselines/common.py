@@ -4,24 +4,18 @@ from tndp.core.assignment import assign, objective
 from tndp.core.network import is_duplicate  # noqa: F401  (re-export za baselines)
 
 
-# tačno ista skalarna funkcija cilja koju RL trenira i po kojoj se izveštava.
-# ranije je ovde stajao leksikografski (d_un, cost) — baselines su onda
-# optimizovali drugi cilj nego onaj po kome se ocenjuju, i to degenerisan
-# (spreman da žrtvuje neograničeno cost-a za ε manje d_un).
+# tačno ista skalarna funkcija cilja koju RL trenira i po kojoj se izveštava
 def network_objective(city, network, scales, alpha=0.5):
     res = assign(city, network, compute_transfers=False)
     return objective(res, scales, alpha)
 
 
-# čvorovi na kojima linija sme da počne ili se završi (Mandl instance nose
-# tu masku; kod sintetike su svi čvorovi dozvoljeni)
+# čvorovi na kojima linija sme da počne ili se završi (Mandl instance nose tu masku; kod sintetike su svi čvorovi
 def terminal_nodes(city):
     return np.flatnonzero(city.terminal)
 
 
-# oba kraja linije moraju biti dozvoljeni terminali. slučajno proširivanje
-# to ne poštuje samo po sebi, pa se višak skida sa kraja koji nije dozvoljen
-# dok se ne naiđe na terminal ili dok se ne dođe do min_len.
+# oba kraja linije moraju biti dozvoljeni terminali
 def trim_to_terminals(route, city, min_len):
     while len(route) > min_len and not city.terminal[route[0]]:
         route = route[1:]
@@ -32,8 +26,7 @@ def trim_to_terminals(route, city, min_len):
     return route
 
 
-# slučajna prosta putanja u uličnom grafu: slučajan dozvoljen start pa
-# nasumično proširivanje sa oba kraja do ciljne dužine
+# slučajna prosta putanja u uličnom grafu: slučajan dozvoljen start pa nasumično proširivanje sa oba kraja do ciljne
 def random_route(city, rng, min_len, max_len, max_tries=50):
     neighbors = city.neighbors
     starts = terminal_nodes(city)

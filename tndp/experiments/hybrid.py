@@ -1,17 +1,4 @@
-# Politika kao operator unutar metaheuristike, umesto samostalne metode.
-#
-# Ovo je verzija koju Holliday svuda prijavljuje kao glavni rezultat: naučena
-# politika je pod-heuristika u BCO/EA petlji, i hibrid nadmašuje samu politiku
-# do 20% (Neural BCO, arXiv:2306.00720). Kod nas je najjeftinija varijanta —
-# hill climbing kreće iz mreže koju je dala politika umesto iz slučajne ili
-# greedy mreže. Pretraga je ista, menja se samo početna tačka.
-#
-# Poređenje je pošteno samo ako se početna tačka NAPLATI. RL sampling k košta
-# k evaluacija cilja (svaka epizoda se oceni kompletna), pa hibrid dobija
-# max_evals - k evaluacija. Zidno vreme se izveštava zasebno, jer je rollout
-# politike osetno skuplji od jedne evaluacije cilja.
-#
-# pokretanje: python -m tndp.experiments.hybrid runs/gravity-v1/best.pt
+# Politika kao operator unutar metaheuristike, umesto samostalne metode
 
 import argparse
 import time
@@ -31,9 +18,7 @@ EVALS = 3000       # ukupan budžet evaluacija cilja po gradu
 GRID = np.unique(np.round(np.logspace(0, np.log10(EVALS), 40)).astype(int))
 
 
-# hill climbing daje trace (evaluacija, sekunde, najbolji cilj) samo u
-# trenucima poboljšanja; ovde se to prevodi na zajedničku mrežu evaluacija
-# da bi se krive preko gradova mogle prosečiti
+# hill climbing daje trace samo u trenucima poboljsanja, ovde se prevodi na ravnomernu mrezu
 def on_grid(trace, offset=0):
     ev = np.array([t[0] + offset for t in trace], dtype=float)
     ob = np.array([t[2] for t in trace], dtype=float)
@@ -62,11 +47,7 @@ def main():
     cities = held_out_cities(cfg, args.cities)
     scales = scales_for(cities)
 
-    # Startne tačke se NAPLAĆUJU. Slučajna je besplatna, RL sampling k košta k
-    # evaluacija, a greedy košta num_routes * broj_kandidata — na ovim
-    # veličinama red veličine više od oba. Bez te naplate greedy izgleda kao da
-    # kreće od dobre mreže na nultom trošku, što je bio glavni zaključak prve
-    # verzije ovog eksperimenta i bio je pogrešan.
+    # Startne tačke se NAPLAĆUJU. Slučajna je besplatna, RL sampling k košta k evaluacija
     starts = {"slučajan start": "random", "greedy start": "greedy",
               f"RL sampling {k} start": "rl"}
 
@@ -74,7 +55,7 @@ def main():
     secs = {name: [] for name in starts}
     curves = {name: [] for name in starts}
     spent_evals = {name: [] for name in starts}
-    # sama politika, bez penjanja — referenca "koliko pretraga dodaje"
+    # sama politika, bez penjanja, referenca "koliko pretraga dodaje"
     objs[f"RL sampling {k} (bez penjanja)"] = []
     secs[f"RL sampling {k} (bez penjanja)"] = []
 
@@ -117,7 +98,7 @@ def main():
              f"(model {args.checkpoint})", "",
              f"{args.cities} held-out gradova, R={R}, alpha={a}. Ukupan budžet "
              f"je {args.evals} evaluacija cilja po gradu.",
-             "Startna tačka se naplaćuje iz istog budžeta — kolona `start "
+             "Startna tačka se naplaćuje iz istog budžeta, kolona `start "
              "(ev.)` je koliko je potrošeno pre",
              "nego što je penjanje uopšte krenulo. Δ i p su uparene razlike u "
              f"odnosu na `{ref}` (Wilcoxon,",
@@ -126,10 +107,10 @@ def main():
              "|---|---|---|---|---|---|"]
     for name, v in objs.items():
         d, se, p = paired_vs(v, objs[ref])
-        delta = "—" if name == ref else f"{d:+.3f} ± {se:.3f}"
-        ev = f"{np.mean(spent_evals[name]):.0f}" if name in spent_evals else "—"
+        delta = "-" if name == ref else f"{d:+.3f} ± {se:.3f}"
+        ev = f"{np.mean(spent_evals[name]):.0f}" if name in spent_evals else "-"
         lines.append(f"| {name} | {ev} | {v.mean():.3f} ± {v.std(ddof=1):.3f} | "
-                     f"{delta} | {'—' if name == ref else fmt_p(p)} | "
+                     f"{delta} | {'-' if name == ref else fmt_p(p)} | "
                      f"{np.mean(secs[name]):.2f} |")
 
     out = Path(__file__).parent.parent.parent / "results"
@@ -141,9 +122,7 @@ def main():
     fig, ax = plt.subplots(figsize=(7, 4.5))
     for name, cs in curves.items():
         stack = np.vstack(cs)
-        # crta se samo tamo gde SVI gradovi imaju vrednost. greedy start ne
-        # kosta isto na svakom gradu, pa bi prosek preko delimicno popunjenih
-        # tacaka pravio lazan skok naviše tamo gde skuplji gradovi tek ulaze
+        # crta se samo tamo gde SVI gradovi imaju vrednost
         full = ~np.isnan(stack).any(axis=0)
         ax.plot(GRID[full], stack[:, full].mean(axis=0), label=name, lw=1.8,
                 color=color_for("hibrid" if "RL" in name else name.split()[0]))

@@ -7,11 +7,7 @@ from tndp.rl.env import HALT, TndpEnv
 from tndp.rl.features import edge_tensors, node_features
 
 
-# odigraj epizodu politikom; sample=True vuče iz distribucije (trening),
-# sample=False uzima argmax (greedy dekodiranje). vraća mrežu, nagradu,
-# assignment rezultat, sumu log verovatnoća i prosečnu entropiju.
-# gen: opcioni torch.Generator — bez njega bi uzorkovanje diralo globalni
-# RNG, pa bi svaki poziv pomerio stanje celom procesu.
+# odigraj epizodu politikom; sample=True vuče iz distribucije (trening), sample=False uzima argmax (greedy dekodiranje)
 def rollout(policy, env, sample=True, gen=None):
     edge_index, edge_attr = edge_tensors(env.city)
     log_probs, entropies = [], []
@@ -43,10 +39,7 @@ def decode(policy, city, num_routes, min_len=2, max_len=8, alpha=0.5):
     return net, res
 
 
-# najbolja od k sampled epizoda (jeftino poboljšanje, Kool et al. trik).
-# ovo je zapravo pretraga nad KOMPLETNIM rešenjima ocenjenim tačnom
-# funkcijom cilja, pa je jak protivnik MCTS-u koji ocenjuje parcijalna
-# stanja proxy-jem.
+# najbolja od k sampled epizoda (jeftino poboljšanje, Kool et al
 @torch.no_grad()
 def decode_sampling(policy, city, num_routes, k=32, min_len=2, max_len=8,
                     alpha=0.5, seed=0):
@@ -58,10 +51,7 @@ def decode_sampling(policy, city, num_routes, k=32, min_len=2, max_len=8,
         net, reward, res, _, _ = rollout(policy, env, sample=True, gen=gen)
         if reward > any_r:
             any_net, any_res, any_r = net, res, reward
-        # maskiranje ne garantuje validnost van distribucije treninga (na
-        # Mumfordu je min_len=10 pa se linija ume zaglaviti kraća), a uzorak
-        # ionako ima k kandidata — nevalidni se preskaču umesto da jedan
-        # pokvari ceo rezultat
+        # maskiranje ne garantuje validnost van distribucije treninga (na Mumfordu je min_len=10 pa se linija ume zaglaviti
         if net.check(city, num_routes, min_len, max_len):
             continue
         if reward > best_r:

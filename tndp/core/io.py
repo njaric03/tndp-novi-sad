@@ -5,8 +5,7 @@ import numpy as np
 from tndp.core.city import CityGraph
 
 
-# instance u formatu repoa RenatoArbex/TransitNetworkDesign: tri CSV fajla
-# ({prefix}_nodes/links/demand.txt), 1-bazirani id-jevi, vremena u minutima
+# instance u formatu repoa RenatoArbex/TransitNetworkDesign: tri CSV fajla ({prefix}_nodes/links/demand.txt)
 def load_benchmark_city(instance_dir, name=None):
     instance_dir = Path(instance_dir)
     prefix = instance_dir.name.lower()
@@ -32,8 +31,7 @@ def load_benchmark_city(instance_dir, name=None):
                      name=name, terminal=terminal)
 
 
-# fajl sa rešenjima iz literature: ime, broj linija R, pa R redova "1-2-3",
-# sekcije razdvojene praznim redom; vraća ime -> linije (0-bazirano)
+# fajl sa rešenjima iz literature: ime, broj linija R, pa R redova "1-2-3"
 def load_literature_solutions(path):
     solutions = {}
     for block in Path(path).read_text().split("\n\n"):

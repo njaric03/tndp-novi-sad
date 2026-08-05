@@ -26,9 +26,7 @@ def _upisi(ime, sadrzaj):
     print(f"  {ime}  {put.stat().st_size // 1024} KB")
 
 
-# odgovori GSP-a nisu čist JSON nego imaju HTML whitespace oko niza, a u samom
-# HTML-u pre niza zna da bude uglasta zagrada, pa se traži prva koja stvarno
-# otvara niz stringova
+# odgovori GSP-a nisu čist JSON nego imaju HTML whitespace oko niza
 def _json_iz_html(tekst):
     kraj = tekst.rfind("]")
     for m in re.finditer(r"\[", tekst):
@@ -50,9 +48,7 @@ def linije_sa_mreze(html):
             for a, b, c, d in pat.findall(html)]
 
 
-# NSmart ugrađuje celu bazu stanica i linija u izvor stranice kao JS string
-# literal g_in_cities; vadi se ručnim skeniranjem jer regex preko 1.9 MB
-# escapeovanog JSON-a nije pouzdan
+# NSmart ugrađuje celu bazu stanica i linija u izvor stranice kao JS string literal g_in_cities; vadi se ručnim
 def izvuci_nsmart(html):
     i = html.find("var g_in_cities")
     if i < 0:
@@ -155,16 +151,14 @@ def preuzmi_nsinfo(s):
         time.sleep(PAUZA)
 
 
-# osmnx podrazumevano keširа u ./cache; sklanja se pod data/novisad/ koji je
-# ionako u .gitignore
+# osmnx podrazumevano keširа u./cache; sklanja se pod data/novisad/ koji je ionako u.gitignore
 def _podesi_osmnx():
     import osmnx as ox
 
     ox.settings.cache_folder = str(konstante.RAW / "osmnx_cache")
 
 
-# ulična mreža za vremena vožnje; graf je MultiDiGraph pa dvosmerna ulica daje
-# dve usmerene grane a jednosmerna jednu, što je poželjno za najkraće puteve
+# ulična mreža za vremena vožnje; graf je MultiDiGraph pa dvosmerna ulica daje dve usmerene grane a jednosmerna jednu
 def preuzmi_ulice():
     import osmnx as ox
 

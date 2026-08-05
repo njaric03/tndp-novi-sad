@@ -1,5 +1,4 @@
-# GATv2 encoder + pointer glava za izbor čvora + halt glava + value glava.
-# Featuri koje encoder jede su u features.py.
+# GATv2 encoder + pointer glava za izbor čvora + halt glava + value glava
 
 import torch
 import torch.nn as nn
@@ -11,16 +10,13 @@ from tndp.rl.features import num_features, spec
 class TndpPolicy(nn.Module):
     def __init__(self, hidden=64, layers=3, heads=4, features="v1"):
         super().__init__()
-        # verzija se čuva na modelu da bi je svako mesto koje zove
-        # node_features moglo pročitati sa politike umesto da je prosleđuje
+        # verzija stoji na modelu da je node_features cita sa politike, umesto da se prosledjuje
         self.features = spec(features)
         self.embed = nn.Linear(num_features(features), hidden)
         self.convs = nn.ModuleList([
             GATv2Conv(hidden, hidden // heads, heads=heads, edge_dim=2)
             for _ in range(layers)])
-        # ulaz: [embedding čvora, globalni kontekst, embedding kraja na koji
-        # se kači] — poslednji deo je ono što razlikuje "dodaj na početak"
-        # od "dodaj na rep"
+        # ulaz: [embedding čvora, globalni kontekst, embedding kraja na koji se kači]
         self.node_score = nn.Sequential(
             nn.Linear(3 * hidden, hidden), nn.ReLU(), nn.Linear(hidden, 1))
         self.halt_score = nn.Sequential(
@@ -34,10 +30,7 @@ class TndpPolicy(nn.Module):
             h = h + torch.relu(conv(h, edge_index, edge_attr))
         return h
 
-    # logiti nad akcijama: 2n parova (kraj, čvor) po rasporedu maske
-    # [HEAD nad svim čvorovima, TAIL nad svim čvorovima], plus halt kao
-    # poslednji logit kad je odluka HALT. ends = (head, tail) ili None dok
-    # je linija prazna.
+    # logiti nad akcijama: 2n parova (kraj, čvor) po rasporedu maske [HEAD nad svim čvorovima, TAIL nad svim čvorovima]
     def action_logits(self, h, decision, mask, ends):
         n = h.shape[0]
         context = h.mean(0)

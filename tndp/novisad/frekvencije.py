@@ -1,17 +1,4 @@
-# Validacija frekvencijske faze na stvarnom redu vožnje.
-#
-# `core/frequencies.oceni` dimenzioniše intervale sleđenja iz opterećenja
-# najopterećenije deonice: koliko vozila na sat treba da vršni sat stane u
-# kapacitet. Do sad je puštana samo na Mandlu i Mumfordu, gde se nema sa čim
-# uporediti — te instance nemaju red vožnje.
-#
-# Novi Sad ga ima. Zato se ovde model pušta na POSTOJEĆU GSP mrežu i njegovi
-# intervali porede sa onima koje GSP stvarno vozi. Ako se poklope, frekvencijska
-# faza je verodostojna i sve što na njoj stoji (čekanje, flota, tramvajski
-# scenario) nasleđuje tu verodostojnost. Ako se ne poklope, zna se koliko da se
-# veruje tim brojevima.
-#
-# pokretanje: python -m tndp.novisad.frekvencije
+# Validacija frekvencijske faze na stvarnom redu vožnje
 
 from pathlib import Path
 
@@ -23,16 +10,12 @@ from tndp.novisad.instanca import gsp_mreza, ucitaj
 from tndp.novisad.kalibracija import intervali_iz_reda_voznje
 
 REZULTATI = Path(__file__).resolve().parent.parent.parent / "results"
-# vrednosti na kojima se meri osetljivost; srednja je podrazumevana u
-# core/frequencies.py
+# vrednosti na kojima se meri osetljivost; srednja je podrazumevana u core/frequencies.py
 KAPACITETI = [60.0, 80.0, 100.0, 120.0]
 UDELI_VRHA = [0.08, 0.10, 0.12]
 
 
-# Spearman preko rankdata, NE preko argsort(argsort). Druga varijanta vezanim
-# vrednostima dodeljuje proizvoljne različite rangove, pa izmišlja poredak tamo
-# gde ga nema. Ovde je to bitno: u validaciji frekvencija je devet linija
-# zakucano na tačno 60 minuta, a u kalibraciji više linija ima nula putnika.
+# Spearman preko rankdata, NE preko argsort(argsort)
 def _spearman(a, b):
     return float(np.corrcoef(rankdata(a), rankdata(b))[0, 1])
 
@@ -49,8 +32,7 @@ def _mere(model, stvarno):
 
 
 def oceni_gsp(city, mreza, kapacitet=F.KAPACITET, udeo_vrha=F.UDEO_VRHA):
-    # putovanja_dnevno se NE prosleđuje: matrica Novog Sada već nosi dnevni
-    # broj putovanja za radni dan, period je meren a ne pretpostavljen
+    # putovanja_dnevno se NE prosleđuje: matrica Novog Sada već nosi dnevni broj putovanja za radni dan
     return F.oceni(city, mreza, kapacitet=kapacitet, udeo_vrha=udeo_vrha)
 
 
@@ -101,9 +83,7 @@ def main():
     _izvestaj(linije, stvarno, model, o, mere, osetljivost, praznjenje, vrh)
 
 
-# Koliko linija ostane bez ijednog putnika, u tri režima. Razlika između prvog
-# i drugog reda kaže koliko kvari sama petlja, a treći red pokazuje koliko bi
-# ostalo praznih i sa savršeno poznatim intervalima.
+# Koliko linija ostane bez ijednog putnika, u tri režima
 def _praznjenje(city, mreza, stvarno, o):
     from tndp.core.assignment import assign
     prvi = assign(city, mreza, compute_transfers=False, compute_loads=True)
@@ -123,7 +103,7 @@ def _izvestaj(linije, stvarno, model, o, mere, osetljivost, praznjenje, vrh):
          "Mumfordu, gde nema reda vožnje pa nema ni provere. Ovde se pušta na",
          "**postojeću GSP mrežu Novog Sada**, čiji je red vožnje poznat.", "",
          f"Stvarni interval je broj polazaka u vršnom satu ({vrh}:00-{vrh + 1}:00,",
-         "radni dan, smer A). Model ne dobija nijedan podatak o redu vožnje —",
+         "radni dan, smer A). Model ne dobija nijedan podatak o redu vožnje,",
          "izvodi intervale samo iz tražnje, trasa i kapaciteta vozila.", "",
          "| linija | red vožnje | model | razlika | vozila |", "|---|---|---|---|---|"]
     for k, s, m, v in sorted(zip(linije, stvarno, model, o["vozila"]),
@@ -151,7 +131,7 @@ def _izvestaj(linije, stvarno, model, o, mere, osetljivost, praznjenje, vrh):
           "| režim | linija bez ijednog putnika |", "|---|---|"]
     for ime, n in praznjenje.items():
         r.append(f"| {ime} | {n} od {len(linije)} |")
-    r += ["", "Čitanje: dodela najkraćim putem sama po sebi isprazni šest linija — među",
+    r += ["", "Čitanje: dodela najkraćim putem sama po sebi isprazni šest linija, među",
           "paralelnim linijama u istom koridoru pobednik uzima sve. Petlja koja",
           "izvodi intervale iz opterećenja to pogorša na devet, jer linija sa malim",
           "opterećenjem dobije dug interval, time postane još manje privlačna, i",
@@ -163,12 +143,12 @@ def _izvestaj(linije, stvarno, model, o, mere, osetljivost, praznjenje, vrh):
           "Stvarni prevoznik nema ovaj problem iz dva razloga koje model nema:",
           "putnik ulazi u prvu liniju koja naiđe pa se opterećenje deli po",
           "frekvencijama (Spiess-Florian, strategija umesto puta), a nivo usluge je",
-          "delom politička odluka — GSP vozi liniju 7 na 7,5 minuta jer je tako",
+          "delom politička odluka, GSP vozi liniju 7 na 7,5 minuta jer je tako",
           "odlučeno, a ne zato što je tražnja to iznudila. Model je predviđa na 60.", "",
           "**Posledica za rad:** poredak linija po opterećenju je upotrebljiv",
           f"(Spearman {mere['Spearman']:+.3f}), pojedinačni intervali nisu. Svaki",
-          "zaključak koji traži tačan interval po liniji — a tu spada i poređenje",
-          "vidova prevoza sa tramvajem — mora sačekati dodelu po strategiji.", ""]
+          "zaključak koji traži tačan interval po liniji, a tu spada i poređenje",
+          "vidova prevoza sa tramvajem, mora sačekati dodelu po strategiji.", ""]
     REZULTATI.mkdir(exist_ok=True)
     (REZULTATI / "novisad-frekvencije.md").write_text("\n".join(r) + "\n",
                                                       encoding="utf-8")

@@ -206,6 +206,8 @@ python -m venv .venv && .venv\Scripts\activate
 pip install -e .[dev]        # core: numpy, scipy, matplotlib
 pip install -e .[rl]         # torch, torch-geometric (trening i evaluacija)
 pytest                       # Mandl acceptance + toy assignment + smoke
+pip install -e .[nb]         # notebooks/, opciono
+python -m ipykernel install --user --name tndp --display-name "Python (tndp)"
 python -m tndp.experiments.provere   # invarijante i osetljivost na konstante
 ```
 

@@ -1,5 +1,4 @@
-# nacrtaj mreze koje razne metode grade na istom held-out gradu
-# pokretanje: python -m tndp.experiments.show_networks runs/gravity-v1/policy.pt
+# nacrtaj mreze koje razne metode grade na istom held-out gradu pokretanje: python -m tndp.experiments.show_networks
 
 import argparse
 from pathlib import Path

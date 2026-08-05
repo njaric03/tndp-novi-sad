@@ -1,6 +1,4 @@
-# poređenje načina dekodiranja iste trenirane politike: greedy, sampling i
-# MCTS. manji broj gradova jer je MCTS spor.
-# pokretanje: python -m tndp.experiments.bench_decoders runs/gravity-v1/best.pt
+# poređenje načina dekodiranja iste trenirane politike: greedy, sampling i MCTS. manji broj gradova jer je MCTS spor
 
 import argparse
 import time
@@ -54,7 +52,7 @@ def main():
              "|---|---|---|---|---|---|---|---|"]
     for name, s in stats.items():
         if name == ref:
-            delta, p = "—", "—"
+            delta, p = "-", "-"
         else:
             d, se, pv = paired_vs(s["cilj"], stats[ref]["cilj"])
             delta, p = f"{d:+.3f} ± {se:.3f}", fmt_p(pv)

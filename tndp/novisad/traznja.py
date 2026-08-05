@@ -6,41 +6,22 @@ from scipy.stats import rankdata
 from tndp.novisad import konstante
 from tndp.novisad.ulice import ucitaj_zone
 
-# eksponent opadanja sa daljinom. Kalibracija na opterećenja linija iz 2017.
-# (tndp/novisad/kalibracija.py, results/novisad-kalibracija.md) NE razlikuje
-# betu: greška poklapanja je ista na tri decimale za svaku betu u [0.5, 2.0].
-# Zadržava se 2.0, ista vrednost koju koristi synth.py — tako se
-# raspodela tražnje na Novom Sadu ne razlikuje od one na kojoj je politika
-# trenirana, iz istog razloga zbog kog featuri idu kroz rang transformaciju.
+# eksponent opadanja sa daljinom
+# kalibracija ga NE razlikuje, greska je ista na tri decimale za betu u [0.5, 2.0]
+# ostaje 2.0 koliko koristi i synth.py, da se trening i test raspodela ne razlikuju
 BETA = 2.0
 
-# donja granica rastojanja, ista kao u generatoru: sprečava da bliske zone dobiju
-# beskonačnu tražnju
+# donja granica rastojanja, ista kao u generatoru: sprečava da bliske zone dobiju beskonačnu tražnju
 MIN_KM = 0.3
 
-# ispod ovog rastojanja putovanje ne ulazi u gradski prevoz. Ovo JESTE
-# kalibrisano — greška poklapanja ima jasan minimum na 3.5 km, i bez tog
-# parametra beta uopšte nije određena (bez praga kalibracija betu tera na
-# nulu, dakle na model u kom daljina ne igra ulogu).
-#
-# 3.5 km je previše za pešačenje i ne treba ga tako čitati: to je granica
-# ispod koje autobus gubi od pešačenja, bicikla i automobila zajedno. Novi Sad
-# je ravan i biciklistički grad, a zone su guste, pa je granica visoka.
+# ispod ovog rastojanja putovanje ne ulazi u gradski prevoz
+# ovo JESTE kalibrisano, greska poklapanja ima jasan minimum na 3.5 km
+# nije pesacenje nego granica ispod koje autobus gubi od bicikla, pesaka i auta zajedno
 PESACKI_PRAG = 3.5
 
-# Zbir matrice. Brojanje iz 2017. daje 172.687 VOŽNJI, dakle ULAZAKA u vozilo, a
-# matrica tražnje nosi PUTOVANJA — putnik koji presedne broji se dvaput. Ranije
-# je ovde stajalo samih 172.687 i to je precenjivalo tražnju za ceo taj faktor.
-#
-# Odnos je meren na rekonstruisanoj GSP mreži pri BETA i PESACKI_PRAG, sa
-# intervalima iz reda vožnje: 1.779 ulazaka po opsluženom putovanju. Dodela je
-# invarijantna na razmeru (najkraći putevi ne zavise od veličine tražnje), pa
-# odnos ne zavisi od samog zbira i nema kružnosti.
-#
-# 1.78 je visok broj — 78% putovanja presedne. Posledica je agregacije: 32 zone
-# i 19 linija daju malo direktnih veza, a prag je izbacio baš kratka putovanja
-# koja bi bila direktna. Treba ga čitati kao svojstvo zonskog modela, ne kao
-# procenu stvarnog udela presedanja u Novom Sadu.
+# brojanje iz 2017. daje 172.687 VOZNJI, a matrica nosi PUTOVANJA
+# putnik koji presedne ulazi u zbir dvaput, pa se deli izmerenim odnosom
+# 1.779 mereno na rekonstruisanoj GSP mrezi, sa intervalima iz reda voznje
 ULAZAKA_PO_PUTOVANJU = 1.779
 PUTOVANJA = round(172_687 / ULAZAKA_PO_PUTOVANJU)
 
@@ -68,11 +49,7 @@ def _privlacnost(zone):
     return np.array([po_zoni[r["mz"]] for r in zone])
 
 
-# gravitacioni model, ista formula kao u synth.py da se trening i test
-# raspodela ne bi razlikovale: produkcija puta privlačnost kroz rastojanje na
-# beta, pa simetrizacija i skaliranje na ukupan broj putovanja. razlika je što
-# su ovde produkcija i privlačnost mereni, a ne izvučeni iz lognormalne, i što
-# nema multiplikativnog šuma.
+# gravitacioni model, ista formula kao u synth.py da se trening i test raspodela ne bi razlikovale: produkcija puta
 def izgradi(beta=BETA, mera="euklidsko", ukupno=None, prag=PESACKI_PRAG):
     zone = ucitaj_zone()
     imena = [r["mz"] for r in zone]
@@ -88,8 +65,7 @@ def izgradi(beta=BETA, mera="euklidsko", ukupno=None, prag=PESACKI_PRAG):
     traznja = prod[:, None] * attr[None, :] / d ** beta
     traznja = (traznja + traznja.T) / 2.0
     np.fill_diagonal(traznja, 0.0)
-    # prag se meri euklidski bez obzira na to kojom merom opada tražnja: reč je
-    # o tome koliko je daleko, ne koliko se dugo vozi
+    # prag se meri euklidski bez obzira na to kojom merom opada tražnja: reč je o tome koliko je daleko
     if prag > 0:
         traznja = np.where(euklid < prag, 0.0, traznja)
     traznja *= ukupno / traznja.sum()
@@ -105,10 +81,7 @@ def _upisi(imena, traznja):
             w.writerow([ime] + [f"{x:.1f}" for x in traznja[i]])
 
 
-# Spearman preko rankdata, NE preko argsort(argsort). Druga varijanta vezanim
-# vrednostima dodeljuje proizvoljne različite rangove, pa izmišlja poredak tamo
-# gde ga nema. Ovde je to bitno: u validaciji frekvencija je devet linija
-# zakucano na tačno 60 minuta, a u kalibraciji više linija ima nula putnika.
+# Spearman preko rankdata, NE preko argsort(argsort)
 def _spearman(a, b):
     return float(np.corrcoef(rankdata(a), rankdata(b))[0, 1])
 
@@ -152,10 +125,10 @@ def main():
     print(f"\nprag od {PESACKI_PRAG} km je kalibrisan na opterećenja linija iz 2017.\n"
           "(results/novisad-kalibracija.md); bez njega je pri beta=2.0 čak 81% tražnje\n"
           "padalo na parove kraće od 2 km, što za autobusko putovanje nije uverljivo.\n"
-          "BETA se kalibracijom NE razlikuje — greška poklapanja je ista na tri\n"
-          "decimale za svaku betu — pa ostaje 2.0, koliko koristi i sintetički\n"
+          "BETA se kalibracijom NE razlikuje, greška poklapanja je ista na tri\n"
+          "decimale za svaku betu, pa ostaje 2.0, koliko koristi i sintetički\n"
           "generator, da se trening i test raspodela ne bi razlikovale.")
-    print(f"\nzbir matrice je {PUTOVANJA} PUTOVANJA, ne 172.687 iz brojanja — to su\n"
+    print(f"\nzbir matrice je {PUTOVANJA} PUTOVANJA, ne 172.687 iz brojanja, to su\n"
           f"vožnje, a putnik koji presedne se broji dvaput ({ULAZAKA_PO_PUTOVANJU} "
           "ulazaka po putovanju).")
 

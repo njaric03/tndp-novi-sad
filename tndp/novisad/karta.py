@@ -1,14 +1,7 @@
-# Mreže linija nacrtane na stvarnoj geografiji Novog Sada: granice mesnih
-# zajednica iz mz.geojson kao podloga, zone kao tačke skalirane tražnjom,
-# linije kao izlomljene putanje između težišta zona.
-#
-# viz/maps.py crta sintetičke gradove u apstraktnim koordinatama; ovde je
-# podloga stvarna, pa se vidi da li mreža prati oblik grada — Dunav, Petrovaradin
-# na desnoj obali, izduženost duž reke.
-#
+# Mreze linija nacrtane preko stvarne ulicne mreze Novog Sada
+# podloga je OSM graf ulica i granice mesnih zajednica, vidi novisad/podloga.py
 # pokretanje: python -m tndp.novisad.karta
 
-import json
 from pathlib import Path
 
 import numpy as np
@@ -16,87 +9,97 @@ import numpy as np
 from tndp.baselines.hill_climb import hill_climb
 from tndp.core.assignment import assign, cost_scales, objective
 from tndp.experiments.common import load_policy
-from tndp.novisad import konstante
+from tndp.novisad import podloga
 from tndp.novisad.instanca import gsp_mreza, ucitaj
 from tndp.novisad.ulice import ucitaj_zone
 from tndp.rl.evaluate import decode_sampling
 from tndp.viz import style
 
-REZULTATI = Path(__file__).resolve().parent.parent.parent / "results"
+KOREN = Path(__file__).resolve().parent.parent.parent
+REZULTATI = KOREN / "results"
+MODEL = KOREN / "runs" / "novisad-r19" / "best.pt"
 
 
-def _granice(imena):
-    fc = json.loads((konstante.DATA / "mz.geojson").read_text(encoding="utf-8"))
-    trazene = set(imena)
-    poligoni = []
-    for f in fc["features"]:
-        if f["properties"]["naziv"] not in trazene:
-            continue
-        g = f["geometry"]
-        delovi = g["coordinates"] if g["type"] == "Polygon" else \
-            [d for mp in g["coordinates"] for d in mp]
-        for prsten in delovi:
-            poligoni.append(np.array(prsten, dtype=float))
-    return poligoni
-
-
-# Težišta zona se čitaju iz zone.csv, ne rekonstruišu iz city.coords. Coords su
-# centrirane i u kilometrima, pa bi vraćanje u stepene tražilo tačno težište
-# područja — pogađanje te konstante pomera tačke u odnosu na granice iz geojsona.
+# tezista zona se citaju iz zone.csv, ne rekonstruisu iz centriranih koordinata
 def _tezista(zone):
     return (np.array([float(z["lon"]) for z in zone]),
             np.array([float(z["lat"]) for z in zone]))
 
 
-def _nacrtaj(ax, city, lon, lat, granice, net, naslov, boja):
-    for p in granice:
-        ax.plot(p[:, 0], p[:, 1], lw=0.4, color="#cccccc", zorder=1)
+def _panel(ax, city, imena, lon, lat, put, net, naslov, podnaslov, boja, prvi=False):
+    # zone su obojene traznjom; traznja je svojstvo zone a ne tacke u njoj
+    podloga.nacrtaj(ax, imena, vrednosti=city.demand.sum(1))
 
-    tez = city.demand.sum(1)
-    vel = 12 + 90 * (tez - tez.min()) / (tez.max() - tez.min() + 1e-9)
-    ax.scatter(lon, lat, s=vel, c="#444444", zorder=3, linewidths=0)
-
-    # svaka linija dobija mali poprečni pomeraj da se preklopljene trase vide
+    # trasa prati ulice: prava linija izmedju tezista implicira ulicu koje nema
     for k, r in enumerate(net.routes):
-        d = (k - len(net.routes) / 2) * 0.00035
-        ax.plot(lon[list(r)] + d, lat[list(r)] + d, lw=1.6, alpha=0.75,
-                color=boja, zorder=2, solid_capstyle="round")
+        if len(r) < 2:
+            continue
+        pom = (k - len(net.routes) / 2) * 0.00022
+        delovi = [put(a, b) for a, b in zip(r, r[1:])]
+        xy = np.vstack(delovi)
+        ax.plot(xy[:, 0] + pom, xy[:, 1] + pom, lw=3.2, color="white", alpha=0.8,
+                zorder=3, solid_capstyle="round", solid_joinstyle="round")
+        ax.plot(xy[:, 0] + pom, xy[:, 1] + pom, lw=1.6, color=boja, alpha=0.92,
+                zorder=4, solid_capstyle="round", solid_joinstyle="round")
 
-    ax.set_title(naslov, fontsize=10)
+    # cvorovi trase, tamo gde linija stvarno staje
+    u_mrezi = sorted({v for r in net.routes for v in r})
+    ax.scatter(lon[u_mrezi], lat[u_mrezi], s=13, c="#1a1a1a", zorder=5,
+               linewidths=0.7, edgecolors="white")
+
+    # kadar se racuna od tezista zona; granice se pruzaju juzno gde linija nema
+    mx = (lon.max() - lon.min()) * 0.16
+    my = (lat.max() - lat.min()) * 0.16
+    x0, x1 = lon.min() - mx, lon.max() + mx
+    y0, y1 = lat.min() - my, lat.max() + my
+    ax.set_xlim(x0, x1)
+    ax.set_ylim(y0, y1)
     ax.set_aspect(1 / np.cos(np.radians(float(lat.mean()))))
     ax.axis("off")
+    ax.set_title(naslov, fontsize=11, pad=8, weight="bold")
+    ax.text(0.5, -0.035, podnaslov, transform=ax.transAxes, ha="center",
+            va="top", fontsize=8.5, color="#444444")
+    if prvi:
+        podloga.razmernik(ax, x0, x1, y0 + (y1 - y0) * 0.03)
 
 
-def main():
+def main(checkpoint=MODEL):
     import matplotlib.pyplot as plt
 
     city, imena = ucitaj()
     lon, lat = _tezista(ucitaj_zone())
-    granice = _granice(imena)
+    put = podloga.trase(lon, lat)
     gsp, _ = gsp_mreza(city, imena)
     R = len(gsp.routes)
     duz = [len(r) for r in gsp.routes]
     lo, hi = min(duz), max(duz)
     scales = cost_scales(city)
 
-    pol, cfg = load_policy("runs/novisad-r19/best.pt")
+    pol, _ = load_policy(checkpoint)
     mreze = [
-        ("GSP, postojeća mreža", gsp, "#000000"),
-        ("RL sampling 32", decode_sampling(pol, city, R, k=32, min_len=lo,
-                                           max_len=hi, alpha=0.5)[0],
+        ("GSP, postojeća mreža", gsp, "#1a1a1a"),
+        ("RL politika, sampling 32",
+         decode_sampling(pol, city, R, k=32, min_len=lo, max_len=hi, alpha=0.5)[0],
          style.color_for("RL sampling")),
         ("hill climbing", hill_climb(city, R, lo, hi, alpha=0.5)[0],
          style.color_for("hill climbing")),
     ]
 
-    fig, axes = plt.subplots(1, len(mreze), figsize=(4.6 * len(mreze), 5.2))
-    for ax, (ime, net, boja) in zip(axes, mreze):
+    style.primeni()
+    fig, axes = plt.subplots(1, len(mreze), figsize=(4.9 * len(mreze), 5.6))
+    for i, (ax, (ime, net, boja)) in enumerate(zip(axes, mreze)):
         res = assign(city, net)
-        pod = (f"{ime}\ncilj {objective(res, scales, 0.5):.2f}   "
-               f"C_p {res.C_p:.1f} min   d_un {res.d['d_un']:.2f}")
-        _nacrtaj(ax, city, lon, lat, granice, net, pod, boja)
-    fig.suptitle(f"Novi Sad, {city.n} mesnih zajednica, R={R} linija", fontsize=12)
-    fig.tight_layout()
+        pod = (f"cilj {objective(res, scales, 0.5):.2f}    "
+               f"C_p {res.C_p:.1f} min    "
+               f"bez veze {100 * res.d['d_un']:.0f}%")
+        _panel(ax, city, imena, lon, lat, put, net, ime, pod, boja, prvi=(i == 0))
+
+    fig.suptitle(f"Novi Sad: {city.n} mesnih zajednica, {R} linija",
+                 fontsize=13, y=0.98)
+    fig.text(0.5, 0.005, "trase prate stvarnu uličnu mrežu; zasićenost zone je njena "
+             "ukupna tražnja; tačka je zona kroz koju linija prolazi",
+             ha="center", fontsize=8, color="#777777")
+    fig.tight_layout(rect=[0, 0.055, 1, 0.955])
     for p in style.save(fig, REZULTATI / "novisad-mreze"):
         print("->", p)
 

@@ -1,9 +1,4 @@
-# graf Novog Sada u obliku koji model razume: 32 mesne zajednice su čvorovi,
-# ulična ivica postoji između zona čije se granice dodiruju, vreme vožnje je
-# iz tau.csv, tražnja iz traznja.csv. Uz graf se rekonstruiše i postojeća GSP
-# mreža prevedena u iste zone — ona je referentna mreža sa kojom se model
-# poredi.
-# pokretanje: python -m tndp.novisad.instanca
+# graf Novog Sada u obliku koji model razume: 32 mesne zajednice su čvorovi
 
 import csv
 import re
@@ -41,8 +36,7 @@ def _susedstvo(imena):
     return adj
 
 
-# CityGraph očekuje koordinate u ravni; lokalna ekvidistantna projekcija je
-# na ovoj veličini dovoljna (grad je ~15 km širok)
+# CityGraph očekuje koordinate u ravni; lokalna ekvidistantna projekcija je na ovoj veličini dovoljna (grad je ~15 km
 def _koordinate(zone):
     lat = np.array([float(r["lat"]) for r in zone])
     lon = np.array([float(r["lon"]) for r in zone])
@@ -50,9 +44,7 @@ def _koordinate(zone):
     return xy - xy.mean(axis=0)
 
 
-# tau.csv je najkraće vreme kroz celu uličnu mrežu za SVAKI par zona, dakle
-# metrički zatvarač. CityGraph traži ivice, pa se zadržavaju samo parovi
-# susednih zona; putovanje između udaljenih zona model onda sklapa sam.
+# tau.csv je najkraće vreme kroz celu uličnu mrežu za SVAKI par zona, dakle metrički zatvarač
 def ucitaj():
     zone = ucitaj_zone()
     imena = [r["mz"] for r in zone]
@@ -71,9 +63,7 @@ def ucitaj():
 
 # --- postojeća GSP mreža -----------------------------------------------------
 
-# oznaka varijante -> osnovna linija: 1GL i 1J su varijante linije 1, 10APT
-# linije 10, 18A i 18B linije 18. Osnovnih gradskih linija ima 19 i to je R
-# sa kojim se model poredi.
+# oznaka varijante -> osnovna linija: 1GL i 1J su varijante linije 1, 10APT linije 10, 18A i 18B linije 18
 def _osnovna(oznaka):
     m = re.match(r"^\d+", oznaka)
     return m.group(0) if m else oznaka
@@ -85,11 +75,7 @@ def _stajaliste_u_zonu():
                 if r["u_studiji"] == "1"}
 
 
-# model gradi PROSTE puteve, a `ruta` u linije.csv je ceo kružni tok linije:
-# ista zona se javlja i u odlasku i u povratku (npr. A B C D C B A). Uzima se
-# najduži deo trase koji nijednu zonu ne dodiruje dvaput — kod trase u oba
-# smera to je tačno jedan smer. Alternativa, sečenje petlji od prvog do
-# poslednjeg pojavljivanja zone, obriše ceo takav niz i ostavi jednu zonu.
+# model gradi PROSTE puteve, a `ruta` u linije.csv je ceo kružni tok linije: ista zona se javlja i u odlasku i u povratku
 def _prost_put(niz):
     najbolji = (0, 0)
     poslednje = {}
@@ -103,9 +89,7 @@ def _prost_put(niz):
     return niz[najbolji[0]:najbolji[1]]
 
 
-# posle sečenja petlji uzastopne zone ne moraju više biti susedne; isto važi
-# i za zone koje trasa samo proseca bez stajališta. Rupa se popunjava
-# najkraćim putem po susedstvu, ponderisanim vremenom vožnje.
+# posle sečenja petlji uzastopne zone ne moraju više biti susedne; isto važi i za zone koje trasa samo proseca bez
 def _spoji(niz, street):
     pred = dijkstra(np.where(np.isfinite(street), street, 0.0),
                     directed=False, return_predecessors=True)[1]
@@ -131,9 +115,7 @@ def _u_zone(ruta, u_zonu, mesto):
     return niz
 
 
-# rekonstrukcija postojeće mreže: po jedna trasa za svaku od 19 osnovnih
-# gradskih linija, ona varijanta koja pokriva najviše zona. Vraća i dnevnik
-# koliko je svaka trasa izmenjena pri prevođenju u zonski graf.
+# rekonstrukcija postojeće mreže: po jedna trasa za svaku od 19 osnovnih gradskih linija
 def gsp_mreza(city, imena):
     mesto = {m: i for i, m in enumerate(imena)}
     u_zonu = _stajaliste_u_zonu()

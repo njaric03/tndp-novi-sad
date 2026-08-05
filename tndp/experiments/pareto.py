@@ -1,10 +1,4 @@
-# Pareto front putnik/operater: sweep po alpha. Pošto se alpha uzorkuje
-# tokom treninga, JEDNA politika pokriva ceo front — baselines se moraju
-# puštati iznova za svaku tačku. To je i standardni način prikaza u TNDP
-# literaturi, i jedini način da poređenje sa objavljenim rešenjima (koja su
-# sa druge tačke fronta) bude pošteno.
-#
-# pokretanje: python -m tndp.experiments.pareto runs/gravity-v1/best.pt
+# Pareto front putnik/operater: sweep po alpha
 
 import argparse
 from pathlib import Path
@@ -19,6 +13,7 @@ from tndp.baselines.hill_climb import hill_climb
 from tndp.experiments.common import (evaluate_method, held_out_cities,
                                      load_policy, scales_for)
 from tndp.rl.evaluate import decode_sampling
+from tndp.viz import style
 
 ALPHAS = [0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9]
 
@@ -54,6 +49,7 @@ def main():
                         f"| {s['d_un'].mean():.3f} |")
             print(rows[-1])
 
+    style.primeni()
     fig, ax = plt.subplots(figsize=(7, 5.5))
     for (name, pts), color, marker in zip(curves.items(),
                                           ["tab:orange", "tab:red", "tab:blue"],
@@ -64,8 +60,8 @@ def main():
         for (cp, co), a in zip(pts, args.alphas):
             ax.annotate(f"{a}", (cp, co), fontsize=7, xytext=(3, 3),
                         textcoords="offset points", color=color)
-    ax.set_xlabel("C_p_all — prosečno vreme putovanja (min), manje bolje")
-    ax.set_ylabel("C_o — ukupno vreme linija (min), manje bolje")
+    ax.set_xlabel("C_p_all, prosečno vreme putovanja (min), manje bolje")
+    ax.set_ylabel("C_o, ukupno vreme linija (min), manje bolje")
     ax.set_title(f"Pareto front putnik/operater, sweep po alpha\n"
                  f"({args.cities} held-out gradova, R={R}); "
                  f"RL je JEDNA politika uslovljena na alpha")

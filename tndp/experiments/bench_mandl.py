@@ -1,6 +1,4 @@
-# random i greedy baselines na Mandlu; ispisuje markdown tabelu
-# i snima je u results/bench-mandl.md
-# pokretanje: python -m tndp.experiments.bench_mandl [--alpha 0.5] [--samples 1000]
+# random i greedy baselines na Mandlu; ispisuje markdown tabelu i snima je u results/bench-mandl.md pokretanje: python -m
 
 import argparse
 from pathlib import Path
@@ -18,9 +16,7 @@ DATA = Path(__file__).parent.parent.parent / "data" / "benchmarks" / "Mandl" / "
 MIN_LEN, MAX_LEN = 2, 8
 
 
-# C_p je ovde prosek nad opsluzenim parovima, jer je to konvencija u kojoj
-# su objavljeni brojevi iz literature; sve objavljene mreze su povezane
-# (d_un = 0) pa je C_p == C_p_all i poredjenje je korektno
+# C_p je ovde prosek nad opsluzenim parovima, jer je to konvencija u kojoj su objavljeni brojevi iz literature; sve
 def row(name: str, city, net: TransitNetwork) -> str:
     res = assign(city, net)
     d = res.d

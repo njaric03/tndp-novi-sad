@@ -16,9 +16,7 @@ def random_network(city, num_routes, min_len, max_len, rng):
     return TransitNetwork(routes=routes)
 
 
-# najbolja od num_samples nasumičnih mreža. max_seconds i trace postoje da
-# bi metoda mogla da se pusti pod istim vremenskim budžetom kao ostale
-# (anytime poređenje) — bez toga "najbolja od 200" je proizvoljan protivnik.
+# najbolja od num_samples nasumičnih mreža
 def random_search(city, num_routes, min_len, max_len, num_samples=1000,
                   alpha=0.5, seed=0, max_seconds=None, trace=None):
     rng = np.random.default_rng(seed)

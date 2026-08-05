@@ -1,10 +1,4 @@
-# acceptance: naša cost funkcija mora reprodukovati objavljene brojeve na
-# objavljenim Mandl mrežama (Holliday et al., arXiv:2404.05894, tabele 3 i 4).
-# best passenger (Mumford 2013): ATT 10.27 min, ukupno vreme linija 221 min.
-# best operator: vreme linija 63 min; ATT po tabeli 15.13 (Mumford 2013)
-# odnosno 13.48 (John et al. 2014) za mreže sa istim C_o. naš standardni
-# shortest-path assignment nad arhiviranim route setom daje tačno 13.48,
-# tj. John et al. konvenciju; Mumford je ATT računala sopstvenom procedurom.
+# acceptance: naša cost funkcija mora reprodukovati objavljene brojeve na objavljenim Mandl mrežama (Holliday et al.
 
 from pathlib import Path
 

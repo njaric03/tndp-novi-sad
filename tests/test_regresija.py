@@ -1,7 +1,4 @@
-# Jedan sazet smoke test umesto ranija tri fajla (generator, baselines, RL).
-# Nije "pokrivenost" nego zastita od regresije u delovima koji su najskuplji
-# za rucnu proveru: prostor akcija MDP-a, oblik logita i to da svaka metoda
-# vraca mrezu koja postuje ogranicenja.
+# Jedan sazet smoke test umesto ranija tri fajla (generator, baselines, RL)
 
 import numpy as np
 import pytest
@@ -55,9 +52,7 @@ def test_duplicate_routes_are_rejected(city):
                TransitNetwork([[0, nb]] * R).check(city, R, LO, HI))
 
 
-# akcija je par (kraj, cvor): za cvor susedan OBA kraja obe varijante moraju
-# biti dostupne i davati razlicite linije. ranije je "na pocetak" bilo
-# nedostizno jer se strana pogadjala iz susedstva.
+# akcija je par (kraj, cvor): za cvor susedan OBA kraja obe varijante moraju biti dostupne i davati razlicite linije
 def test_action_space_is_unambiguous(city):
     env = TndpEnv(city, R, LO, HI)
     decision, mask = env.decision()
@@ -119,8 +114,7 @@ def test_policy_and_decoders(city):
     assert torch.initial_seed() == 0
 
 
-# v1 mora ostati bit-identican jer su svi objavljeni modeli na njemu; v2 se
-# proverava da je dobio tacno tri kolone vise i da su sve konacne
+# v1 mora ostati bit-identican jer su svi modeli na njemu, v2 dobija tacno tri kolone vise
 def test_verzije_featura(city):
     pytest.importorskip("torch")
     pytest.importorskip("torch_geometric")
@@ -133,8 +127,7 @@ def test_verzije_featura(city):
     assert x1.shape[1] == num_features("v1")
     assert x2.shape[1] == num_features("v2")
     assert bool(x2.isfinite().all())
-    # kolona 4 je stepen: v1 ga deli konstantom pa je uvek pozitivan, v2 ga
-    # provlaci kroz rang transformaciju pa je centriran oko nule
+    # kolona 4 je stepen: v1 ga deli konstantom pa je uvek pozitivan
     assert x1[:, 4].min() > 0
     assert abs(float(x2[:, 4].mean())) < 0.5
     # tri nove kolone su rangovi, dakle takodje centrirane

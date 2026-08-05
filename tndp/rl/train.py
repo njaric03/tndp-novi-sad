@@ -1,6 +1,4 @@
-# REINFORCE sa naučenim baseline-om (value glava), po Kool et al. šablonu.
-# pokretanje: python -m tndp.rl.train --config configs/smoke.yaml
-# log ide u runs/<ime>/log.csv, checkpointi u runs/<ime>/{policy,best}.pt
+# REINFORCE sa naučenim baseline-om (value glava), po Kool et al
 
 import argparse
 import csv
@@ -23,24 +21,15 @@ DEFAULTS = dict(
     value_coef=0.5, grad_clip=1.0, num_routes=4, min_len=2, max_len=8,
     n_range=[15, 25], demand_mode="gravity", hidden=64, layers=3,
     eval_every=25, eval_cities=8, seed=0,
-    # pool: fiksan skup trening gradova (kao Holliday), brže od generisanja
-    # u letu i reproducibilnije. baseline: "value" (naučen) ili "greedy"
-    # (self-critical, Kool et al.)
+    # pool: fiksan skup trening gradova (kao Holliday), brže od generisanja u letu i reproducibilnije
     pool_size=512, baseline="value",
-    # alpha se uzorkuje po epizodi (kao Holliday), pa jedna politika pokriva
-    # ceo Pareto front putnik/operater umesto samo alpha=0.5. alpha_fixed
-    # zaključava vrednost, za ablaciju.
+    # alpha se uzorkuje po epizodi (kao Holliday), pa jedna politika pokriva ceo Pareto front putnik/operater umesto samo
     alpha_fixed=None, alpha_eval=0.5,
-    # best.pt se bira preko VIŠE tačaka fronta, ne samo alpha_eval: politika
-    # koja pokriva ceo front ne sme da se selektuje u jednoj njegovoj tački.
-    # alpha_eval ostaje tačka koja se loguje i prikazuje.
+    # best.pt se bira preko VIŠE tačaka fronta, ne samo alpha_eval: politika koja pokriva ceo front ne sme da se selektuje u
     val_alphas=[0.25, 0.5, 0.75],
-    # standardizacija advantage-a unutar batch-a; REINFORCE sa terminalnom
-    # nagradom je inače vrlo šumovit
+    # standardizacija advantage-a unutar batch-a; REINFORCE sa terminalnom nagradom je inače vrlo šumovit
     standardize_adv=True,
-    # skup ulaznih featura; "v2" dodaje prolaznost, koreness i bliskost i
-    # popravlja skaliranje stepena (vidi tndp/rl/model.py). Podrazumevano
-    # ostaje "v1" jer su svi dosadašnji rezultati na njemu.
+    # skup ulaznih featura; "v2" dodaje prolaznost, koreness i bliskost i popravlja skaliranje stepena (vidi tndp/rl/model.py)
     features="v1",
 )
 
@@ -63,9 +52,7 @@ def main():
     args = parser.parse_args()
     cfg = dict(DEFAULTS)
     if args.config:
-        # ime run-a je ime configa: configs/<ime>.yaml <-> runs/<ime>/. Bez tog
-        # pravila se iz imena configa nije videlo koji model je proizveo, pa je
-        # gravity-v1.yaml pravio gravity-v1 a gravity-v2.yaml gravity-v2.
+        # ime run-a je ime configa: configs/<ime>.yaml <-> runs/<ime>/
         cfg["name"] = Path(args.config).stem
         cfg.update(yaml.safe_load(Path(args.config).read_text(encoding="utf-8-sig")))
     if args.seed is not None:
@@ -82,28 +69,19 @@ def main():
     gen = torch.Generator().manual_seed(cfg["seed"])
     start_iter, best_val, t_offset = 1, -np.inf, 0.0
 
-    # topao start: težine gotovog treninga kao početna tačka. arhitektura ne
-    # zavisi ni od n ni od R (R ulazi u model samo kroz `progress` feature), pa
-    # politika naučena na R=4 služi kao inicijalizacija za R=19. Epizoda sa
-    # R=19 ima ~400 poteza a nagradu tek na kraju, i from-scratch REINFORCE na
-    # njoj ne kreće sa mesta (vidi runs/novisad-r19: vs random 0.93 na
-    # iteraciji 600, dakle gore od random pretrage).
-    # Optimizer i brojač iteracija su NOVI — ovo je nov trening, ne nastavak.
+    # topao start: težine gotovog treninga kao početna tačka
     if args.init:
         src = torch.load(args.init, map_location="cpu", weights_only=False)
-        # skup featura mora da se poklopi, inače bi se težine ulaznog sloja
-        # prenele na feature koji više ne znače isto
+        # skup featura mora da se poklopi, inače bi se težine ulaznog sloja prenele na feature koji više ne znače isto
         src_version = src["cfg"].get("features", "v1")
         if src_version != cfg["features"]:
             raise SystemExit(f"checkpoint je na featurima {src_version}, config traži "
-                             f"{cfg['features']} — topao start nije moguć")
+                             f"{cfg['features']}, topao start nije moguć")
         policy.load_state_dict(src["state_dict"])
         print(f"topao start iz {args.init}: iteracija {src['iter']}, "
               f"vs random {src['val_score']:.3f}")
 
-    # nastavak prekinutog treninga. vraća se i stanje optimizera i oba RNG-a:
-    # bez Adamovih momenata prvih nekoliko koraka razbije naučeno, a bez RNG-a
-    # bi se pool vrteo istim redosledom kao na početku.
+    # nastavak prekinutog treninga
     if args.resume:
         ck = torch.load(out / "policy.pt", map_location="cpu", weights_only=False)
         policy.load_state_dict(ck["state_dict"])
@@ -124,10 +102,7 @@ def main():
                             cfg["max_len"], a) for c in val_cities]
                 for a in val_alphas}
 
-    # random baseline na istim gradovima, po tački fronta. služi za poređenje
-    # u logu, i kao skala pri izboru best.pt: cilj na alpha=0.25 i na 0.75 se
-    # razlikuje i po apsolutnom nivou (~0.9 vs ~1.8), pa bi prost prosek
-    # nagrada preko tačaka merio uglavnom gornji kraj fronta
+    # random baseline na istim gradovima, po tački fronta
     rand_reward = {}
     for a in val_alphas:
         rr = []
@@ -152,16 +127,13 @@ def main():
         opt.zero_grad()
         for _ in range(cfg["batch"]):
             city = pool[int(rng.integers(len(pool)))]
-            # svaka epizoda dobija svoj kompromis putnik/operater; feature
-            # alpha u modelu time postaje informativan i politika se na
-            # evaluaciji može uslovljavati na bilo koju tačku fronta
+            # svaka epizoda dobija svoj alpha, pa jedna politika pokriva ceo Pareto front
             alpha = (cfg["alpha_fixed"] if cfg["alpha_fixed"] is not None
                      else float(rng.uniform(0.0, 1.0)))
             env = TndpEnv(city, cfg["num_routes"], cfg["min_len"],
                           cfg["max_len"], alpha)
             net, reward, res, logp, ent = rollout(policy, env, sample=True, gen=gen)
-            # nekonačna nagrada bi kroz standardizaciju advantage-a postala
-            # NaN i tiho otrovala sve težine; bolje pasti odmah i glasno
+            # nekonačna nagrada bi kroz standardizaciju advantage-a postala NaN i tiho otrovala sve težine; bolje pasti odmah i glasno
             if not np.isfinite(reward):
                 raise RuntimeError(
                     f"nekonačna nagrada na {city.name}: cilj={-reward}, "
@@ -210,17 +182,13 @@ def main():
                     vr.append(env.reward()[0])
                 by_alpha[a] = float(np.mean(vr))
             val_reward = by_alpha[a_eval]
-            # skor za izbor best.pt: koliko je politika bolja od random
-            # searcha, prosečeno preko tačaka fronta. odnos a ne razlika, da
-            # tačke sa većim apsolutnim ciljem ne bi dominirale
+            # skor za izbor best.pt: koliko je politika bolja od random searcha, prosečeno preko tačaka fronta
             val_score = float(np.mean([rand_reward[a] / by_alpha[a]
                                        for a in val_alphas]))
-            # najbolji na validaciji, ne poslednja iteracija: REINFORCE ume
-            # da se pokvari pred kraj i onda se isporučuje gori model
+            # najbolji na validaciji, ne poslednja iteracija: REINFORCE ume da se pokvari pred kraj i onda se isporučuje gori model
             is_best = val_score > best_val
             best_val = max(best_val, val_score)
-            # optimizer i RNG stanja idu u checkpoint da bi --resume mogao da
-            # nastavi tačno odatle; sec je ukupno vreme svih deonica treninga
+            # optimizer i RNG stanja idu u checkpoint da bi --resume mogao da nastavi tačno odatle; sec je ukupno vreme svih deonica
             ckpt = {"cfg": cfg, "state_dict": policy.state_dict(), "iter": it,
                     "val_reward": val_reward, "val_by_alpha": by_alpha,
                     "val_score": val_score, "best_val": best_val,
@@ -239,8 +207,7 @@ def main():
         log.writerow([it, np.mean(rewards), np.mean(d_uns),
                       float(ent_t.mean().detach()), np.mean(vlosses),
                       val_reward, round(time.time() - t0 + t_offset, 1)])
-        # bez flush-a poslednjih ~60 redova ostane u baferu ako proces bude
-        # ubijen spolja; tako je pao runs/novisad-r19
+        # bez flush-a poslednjih ~60 redova ostane u baferu ako proces bude ubijen spolja; tako je pao runs/novisad-r19
         log_f.flush()
 
     print(f"gotovo za {(time.time() - t0 + t_offset) / 60:.1f} min, model u "

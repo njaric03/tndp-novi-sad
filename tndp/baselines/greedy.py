@@ -6,8 +6,7 @@ from tndp.core.assignment import cost_scales
 from tndp.core.network import TransitNetwork
 
 
-# kandidati: najkraći ulični putevi svih parova, skraćeni na max_len,
-# filtrirani na min_len i na dozvoljene terminale, bez duplikata
+# kandidati: najkraći ulični putevi svih parova, skraćeni na max_len, filtrirani na min_len i na dozvoljene terminale
 def shortest_path_candidates(city, min_len, max_len):
     n = city.n
     street = np.where(np.isfinite(city.street_time), city.street_time, 0.0)
@@ -22,9 +21,7 @@ def shortest_path_candidates(city, min_len, max_len):
             while path[-1] != i:
                 path.append(int(pred[i, path[-1]]))
             path.reverse()
-            # odsecanje sa obe strane, ne samo sa jedne: put duži od max_len
-            # dao bi uvek isti početni komad i time sistematski pristrasan
-            # skup kandidata
+            # odsecanje sa obe strane, ne samo sa jedne: put duži od max_len dao bi uvek isti početni komad i time sistematski
             for path in ({tuple(path[:max_len]), tuple(path[-max_len:])}
                          if len(path) > max_len else {tuple(path)}):
                 path = list(path)
@@ -39,11 +36,7 @@ def shortest_path_candidates(city, min_len, max_len):
     return candidates
 
 
-# u svakoj iteraciji dodaj kandidata koji najviše popravlja skalarni cilj.
-# evals: ako se prosledi lista, u nju ide ukupan broj evaluacija cilja. greedy
-# nije besplatan — proba svakog kandidata u svakoj rundi, što je red veličine
-# vise od npr. RL sampling-32. Bez toga poređenje startnih tačaka u
-# experiments/hybrid.py greedy-ju poklanja ceo njegov budžet.
+# u svakoj iteraciji dodaj kandidata koji najviše popravlja skalarni cilj
 def greedy_network(city, num_routes, min_len, max_len, alpha=0.5, evals=None):
     scales = cost_scales(city)
     candidates = shortest_path_candidates(city, min_len, max_len)

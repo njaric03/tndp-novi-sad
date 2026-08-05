@@ -1,9 +1,4 @@
-# Kvalitet u funkciji utrošenog vremena. Bez ovoga poređenje "random
-# najbolja od 200" protiv "RL sampling 32" ne znači ništa — budžeti su
-# različiti i nigde se ne izveštavaju. Ovo je jedina fer forma poređenja
-# metoda koje se skaliraju sa vremenom.
-#
-# pokretanje: python -m tndp.experiments.anytime runs/gravity-v1/best.pt
+# Kvalitet u funkciji utrošenog vremena
 
 import argparse
 import time
@@ -21,6 +16,7 @@ from tndp.core.assignment import assign, objective
 from tndp.experiments.common import held_out_cities, load_policy, scales_for
 from tndp.rl.evaluate import decode, decode_sampling
 from tndp.rl.mcts import mcts_decode
+from tndp.viz import style
 
 SAMPLES_K = [1, 2, 4, 8, 16, 32, 64]
 RANDOM_N = [25, 100, 400, 1600, 6400]
@@ -81,6 +77,7 @@ def main():
         rows.append(f"| {name} | 1 | {dt:.3f} | {obj:.3f} |")
         print(rows[-1])
 
+    style.primeni()
     fig, ax = plt.subplots(figsize=(7.5, 5))
     for name, pts in curves.items():
         if len(pts) > 1:

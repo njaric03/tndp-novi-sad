@@ -1,17 +1,4 @@
-# Kalibracija gravitacione matrice na opterećenja linija iz 2017.
-#
-# Jedini slobodan parametar matrice je beta, eksponent opadanja sa daljinom.
-# Sve ostalo je mereno: mase zona su stanovništvo, privlačnost su sadržaji,
-# rastojanja su iz ulične mreže. Beta se bira tako da mreža koja u gradu
-# STVARNO postoji, opterećena tom matricom, da profil putovanja po linijama
-# najbliži objavljenom.
-#
-# Intervali sleđenja se ne procenjuju nego čitaju iz reda vožnje. Bez toga
-# poređenje nije pošteno: linija 16 ima 89 putnika dnevno zato što vozi retko,
-# a ne zato što tražnje nema, i model koji svaku liniju tretira kao jednako
-# čestu to ne može da pogodi.
-#
-# pokretanje: python -m tndp.novisad.kalibracija
+# Kalibracija gravitacione matrice na opterećenja linija iz 2017
 
 import csv
 import re
@@ -29,11 +16,7 @@ from tndp.novisad.instanca import gsp_mreza, ucitaj
 
 BETE = [0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 MERE = ["euklidsko", "tau"]
-# rastojanje ispod kog se ne ide autobusom nego peške, u kilometrima. bez ovog
-# parametra beta nije prepoznatljiva: gravitacioni model bez praga sve više
-# tražnje sabija na susedne zone (pri beta=2 je 81% na parovima kraćim od 2 km),
-# a ta putovanja u stvarnosti uopšte ne ulaze u gradski prevoz, pa kalibracija
-# tera betu na nulu — a beta=0 znači da daljina ne igra nikakvu ulogu.
+# rastojanje ispod kog se ne ide autobusom nego peške, u kilometrima
 PRAGOVI = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0]
 # koliko TV-a se smatra istim rezultatom pri izboru; vidi komentar u main()
 TOLERANCIJA = 0.002
@@ -50,10 +33,7 @@ def opterecenja_2017():
         return {r["linija"]: float(r["voznji_radni_dan"]) for r in csv.DictReader(f)}
 
 
-# interval sleđenja po liniji iz reda vožnje: broj polazaka u vršnom satu, u
-# jednom smeru. Vršni sat je sat sa najviše polazaka u celoj gradskoj mreži,
-# ne po liniji, jer je vrh svojstvo grada. Linija bez polaska u tom satu
-# dobija najređi dozvoljen interval.
+# interval sleđenja po liniji iz reda vožnje: broj polazaka u vršnom satu, u jednom smeru
 def intervali_iz_reda_voznje():
     po_liniji = defaultdict(list)
     with open(konstante.DATA / "polasci.csv", encoding="utf-8") as f:
@@ -79,10 +59,7 @@ def _udeli(vrednosti, linije, samo):
     return v / v.sum() if v.sum() > 0 else v
 
 
-# Spearman preko rankdata, NE preko argsort(argsort). Druga varijanta vezanim
-# vrednostima dodeljuje proizvoljne različite rangove, pa izmišlja poredak tamo
-# gde ga nema. Ovde je to bitno: u validaciji frekvencija je devet linija
-# zakucano na tačno 60 minuta, a u kalibraciji više linija ima nula putnika.
+# Spearman preko rankdata, NE preko argsort(argsort)
 def _spearman(a, b):
     return float(np.corrcoef(rankdata(a), rankdata(b))[0, 1])
 
@@ -102,7 +79,7 @@ def main():
     mreza, dnevnik = gsp_mreza(city, imena)
     linije = [d["linija"] for d in dnevnik]
     stvarno = opterecenja_2017()
-    # linija 19 (Mišeluk) nije u brojanju iz 2017. i ne ulazi u poređenje
+    # linija 19 (Mišeluk) nije u brojanju iz 2017
     zajednicke = {k for k in linije if k in stvarno}
     print(f"linija u poređenju: {len(zajednicke)} od {len(linije)}"
           f"  (bez: {sorted(set(linije) - zajednicke, key=int)})")
@@ -122,15 +99,11 @@ def main():
             for prag in PRAGOVI:
                 ulasci, _ = ulasci_modela(city, mreza, beta, mera, prag, headways)
                 u = _udeli(ulasci, linije, zajednicke)
-                # ukupno varijaciono rastojanje dva profila: polovina zbira
-                # apsolutnih razlika udela, u [0, 1]. 0 = savršeno poklapanje.
+                # ukupno varijaciono rastojanje dva profila: polovina zbira apsolutnih razlika udela, u [0, 1]
                 tv = float(np.abs(u - cilj_udeli).sum() / 2.0)
                 nalazi.append((mera, beta, prag, tv, _spearman(u, cilj_udeli)))
 
-    # TV razlikuje prag ali NE i betu — po beti je ravan na tri decimale. Zato
-    # se prvo uzimaju sve kombinacije unutar TOLERANCIJE od najboljeg TV-a, pa
-    # se između njih bira ona sa najboljom korelacijom rangova. Da je izbor
-    # samo po TV-u, beta bi se odredila numeričkim šumom.
+    # TV razlikuje prag ali NE i betu, po beti je ravan na tri decimale
     najbolji_tv = min(x[3] for x in nalazi)
     u_igri = [x for x in nalazi if x[3] <= najbolji_tv + TOLERANCIJA]
     najbolji = max(u_igri, key=lambda x: x[4])
@@ -167,7 +140,7 @@ def _izvestaj(nalazi, najbolji, poredak, u, cilj, h, vrh, res):
          "bilo pošteno: linija 16 ima 89 vožnji dnevno zato što vozi retko, a ne zato",
          "što tražnje nema.", "",
          "`prag` je rastojanje ispod kog se putovanje obavi peške i ne ulazi u",
-         "prevoz. Bez njega beta nije prepoznatljiva — kalibracija je tera na nulu,",
+         "prevoz. Bez njega beta nije prepoznatljiva, kalibracija je tera na nulu,",
          "jer gravitacioni model bez praga gomila tražnju na susedne zone.", "",
          "`TV` je ukupno varijaciono rastojanje profila udela (0 = poklapanje, 1 =",
          "disjunktno). `Spearman` je korelacija rangova linija po opterećenju.",
@@ -181,7 +154,7 @@ def _izvestaj(nalazi, najbolji, poredak, u, cilj, h, vrh, res):
               f"(TV {tv:.3f}, Spearman {sp:+.3f}).", "",
           "## Šta je kalibracija stvarno odredila", "",
           "**Prag jeste određen.** TV ima jasan minimum na 3.5 km i raste i ispod",
-          "i iznad. 3.5 km je previše za pešačenje i ne treba ga tako čitati — to je",
+          "i iznad. 3.5 km je previše za pešačenje i ne treba ga tako čitati, to je",
           "granica ispod koje autobus gubi od pešačenja, bicikla i automobila",
           "zajedno. Novi Sad je ravan i biciklistički, a zone su guste.", "",
           "**Beta NIJE određena.** Pri pragu 3.5 km je TV jednak na tri decimale za",

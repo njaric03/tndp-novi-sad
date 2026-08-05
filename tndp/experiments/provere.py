@@ -1,12 +1,4 @@
-# Provere invarijanti na kojima počiva funkcija cilja, plus osetljivost na
-# dve konstante koje u njoj ostaju. Ovo NIJE test suite — svrha je da brojevi
-# koji idu u rad imaju proverljivo poreklo, i da se osetljivost objavi umesto
-# da se ćuti o njoj.
-#
-# Za stanje pre popravki i za merenja koja su ih motivisala videti
-# docs/metodoloska-procena.md (brojevi su iz commita 9e23840).
-#
-# pokretanje: python -m tndp.experiments.provere
+# Provere invarijanti na kojima počiva funkcija cilja, plus osetljivost na dve konstante koje u njoj ostaju
 
 
 import numpy as np
@@ -38,9 +30,7 @@ def greedy_results(cs, alpha=ALPHA):
             for c in cs]
 
 
-# --- 1. da li alpha zaista deli uticaj na pola ------------------------------
-# kriterijum je rasipanje člana preko kandidat-rešenja, ne njegov nivo:
-# alpha balansira to koliko svaki član MENJA cilj kad se mreža promeni
+# --- 1
 def check_balance(cs):
     hdr("1. balans putničkog i operaterskog člana (cilj ~1:1)")
     cp_sd, co_sd = [], []
@@ -63,7 +53,7 @@ def check_balance(cs):
     print(f"  (sa starom skalom R*(max_len-1)*mean(tau) bilo je ~2.1 : 1)")
 
 
-# --- 2. osetljivost na UNSERVED_FACTOR --------------------------------------
+# --- 2
 def check_unserved_factor(cs):
     hdr("2. osetljivost na UNSERVED_FACTOR (odnos brzina 20/5 puta težina pešačenja 2)")
     base = A.UNSERVED_FACTOR
@@ -97,7 +87,7 @@ def check_unserved_factor(cs):
     print("  faktor bira tačku na osi pokrivenost/trošak; mora ići uz rezultate")
 
 
-# --- 3. alpha stvarno pomera kompromis (postoji Pareto front) ---------------
+# --- 3
 def check_alpha_sweep(cs):
     hdr("3. pomera li alpha kompromis putnik/operater")
     print(f"  {'alpha':>6} {'d_un':>7} {'C_p_all':>9} {'C_o':>7}")
@@ -108,7 +98,7 @@ def check_alpha_sweep(cs):
               f"{np.mean([r.C_o for r in rs]):>7.1f}")
 
 
-# --- 4. invarijante koje su ranije mogle tiho da otkažu ---------------------
+# --- 4
 def check_invariants(cs):
     hdr("4. invarijante")
     for c in cs:
@@ -138,7 +128,7 @@ def check_invariants(cs):
     print("  baseline cilj == RL cilj (isti skalar, ne leksikografski)")
 
 
-# --- 5. uparena analiza umesto golih proseka -------------------------------
+# --- 5
 def check_paired(cs):
     hdr("5. uparena analiza (gradovi variraju više nego metode)")
     sc = [cost_scales(c) for c in cs]
@@ -160,9 +150,7 @@ def check_paired(cs):
           f"uparena ±{se_p:.3f} ({se_u / se_p:.1f}x uža)")
 
 
-# --- 6. skala ulaza u mrežu i dekompozicija varijanse nagrade --------------
-# feature tražnje mora imati ISTU raspodelu na treningu (gravity sintetika) i
-# na testu (Mandl, Mumford), inače transfer trpi bez obzira na skalu
+# --- 6
 def check_input_scale():
     hdr("6. raspodela feature-a tražnje po instanci (mora biti ista svuda)")
     try:

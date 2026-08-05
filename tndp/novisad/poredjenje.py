@@ -1,11 +1,4 @@
-# Glavni rezultat studije slučaja: politika trenirana na SINTETICI pušta se na
-# graf Novog Sada u jednom prolazu, bez dotreniravanja, i poredi sa mrežom koju
-# GSP stvarno vozi. Sve metode se mere istim ciljem i na istoj instanci.
-#
-# Ovo je jedini eksperiment u radu u kom referenca nije druga heuristika nego
-# mreža koju su projektovali ljudi.
-#
-# pokretanje: python -m tndp.novisad.poredjenje runs/novisad-r19/best.pt
+# Glavni rezultat studije slučaja: politika trenirana na SINTETICI pušta se na graf Novog Sada u jednom prolazu
 
 import argparse
 import time
@@ -21,12 +14,12 @@ from tndp.experiments.common import load_policy
 from tndp.novisad.instanca import gsp_mreza, ucitaj
 from tndp.rl.evaluate import decode, decode_sampling
 
-REZULTATI = Path(__file__).resolve().parent.parent.parent / "results"
+KOREN = Path(__file__).resolve().parent.parent.parent
+REZULTATI = KOREN / "results"
+MODEL = KOREN / "runs" / "novisad-r19" / "best.pt"
 
 
-# koliko se mreža poklapa sa GSP-om, mereno na neusmerenim parovima uzastopnih
-# zona. Jaccard jer se broj ivica između metoda razlikuje, pa sam presek nije
-# uporediv.
+# koliko se mreža poklapa sa GSP-om, mereno na neusmerenim parovima uzastopnih zona
 def _preklapanje(mreza, gsp):
     def ivice(net):
         return {frozenset((a, b)) for r in net.routes for a, b in zip(r, r[1:])}
@@ -48,7 +41,7 @@ def _red(ime, net, city, scales, alpha, dt, gsp):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("checkpoint", nargs="?", default="runs/novisad-r19/best.pt")
+    ap.add_argument("checkpoint", nargs="?", default=str(MODEL))
     ap.add_argument("--alpha", type=float, default=None)
     ap.add_argument("--samples", type=int, default=32)
     args = ap.parse_args()
@@ -106,12 +99,12 @@ def _izvestaj(redovi, city, R, lo, hi, cfg, a, ckpt):
          f"Instanca: n={city.n} zona, R={R} linija, dužina [{lo}, {hi}], alpha={a}.",
          f"Model: `{ckpt}`.", "",
          "`cilj` je isti skalar za sve metode, manje je bolje. `Jaccard` meri",
-         "poklapanje sa GSP mrežom po parovima uzastopnih zona — koliko model",
+         "poklapanje sa GSP mrežom po parovima uzastopnih zona, koliko model",
          "gradi iste koridore kao stvarni planeri.", "",
          "| metoda | cilj | vs GSP | C_p_all | C_p | C_o | d_0 | d_un | Jaccard | s |",
          "|---|---|---|---|---|---|---|---|---|---|"]
     for x in redovi:
-        vs = "—" if x["metoda"].startswith("GSP") else f"{gsp_cilj - x['cilj']:+.3f}"
+        vs = "-" if x["metoda"].startswith("GSP") else f"{gsp_cilj - x['cilj']:+.3f}"
         r.append(f"| {x['metoda']} | {x['cilj']:.3f} | {vs} | {x['C_p_all']:.2f} | "
                  f"{x['C_p']:.2f} | {x['C_o']:.1f} | {x['d_0']:.2f} | "
                  f"{x['d_un']:.3f} | {x['jaccard']:.3f} | {x['s']:.1f} |")

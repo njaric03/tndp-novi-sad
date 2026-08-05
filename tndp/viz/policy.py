@@ -1,14 +1,4 @@
-# Šta je politika naučila, a ne samo šta je proizvela.
-#
-# Dve slike koje se prave iz istog rollout-a:
-#   heatmap  — za nekoliko parcijalnih stanja tokom gradnje jedne linije,
-#              čvorovi obojeni verovatnoćom da ih politika izabere sledeće,
-#   filmstrip — mreža kako raste, jedna linija po panelu.
-#
-# Za predmet "Eksperimenti sa neuronskim mrežama" heatmapa je jedina slika
-# koja pokazuje unutrašnjost modela; sve ostale prikazuju izlaz.
-#
-# pokretanje: python -m tndp.viz.policy runs/gravity-v1/best.pt
+# Šta je politika naučila, a ne samo šta je proizvela
 
 import argparse
 from pathlib import Path
@@ -24,6 +14,7 @@ from tndp.rl.env import HALT, TndpEnv
 from tndp.rl.features import edge_tensors, node_features
 from tndp.viz.maps import LINE_COLORS, draw_network
 from tndp.viz.style import save
+from tndp.viz import style
 
 
 # ulice u pozadini, isto kao u maps.draw_network ali bez linija
@@ -33,9 +24,7 @@ def _streets(ax, city):
                 color="0.88", lw=0.8, zorder=1)
 
 
-# verovatnoće sledećeg poteza po čvoru. akcija je par (kraj, čvor), pa se
-# dve strane sabiraju: slika odgovara na "koliko je verovatno da linija
-# uopšte ide u ovaj čvor", bez obzira na koji kraj se kači
+# verovatnoće sledećeg poteza po čvoru
 @torch.no_grad()
 def step_probs(policy, env, edge_index, edge_attr):
     decision, mask = env.decision()
@@ -62,10 +51,9 @@ def heatmap(policy, city, cfg, alpha, out, panels=4):
         env.step(-1 if (decision == HALT and a == len(logits) - 1) else a)
 
     pick = np.unique(np.linspace(0, len(snaps) - 1, panels).astype(int))
-    # jedna skala boje za sve panele: kad politika odluči da završi liniju,
-    # verovatnoće po čvorovima padnu na ~1e-6 i zasebni kolorbar bi tu
-    # sitnicu razvukao preko cele skale kao da je signal
+    # jedna skala boje za sve panele: kad politika odluči da završi liniju
     vmax = max(snaps[si][1].max() for si in pick)
+    style.primeni()
     fig, axes = plt.subplots(1, len(pick), figsize=(3.8 * len(pick), 4.4))
     axes = np.atleast_1d(axes)
     for ax, si in zip(axes, pick):
@@ -81,7 +69,7 @@ def heatmap(policy, city, cfg, alpha, out, panels=4):
             ax.scatter(city.coords[cur, 0], city.coords[cur, 1],
                        facecolors="none", edgecolors=LINE_COLORS[0], s=170,
                        lw=1.8, zorder=4)
-        title = f"potez {si + 1}, linija {cur if cur else '—'}"
+        title = f"potez {si + 1}, linija {cur if cur else ','}"
         if halt > 0:
             title += f"\nP(završi liniju) = {halt:.2f}"
         ax.set_title(title, fontsize=8)
@@ -89,7 +77,7 @@ def heatmap(policy, city, cfg, alpha, out, panels=4):
         ax.axis("off")
     fig.colorbar(sc, ax=list(axes), fraction=0.02, pad=0.01,
                  label="P(sledeći čvor)")
-    fig.suptitle(f"Šta politika gleda dok gradi prvu liniju — {city.name}, "
+    fig.suptitle(f"Šta politika gleda dok gradi prvu liniju, {city.name}, "
                  f"alpha={alpha}", fontsize=11)
     return save(fig, out)
 
@@ -114,7 +102,7 @@ def filmstrip(policy, city, cfg, alpha, out):
     for ax, routes in zip(axes, stages):
         draw_network(ax, city, TransitNetwork(routes=routes),
                      title=f"posle {len(routes)}. linije")
-    fig.suptitle(f"Epizoda gradi mrežu liniju po liniju — {city.name}, "
+    fig.suptitle(f"Epizoda gradi mrežu liniju po liniju, {city.name}, "
                  f"alpha={alpha}", fontsize=11)
     return save(fig, out)
 

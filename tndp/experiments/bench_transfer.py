@@ -1,9 +1,4 @@
-# Transfer: politika trenirana na sintetici pušta se na benchmark instance
-# iz literature, bez ikakvog dotreniravanja. Ovo je jedini eksperiment koji
-# testira tvrdnju iz uvoda ("nauči na sintetici, primeni na nov grad") —
-# poređenje na held-out sintetici meri samo instance istog generatora.
-#
-# pokretanje: python -m tndp.experiments.bench_transfer runs/gravity-v1/best.pt
+# Transfer: politika trenirana na sintetici pušta se na benchmark instance iz literature, bez ikakvog dotreniravanja
 
 import argparse
 import time
@@ -49,7 +44,7 @@ def main():
              f"Politika je trenirana na sintetici sa n {cfg['n_range']}, "
              f"R={cfg['num_routes']}, dužina linije [{cfg['min_len']}, {cfg['max_len']}].",
              "Instance se puštaju sa svojim standardnim parametrima, dakle van te",
-             "distribucije — kolona `van distr.` kaže koliko.", "",
+             "distribucije, kolona `van distr.` kaže koliko.", "",
              "| instanca | n | R | metoda | cilj | C_p_all | C_p | C_o | d_un | s |",
              "|---|---|---|---|---|---|---|---|---|---|"]
 

@@ -5,12 +5,10 @@ import re
 
 from tndp.novisad import konstante
 
-# prag rastojanja za spajanje NSmart stanice sa GSP stajalištem; dve baze su
-# nezavisno digitalizovane pa se ista tačka razlikuje i do dvadesetak metara
+# prag rastojanja za spajanje NSmart stanice sa GSP stajalištem; dve baze su nezavisno digitalizovane pa se ista tačka
 PRAG_SPOJA_M = 25
 
-# niz all_stations je nadovezivanje vožnji svih varijanti linije; seče se tamo
-# gde uzastopna stajališta nisu susedna
+# niz all_stations je nadovezivanje vožnji svih varijanti linije; seče se tamo gde uzastopna stajališta nisu susedna
 PRAG_SECENJA_M = 1500
 
 TIPOVI = {"1": "gradska", "2": "prigradska", "3": "medjumesna"}
@@ -33,8 +31,7 @@ def metara(a, b):
     return math.hypot((a[1] - b[1]) * 78000.0, (a[0] - b[0]) * 111320.0)
 
 
-# GSP-ova stajališta nose tarifnu zonu koje u NSmart-u nema, pa se zona prenosi
-# prostornim spojem; naziv i šifra se uzimaju iz NSmart-a jer su tamo čisti
+# GSP-ova stajališta nose tarifnu zonu koje u NSmart-u nema
 def _gsp_tacke():
     tacke = {}
     for zapis in _ucitaj("gsp_stajalista.json").values():
@@ -86,9 +83,7 @@ def _segmenti(ids, koord):
     return sorted(delovi, key=len, reverse=True)
 
 
-# svaki segment je jedna varijanta linije, ne samo najduži: linija koja u selu
-# ide jednosmernom petljom ima stajališta koja postoje samo u jednom smeru, a
-# uzimanje samo najdužeg segmenta ih je gubilo (63 od 593 stajališta zone I)
+# svaki segment je jedna varijanta linije, ne samo najduži: linija koja u selu ide jednosmernom petljom ima stajališta
 def linije(koord):
     ns = _ucitaj("nsmart.json")
     redovi = []
@@ -122,8 +117,7 @@ def linije(koord):
         print(f"    gradske sa >6 varijanti (proveriti ručno): {', '.join(sorted(set(puno)))}")
 
 
-# polasci su u HTML tabeli: <b>SAT</b> pa niz <sup>...<span class=...>MIN<b>VAR</b>
-# gde je VAR oznaka varijante linije a klasa niskopodni-rampa znači pristupačno vozilo
+# polasci su u HTML tabeli: <b>SAT</b> pa niz minuta, VAR je oznaka varijante linije
 def polasci():
     podaci = _ucitaj("polasci.json")
     redovi = []
@@ -146,8 +140,7 @@ def polasci():
                 "niskopodni"], redovi)
 
 
-# granice iz OSM-a dolaze kao neuređene spoljne linije relacije, pa se sklapaju
-# u poligon; ref:RS:mesna_zajednica je zvanična šifra iz Registra prostornih jedinica
+# granice iz OSM-a dolaze kao neuređene spoljne linije relacije
 def mesne_zajednice():
     from shapely.geometry import mapping
     from shapely.ops import linemerge, polygonize, unary_union

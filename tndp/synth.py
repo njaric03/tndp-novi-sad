@@ -4,15 +4,14 @@ from scipy.spatial import Delaunay
 
 from tndp.core.assignment import BUS_SPEED_KMH  # deljeno sa cost funkcijom
 from tndp.core.city import CityGraph
+from tndp.viz import style
 
 
 def _connected(adj):
     return connected_components(adj, directed=False)[0] == 1
 
 
-# sintetički grad: random tačke, Delaunay ivice, proređivanje do realistične
-# gustine ulica. demand_mode "uniform" replicira Holliday U[60, 800] režim,
-# "gravity" daje prostornu strukturu preko masa čvorova (naš glavni režim).
+# sintetički grad: random tačke, Delaunay ivice, proređivanje do realistične gustine ulica
 def generate_city(n=None, seed=0, demand_mode="gravity", n_range=(20, 60),
                   edge_keep=0.85, beta=2.0):
     rng = np.random.default_rng(seed)
@@ -35,11 +34,7 @@ def generate_city(n=None, seed=0, demand_mode="gravity", n_range=(20, 60),
     for i, j in edges:
         adj[i, j] = adj[j, i] = True
 
-    # izbacivanje dugih ivica i proređivanje idu kroz istu proveru: ivica se
-    # sme skinuti samo ako graf ostane povezan. ranije su duge ivice padale
-    # bez provere, pa je ~1% gradova izlazio nepovezan — a nepovezan grad
-    # daje beskonačnu donju granicu putničkog troška, što je u staroj
-    # funkciji cilja tiho gasilo ceo putnički član (deljenje sa inf).
+    # izbacivanje dugih ivica i proređivanje idu kroz istu proveru: ivica se sme skinuti samo ako graf ostane povezan
     def drop_if_safe(i, j):
         adj[i, j] = adj[j, i] = False
         if not _connected(adj):
@@ -88,6 +83,7 @@ if __name__ == "__main__":
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    style.primeni()
     fig, axes = plt.subplots(2, 5, figsize=(18, 7))
     t0 = time.perf_counter()
     for k, ax in enumerate(axes.flat):

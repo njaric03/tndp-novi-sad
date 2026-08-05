@@ -29,6 +29,11 @@ geo = [
 dev = [
     "pytest",
 ]
+# notebooks/ prikazuju rezultate; paket radi i bez ovoga
+nb = [
+    "jupyter",
+    "ipykernel",
+]
 
 [build-system]
 requires = ["setuptools>=61"]

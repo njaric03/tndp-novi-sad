@@ -1,10 +1,4 @@
-# Ocena istih mreža sa frekvencijama. Trase su birane TRNDP ciljem (bez
-# frekvencija), a ovde se nad njima radi druga faza: iz opterećenja po deonici
-# se odrede intervali sleđenja, iz njih vreme čekanja putnika i broj vozila.
-# Sve metode prolaze kroz isti postupak, pa je poređenje pošteno bez obzira
-# što nijedna nije optimizovala flotu.
-#
-# pokretanje: python -m tndp.experiments.bench_freq runs/gravity-v1/best.pt
+# Ocena istih mreža sa frekvencijama
 
 import argparse
 import time
@@ -23,11 +17,7 @@ from tndp.rl.evaluate import decode, decode_sampling
 
 DATA = Path(__file__).parent.parent.parent / "data" / "benchmarks"
 
-# (putanja, R, min_len, max_len, pretpostavljen dnevni broj putovanja).
-# Poslednji broj je PRETPOSTAVKA, ne podatak: Mandl i Mumford objavljuju
-# matricu tražnje bez perioda na koji se odnosi, a vršni sat se bez toga ne
-# može odrediti. Vrednosti su red veličine grada te veličine; osetljivost je
-# na dnu tabele i pokazuje da se poredak metoda ne menja.
+# (putanja, R, min_len, max_len, pretpostavljen dnevni broj putovanja)
 INSTANCE = {
     "Mandl1": ("Mandl/Mandl1", 6, 2, 8, 30_000),
     "Mumford0": ("Mumford/Mumford0", 12, 2, 15, 100_000),
@@ -58,7 +48,7 @@ def main():
         "**Dnevni broj putovanja je pretpostavka.** Mandl i Mumford objavljuju matricu",
         "tražnje bez perioda na koji se odnosi, a bez perioda nema vršnog sata pa se",
         "intervali zalepe za donju ili gornju granicu. Matrica se zato preskalira na",
-        "navedeni dnevni obim. Za Novi Sad to nije potrebno — tamo je period meren.",
+        "navedeni dnevni obim. Za Novi Sad to nije potrebno, tamo je period meren.",
         "",
         "`C_p` je bez čekanja (uporedivo sa ostalim tabelama), `C_p+čekanje` je isti",
         "prosek kad se čekanje uračuna, `flota` je broj vozila, `cilj_f` je",
@@ -99,8 +89,7 @@ def main():
             lines.append(row)
             print("  " + row)
 
-    # osetljivost na dve konstante koje su izbor, ne podatak. greedy mreža je
-    # dovoljna: pitanje je da li se zaključci menjaju, ne koja mreža je najbolja.
+    # osetljivost na dve konstante koje su izbor, ne podatak
     lines += ["", "## Osetljivost na pretpostavke", "",
               "Greedy mreža na Mandl1, menja se po jedna konstanta.", "",
               "| konstanta | vrednost | flota | čekanje | med. interval |",
