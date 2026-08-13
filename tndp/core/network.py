@@ -14,12 +14,12 @@ def is_duplicate(route, routes):
     return canon(route) in {canon(r) for r in routes}
 
 
-# mreža linija; svaka linija je lista indeksa čvorova
+# mreza linija; svaka linija je lista indeksa cvorova
 @dataclass
 class TransitNetwork:
     routes: list
 
-    # prekršaji ograničenja; povezanost se ne proverava ovde nego kroz assignment (d_un > 0)
+    # prekrsaji ogranicenja; povezanost se ne proverava ovde nego kroz assignment (d_un > 0)
     def check(self, city, num_routes=None, min_len=2, max_len=None):
         problems = []
         if num_routes is not None and len(self.routes) != num_routes:
@@ -43,7 +43,7 @@ class TransitNetwork:
                     problems.append(f"linija {ri}: ivica {a}-{b} ne postoji u uličnom grafu")
         return problems
 
-    # vreme vožnje svake linije u jednom smeru
+    # vreme voznje svake linije u jednom smeru
     def route_times(self, city):
         return np.array([sum(city.street_time[a, b] for a, b in zip(r, r[1:]))
                          for r in self.routes])

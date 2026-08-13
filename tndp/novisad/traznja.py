@@ -11,7 +11,7 @@ from tndp.novisad.ulice import ucitaj_zone
 # ostaje 2.0 koliko koristi i synth.py, da se trening i test raspodela ne razlikuju
 BETA = 2.0
 
-# donja granica rastojanja, ista kao u generatoru: sprečava da bliske zone dobiju beskonačnu tražnju
+# donja granica rastojanja, ista kao u generatoru: sprecava da bliske zone dobiju beskonacnu traznju
 MIN_KM = 0.3
 
 # ispod ovog rastojanja putovanje ne ulazi u gradski prevoz
@@ -65,7 +65,7 @@ def izgradi(beta=BETA, mera="euklidsko", ukupno=None, prag=PESACKI_PRAG):
     traznja = prod[:, None] * attr[None, :] / d ** beta
     traznja = (traznja + traznja.T) / 2.0
     np.fill_diagonal(traznja, 0.0)
-    # prag se meri euklidski bez obzira na to kojom merom opada tražnja: reč je o tome koliko je daleko
+    # prag se meri euklidski bez obzira na to kojom merom opada traznja: rec je o tome koliko je daleko
     if prag > 0:
         traznja = np.where(euklid < prag, 0.0, traznja)
     traznja *= ukupno / traznja.sum()

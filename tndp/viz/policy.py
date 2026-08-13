@@ -1,4 +1,4 @@
-# Šta je politika naučila, a ne samo šta je proizvela
+# Sta je politika naucila, a ne samo sta je proizvela
 
 import argparse
 from pathlib import Path
@@ -24,7 +24,7 @@ def _streets(ax, city):
                 color="0.88", lw=0.8, zorder=1)
 
 
-# verovatnoće sledećeg poteza po čvoru
+# verovatnoce sledeceg poteza po cvoru
 @torch.no_grad()
 def step_probs(policy, env, edge_index, edge_attr):
     decision, mask = env.decision()
@@ -53,18 +53,18 @@ def heatmap(policy, city, cfg, alpha, out, panels=2):
     # stanja u kojima je politika vec odlucila da zavrsi liniju se izbacuju:
     # tamo je sva verovatnoca na potezu "kraj", pa mapa po cvorovima nema sta
     # da pokaze i panel samo trosi prostor
-    korisni = [i for i, s in enumerate(snaps) if s[2] < 0.99]
-    pick = np.unique(np.linspace(0, len(korisni) - 1, panels).astype(int))
-    pick = [korisni[k] for k in pick]
+    usable = [i for i, s in enumerate(snaps) if s[2] < 0.99]
+    pick = np.unique(np.linspace(0, len(usable) - 1, panels).astype(int))
+    pick = [usable[k] for k in pick]
     # jedna skala boje za sve panele, inace se paneli ne mogu porediti
     vmax = max(snaps[si][1].max() for si in pick)
     # velicina cvora je ukupna traznja koja u njemu nastaje ili se zavrsava.
     # Bez nje se sa slike ne vidi ono sto je jedino zanimljivo: da li politika
     # bira cvorove sa traznjom ili samo geometrijski zgodne cvorove.
-    masa = city.demand.sum(0) + city.demand.sum(1)
-    velicina = 55 + 240 * (masa - masa.min()) / max(masa.max() - masa.min(), 1e-9)
+    mass = city.demand.sum(0) + city.demand.sum(1)
+    size = 55 + 240 * (mass - mass.min()) / max(mass.max() - mass.min(), 1e-9)
 
-    style.primeni()
+    style.apply_style()
     fig, axes = plt.subplots(1, len(pick), figsize=(4.3 * len(pick), 4.3))
     axes = np.atleast_1d(axes)
     for ax, si in zip(axes, pick):
@@ -73,7 +73,7 @@ def heatmap(policy, city, cfg, alpha, out, panels=2):
         # svetlo-ka-tamnom umesto viridisa: nula treba da bude skoro bela, jer
         # je vecina cvorova u svakom potezu nedostupna ili neverovatna
         sc = ax.scatter(city.coords[:, 0], city.coords[:, 1], c=probs,
-                        cmap="YlOrRd", s=velicina, zorder=3, vmin=0.0, vmax=vmax,
+                        cmap="YlOrRd", s=size, zorder=3, vmin=0.0, vmax=vmax,
                         edgecolors="#999999", linewidths=0.5)
         # izgradjen deo linije je plav, ne crven: crvena je gornji kraj skale
         # verovatnoce, pa bi se trasa stapala sa najverovatnijim cvorom
@@ -84,10 +84,10 @@ def heatmap(policy, city, cfg, alpha, out, panels=2):
         if cur:
             ax.scatter(city.coords[cur, 0], city.coords[cur, 1],
                        facecolors="none", edgecolors="#1f4e9c",
-                       s=velicina[cur] + 90, lw=1.8, zorder=4)
-        opis = ("linija još prazna" if not cur
-                else f"izgrađeno {len(cur)} čvorova")
-        ax.set_title(f"potez {si + 1}: {opis}", fontsize=11)
+                       s=size[cur] + 90, lw=1.8, zorder=4)
+        caption = ("linija još prazna" if not cur
+                   else f"izgrađeno {len(cur)} čvorova")
+        ax.set_title(f"potez {si + 1}: {caption}", fontsize=11)
         ax.set_aspect("equal")
         ax.axis("off")
     fig.colorbar(sc, ax=list(axes), fraction=0.02, pad=0.01,
@@ -102,31 +102,31 @@ def heatmap(policy, city, cfg, alpha, out, panels=2):
 # Slika pokazuje jedan grad; ovo meri isto na svih 20 i daje broj koji se sme
 # napisati u radu. Poredi se sa stepenom cvora da se vidi da nije rec o tome da
 # politika samo bira dobro povezane cvorove.
-def korelacija_prvog_poteza(policy, cfg, alpha, gradovi, out):
+def first_move_correlation(policy, cfg, alpha, cities, out):
     from scipy.stats import spearmanr
 
-    r_traznja, r_stepen = [], []
-    for city in gradovi:
+    r_demand, r_degree = [], []
+    for city in cities:
         env = TndpEnv(city, cfg["num_routes"], cfg["min_len"], cfg["max_len"], alpha)
         edge_index, edge_attr = edge_tensors(city)
         env.reset()
         probs, _, _ = step_probs(policy, env, edge_index, edge_attr)
-        masa = city.demand.sum(0) + city.demand.sum(1)
-        stepen = np.isfinite(city.street_time).sum(1)
-        r_traznja.append(spearmanr(probs, masa).statistic)
-        r_stepen.append(spearmanr(probs, stepen).statistic)
+        mass = city.demand.sum(0) + city.demand.sum(1)
+        degree = np.isfinite(city.street_time).sum(1)
+        r_demand.append(spearmanr(probs, mass).statistic)
+        r_degree.append(spearmanr(probs, degree).statistic)
 
-    redovi = [f"# Prvi potez politike naspram tražnje ({len(gradovi)} gradova, "
-              f"alpha={alpha})", "",
-              "Spearmanova korelacija verovatnoće da politika izabere čvor kao",
-              "početni, sa dve osobine tog čvora. Rangovi, ne vrednosti.", "",
-              "| osobina čvora | prosečan rho | sd | pozitivan na |",
-              "|---|---|---|---|"]
-    for ime, r in (("tražnja u čvoru", r_traznja), ("stepen u uličnoj mreži", r_stepen)):
-        redovi.append(f"| {ime} | {np.mean(r):+.3f} | {np.std(r):.3f} | "
-                      f"{sum(x > 0 for x in r)}/{len(r)} |")
-    Path(out).write_text("\n".join(redovi) + "\n", encoding="utf-8")
-    print("\n".join(redovi[5:]))
+    rows = [f"# Prvi potez politike naspram tražnje ({len(cities)} gradova, "
+            f"alpha={alpha})", "",
+            "Spearmanova korelacija verovatnoće da politika izabere čvor kao",
+            "početni, sa dve osobine tog čvora. Rangovi, ne vrednosti.", "",
+            "| osobina čvora | prosečan rho | sd | pozitivan na |",
+            "|---|---|---|---|"]
+    for name, r in (("tražnja u čvoru", r_demand), ("stepen u uličnoj mreži", r_degree)):
+        rows.append(f"| {name} | {np.mean(r):+.3f} | {np.std(r):.3f} | "
+                    f"{sum(x > 0 for x in r)}/{len(r)} |")
+    Path(out).write_text("\n".join(rows) + "\n", encoding="utf-8")
+    print("\n".join(rows[5:]))
     return [str(out)]
 
 
@@ -165,16 +165,16 @@ def main():
 
     policy, cfg = load_policy(args.checkpoint)
     a = args.alpha if args.alpha is not None else cfg["alpha_eval"]
-    gradovi = held_out_cities(cfg, max(20, args.city + 1))
-    city = gradovi[args.city]
+    cities = held_out_cities(cfg, max(20, args.city + 1))
+    city = cities[args.city]
 
     out = Path(__file__).parent.parent.parent / "results"
     out.mkdir(exist_ok=True)
     print("snimljeno u " + ", ".join(
         heatmap(policy, city, cfg, a, out / "policy-heatmap")
         + filmstrip(policy, city, cfg, a, out / "filmstrip")
-        + korelacija_prvog_poteza(policy, cfg, a, gradovi,
-                                  out / "policy-traznja.md")))
+        + first_move_correlation(policy, cfg, a, cities,
+                                 out / "policy-traznja.md")))
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-# RL politika protiv baselina na held-out sintetičkim gradovima pokretanje: python -m tndp.experiments.bench_synth
+# RL politika protiv baselina na held-out sintetickim gradovima pokretanje: python -m tndp.experiments.bench_synth
 
 import argparse
 import time
@@ -21,7 +21,7 @@ def main():
     ap.add_argument("checkpoint")
     ap.add_argument("--cities", type=int, default=50)
     ap.add_argument("--alpha", type=float, default=None)
-    # ime izlaza bez ekstenzije; ablacije i seed-ovi pišu u svoj fajl da ne prepišu glavnu tabelu
+    # ime izlaza bez ekstenzije; ablacije i seed-ovi pisu u svoj fajl da ne prepisu glavnu tabelu
     ap.add_argument("--out", default="bench-synth")
     args = ap.parse_args()
 
@@ -49,7 +49,7 @@ def main():
         print(f"{name}: cilj {stats[name]['cilj'].mean():.3f} "
               f"({times[name]:.2f} s/grad)")
 
-    ref = "greedy"  # referenca za uparena poređenja
+    ref = "greedy"  # referenca za uparena poredjenja
     lines = [
         f"# Held-out sintetika ({args.cities} gradova, n {cfg['n_range']}, "
         f"R={R}, alpha={a}, model {args.checkpoint})", "",

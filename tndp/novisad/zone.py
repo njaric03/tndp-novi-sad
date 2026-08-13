@@ -4,7 +4,7 @@ import unicodedata
 
 from tndp.novisad import konstante
 
-# područje studije je ono što opslužuje GRADSKI saobraćaj
+# podrucje studije je ono sto opsluzuje GRADSKI saobracaj
 TIP_LINIJE = "gradska"
 MIN_STAJALISTA_U_ZONI = 1
 
@@ -13,7 +13,7 @@ LATINICA = ["A", "B", "V", "G", "D", "Đ", "E", "Ž", "Z", "I", "J", "K", "L", "
             "M", "N", "NJ", "O", "P", "R", "S", "T", "Ć", "U", "F", "H", "C", "Č",
             "DŽ", "Š"]
 
-# nazivi u OSM-u i u evidenciji JKP Informatika se ponegde razilaze: dve su štamparske greške u OSM-u
+# nazivi u OSM-u i u evidenciji JKP Informatika se ponegde razilaze: dve su stamparske greske u OSM-u
 ALIJASI = {"LEDNICI": "LEDINCI", "OMALDINSKIPOKRET": "OMLADINSKIPOKRET",
            "PEJICEVISALASI": "PEJICEVISALASINEMANOVCI"}
 
@@ -41,7 +41,7 @@ def _ucitaj_stajalista():
         return list(csv.DictReader(f))
 
 
-# stajališta kroz koja prolazi bar jedna linija traženog tipa
+# stajalista kroz koja prolazi bar jedna linija trazenog tipa
 def _stajalista_tipa(tip=TIP_LINIJE):
     with open(konstante.DATA / "linije.csv", encoding="utf-8") as f:
         na_rutama = set()
@@ -75,7 +75,7 @@ def izgradi():
     faktori = _faktori_popisa()
     gradska = _stajalista_tipa()
 
-    # svako stajalište pada u najviše jednu mesnu zajednicu
+    # svako stajaliste pada u najvise jednu mesnu zajednicu
     pripadnost = {}
     van = 0
     for r in stajalista:
@@ -94,7 +94,7 @@ def izgradi():
         na_gradskoj = [r for r in svoja if r["id"] in gradska]
         u_studiji = len(na_gradskoj) >= MIN_STAJALISTA_U_ZONI
 
-        # reprezentativna tačka zone je težište njenih stajališta na gradskim linijama
+        # reprezentativna tacka zone je teziste njenih stajalista na gradskim linijama
         osnov = na_gradskoj or zona1 or svoja
         if osnov:
             lon = sum(float(r["lon"]) for r in osnov) / len(osnov)
@@ -119,7 +119,7 @@ def izgradi():
                     "stajalista_gradska", "u_studiji"])
         w.writerows(redovi)
 
-    # pripadnost stajališta zoni je potrebna svakom koraku posle ovoga (prevođenje GSP ruta u nizove zona)
+    # pripadnost stajalista zoni je potrebna svakom koraku posle ovoga (prevodjenje GSP ruta u nizove zona)
     u_zoni = {r[0] for r in redovi if r[11]}
     veza = sorted(((s["id"], naziv, int(naziv in u_zoni))
                    for naziv, svoja in pripadnost.items() for s in svoja),

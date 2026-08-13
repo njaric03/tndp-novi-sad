@@ -8,7 +8,7 @@ from tndp.baselines.hill_climb import hill_climb
 from tndp.experiments.common import (evaluate_method, held_out_cities,
                                      load_policy, scales_for)
 from tndp.rl.evaluate import decode_sampling
-from tndp.viz import rad
+from tndp.viz import paper
 
 ALPHAS = [0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9]
 
@@ -49,10 +49,10 @@ def main():
               "(alpha je feature čvora i uzorkuje se tokom treninga);",
               "baselines se za svaku tačku pokreću iznova.", ""]
     (results / "pareto.md").write_text("\n".join(header + rows) + "\n", encoding="utf-8")
-    # sliku crta viz.rad iz ove iste tabele, da se figura u radu i tabela
-    # ne mogu razići
+    # sliku crta viz.paper iz ove iste tabele, da se figura u radu i tabela
+    # ne mogu razici
     print(f"snimljeno u {results / 'pareto.md'}")
-    print("->", *rad.pareto(results / "slika-pareto"))
+    print("->", *paper.pareto(results / "slika-pareto"))
 
 
 if __name__ == "__main__":

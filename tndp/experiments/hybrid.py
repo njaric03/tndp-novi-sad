@@ -14,7 +14,7 @@ from tndp.experiments.common import (fmt_p, held_out_cities, load_policy,
 from tndp.rl.evaluate import decode_sampling
 from tndp.viz.style import color_for, save
 
-EVALS = 3000       # ukupan budžet evaluacija cilja po gradu
+EVALS = 3000       # ukupan budzet evaluacija cilja po gradu
 GRID = np.unique(np.round(np.logspace(0, np.log10(EVALS), 40)).astype(int))
 
 
@@ -47,7 +47,7 @@ def main():
     cities = held_out_cities(cfg, args.cities)
     scales = scales_for(cities)
 
-    # Startne tačke se NAPLAĆUJU. Slučajna je besplatna, RL sampling k košta k evaluacija
+    # Startne tacke se NAPLACUJU. Slucajna je besplatna, RL sampling k kosta k evaluacija
     starts = {"slučajan start": "random", "greedy start": "greedy",
               f"RL sampling {k} start": "rl"}
 

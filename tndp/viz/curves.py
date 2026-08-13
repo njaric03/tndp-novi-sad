@@ -15,7 +15,7 @@ def main():
     run = Path(sys.argv[1])
     rows = np.genfromtxt(run / "log.csv", delimiter=",", names=True)
 
-    style.primeni()
+    style.apply_style()
     fig, axes = plt.subplots(1, 3, figsize=(14, 4))
     axes[0].plot(rows["iter"], rows["reward"], lw=0.8, label="trening")
     has_val = ~np.isnan(rows["val_reward"])

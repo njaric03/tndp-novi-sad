@@ -6,14 +6,14 @@ from scipy.sparse.csgraph import (connected_components, dijkstra,
                                   minimum_spanning_tree)
 
 
-# graf grada: čvorovi su kandidat stanice/zone, street_time vreme vožnje ulicom u minutima (inf gde nema ivice)
+# graf grada: cvorovi su kandidat stanice/zone, street_time vreme voznje ulicom u minutima (inf gde nema ivice)
 @dataclass
 class CityGraph:
     coords: np.ndarray       # (n, 2)
     street_time: np.ndarray  # (n, n)
     demand: np.ndarray       # (n, n), dijagonala 0
     name: str = ""
-    terminal: np.ndarray = field(default=None)  # sme li linija tu da počne/završi
+    terminal: np.ndarray = field(default=None)  # sme li linija tu da pocne/zavrsi
     _sp: np.ndarray = field(default=None, repr=False, compare=False)
     _mst: float = field(default=None, repr=False, compare=False)
     _nb: list = field(default=None, repr=False, compare=False)
@@ -33,14 +33,14 @@ class CityGraph:
     def _street_dense(self):
         return np.where(np.isfinite(self.street_time), self.street_time, 0.0)
 
-    # najkraća vremena ulicom za sve parove; koristi se kao donja granica putničkog troška i za naplatu nepokrivenih parova
+    # najkraca vremena ulicom za sve parove; koristi se kao donja granica putnickog troska i za naplatu nepokrivenih parova
     @property
     def street_shortest(self):
         if self._sp is None:
             self._sp = dijkstra(self._street_dense(), directed=False)
         return self._sp
 
-    # susedi po čvoru u uličnom grafu; keširano jer ih env i sve baselines traže na svakom potezu
+    # susedi po cvoru u ulicnom grafu; kesirano jer ih env i sve baselines traze na svakom potezu
     @property
     def neighbors(self):
         if self._nb is None:
@@ -48,12 +48,12 @@ class CityGraph:
             self._nb = [np.flatnonzero(finite[i]) for i in range(self.n)]
         return self._nb
 
-    # donja granica putničkog troška: prosečno ulično vreme po putniku kad bi mreža išla svuda
+    # donja granica putnickog troska: prosecno ulicno vreme po putniku kad bi mreza isla svuda
     @property
     def street_shortest_mean_demand(self):
         return float((self.demand * self.street_shortest).sum() / self.demand.sum())
 
-    # ukupno vreme minimalnog razapinjućeg stabla: donja granica koliko mreže uopšte treba da bi svaki čvor bio dostupan
+    # ukupno vreme minimalnog razapinjuceg stabla: donja granica koliko mreze uopste treba da bi svaki cvor bio dostupan
     @property
     def mst_time(self):
         if self._mst is None:
@@ -67,7 +67,7 @@ class CityGraph:
         mask = i < j
         return np.stack([i[mask], j[mask]], axis=1)
 
-    # lista prekršaja, prazna znači validan graf
+    # lista prekrsaja, prazna znaci validan graf
     def validate(self):
         problems = []
         n = self.n

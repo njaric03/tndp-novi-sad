@@ -7,7 +7,7 @@ from tndp.rl.env import HALT, TndpEnv
 from tndp.rl.features import edge_tensors, node_features
 
 
-# odigraj epizodu politikom; sample=True vuče iz distribucije (trening), sample=False uzima argmax (greedy dekodiranje)
+# odigraj epizodu politikom; sample=True vuce iz distribucije (trening), sample=False uzima argmax (greedy dekodiranje)
 def rollout(policy, env, sample=True, gen=None):
     edge_index, edge_attr = edge_tensors(env.city)
     log_probs, entropies = [], []
@@ -39,7 +39,7 @@ def decode(policy, city, num_routes, min_len=2, max_len=8, alpha=0.5):
     return net, res
 
 
-# najbolja od k sampled epizoda (jeftino poboljšanje, Kool et al
+# najbolja od k sampled epizoda (jeftino poboljsanje, Kool et al
 @torch.no_grad()
 def decode_sampling(policy, city, num_routes, k=32, min_len=2, max_len=8,
                     alpha=0.5, seed=0):

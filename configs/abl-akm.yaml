@@ -1,12 +1,12 @@
-# ablacija: featuri iz analize kompleksnih mreža. Sve isto kao gravity-v1,
+# ablacija: featuri iz analize kompleksnih mreza. Sve isto kao gravity-v1,
 # menja se samo skup ulaznih featura, pa je razlika u rezultatu pripisiva
-# njima i ničemu drugom.
+# njima i nicemu drugom.
 #
-# v2 dodaje prolaznost (betweenness ponderisan tražnjom), koreness (k-core) i
+# v2 dodaje prolaznost (betweenness ponderisan traznjom), koreness (k-core) i
 # bliskost, i menja skaliranje stepena iz deljenja konstantom u rang
-# transformaciju. Prve dve su GLOBALNE veličine koje tri GATv2 sloja ne mogu
-# da izračunaju jer im je receptivno polje tri skoka; treća popravlja
-# raspodelu ulaza između instanci, iz istog razloga zbog kog tražnja ide kroz
+# transformaciju. Prve dve su GLOBALNE velicine koje tri GATv2 sloja ne mogu
+# da izracunaju jer im je receptivno polje tri skoka; treca popravlja
+# raspodelu ulaza izmedju instanci, iz istog razloga zbog kog traznja ide kroz
 # rang transformaciju.
 iters: 3000
 batch: 16

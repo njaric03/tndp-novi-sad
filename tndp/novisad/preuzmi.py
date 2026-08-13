@@ -6,7 +6,7 @@ import requests
 
 from tndp.novisad import konstante
 
-PAUZA = 0.2  # sekundi između zahteva, da se sajt ne gnjavi
+PAUZA = 0.2  # sekundi izmedju zahteva, da se sajt ne gnjavi
 
 
 def _sesija():
@@ -26,7 +26,7 @@ def _upisi(ime, sadrzaj):
     print(f"  {ime}  {put.stat().st_size // 1024} KB")
 
 
-# odgovori GSP-a nisu čist JSON nego imaju HTML whitespace oko niza
+# odgovori GSP-a nisu cist JSON nego imaju HTML whitespace oko niza
 def _json_iz_html(tekst):
     kraj = tekst.rfind("]")
     for m in re.finditer(r"\[", tekst):
@@ -39,7 +39,7 @@ def _json_iz_html(tekst):
     return []
 
 
-# katalog linija sa stranice mreže: numerički id, kategorija, relacija, oznaka
+# katalog linija sa stranice mreze: numericki id, kategorija, relacija, oznaka
 def linije_sa_mreze(html):
     pat = re.compile(
         r'id="(\d+)"[^>]*class="button-linija (grad|prigrad|medjumesni) ablin\d+"'
@@ -48,7 +48,7 @@ def linije_sa_mreze(html):
             for a, b, c, d in pat.findall(html)]
 
 
-# NSmart ugrađuje celu bazu stanica i linija u izvor stranice kao JS string literal g_in_cities; vadi se ručnim
+# NSmart ugradjuje celu bazu stanica i linija u izvor stranice kao JS string literal g_in_cities; vadi se rucnim
 def izvuci_nsmart(html):
     i = html.find("var g_in_cities")
     if i < 0:
@@ -123,7 +123,7 @@ def preuzmi_polaske(s):
     _upisi("polasci.json", polasci)
 
 
-# Overpass zna da vrati 504 kad je opterećen, pa se pokušava više puta
+# Overpass zna da vrati 504 kad je opterecen, pa se pokusava vise puta
 def preuzmi_mesne_zajednice(s, pokusaja=5):
     print("mesne zajednice iz OSM-a")
     j, i, k, a = konstante.BBOX
@@ -151,14 +151,14 @@ def preuzmi_nsinfo(s):
         time.sleep(PAUZA)
 
 
-# osmnx podrazumevano keširа u./cache; sklanja se pod data/novisad/ koji je ionako u.gitignore
+# osmnx podrazumevano kesirа u./cache; sklanja se pod data/novisad/ koji je ionako u.gitignore
 def _podesi_osmnx():
     import osmnx as ox
 
     ox.settings.cache_folder = str(konstante.RAW / "osmnx_cache")
 
 
-# ulična mreža za vremena vožnje; graf je MultiDiGraph pa dvosmerna ulica daje dve usmerene grane a jednosmerna jednu
+# ulicna mreza za vremena voznje; graf je MultiDiGraph pa dvosmerna ulica daje dve usmerene grane a jednosmerna jednu
 def preuzmi_ulice():
     import osmnx as ox
 
@@ -176,7 +176,7 @@ def preuzmi_ulice():
           f"{put.stat().st_size // 1024} KB")
 
 
-# sadržaji za stranu privlačnosti gravitacionog modela
+# sadrzaji za stranu privlacnosti gravitacionog modela
 def preuzmi_sadrzaje():
     import osmnx as ox
 
@@ -188,7 +188,7 @@ def preuzmi_sadrzaje():
         return
     g = ox.features_from_bbox(konstante.BBOX_ULICE, {t: True for t in konstante.POI_TAGOVI})
     g = g.copy()
-    g["geometry"] = g.geometry.representative_point()  # poligoni -> tačke
+    g["geometry"] = g.geometry.representative_point()  # poligoni -> tacke
     kolone = ["geometry"] + [t for t in konstante.POI_TAGOVI if t in g.columns]
     g = g[kolone].reset_index(drop=True)
     g.to_file(put, driver="GeoJSON")

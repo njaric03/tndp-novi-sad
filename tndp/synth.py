@@ -11,16 +11,16 @@ def _connected(adj):
     return connected_components(adj, directed=False)[0] == 1
 
 
-# sintetički grad: random tačke, Delaunay ivice, proređivanje do realistične gustine ulica
+# sinteticki grad: random tacke, Delaunay ivice, proredjivanje do realisticne gustine ulica
 def generate_city(n=None, seed=0, demand_mode="gravity", n_range=(20, 60),
                   edge_keep=0.85, beta=2.0):
     rng = np.random.default_rng(seed)
     if n is None:
         n = int(rng.integers(n_range[0], n_range[1] + 1))
-    side = 1.2 * np.sqrt(n)  # km; gustina čvorova ne zavisi od n
+    side = 1.2 * np.sqrt(n)  # km; gustina cvorova ne zavisi od n
     coords = rng.uniform(0, side, (n, 2))
 
-    # delaunay pa izbaci predugačke ivice (artefakti konveksnog omotača)
+    # delaunay pa izbaci predugacke ivice (artefakti konveksnog omotaca)
     edges = set()
     for simplex in Delaunay(coords).simplices:
         for a, b in [(0, 1), (1, 2), (0, 2)]:
@@ -34,7 +34,7 @@ def generate_city(n=None, seed=0, demand_mode="gravity", n_range=(20, 60),
     for i, j in edges:
         adj[i, j] = adj[j, i] = True
 
-    # izbacivanje dugih ivica i proređivanje idu kroz istu proveru: ivica se sme skinuti samo ako graf ostane povezan
+    # izbacivanje dugih ivica i proredjivanje idu kroz istu proveru: ivica se sme skinuti samo ako graf ostane povezan
     def drop_if_safe(i, j):
         adj[i, j] = adj[j, i] = False
         if not _connected(adj):
@@ -51,17 +51,17 @@ def generate_city(n=None, seed=0, demand_mode="gravity", n_range=(20, 60),
     street = np.where(adj, dist / BUS_SPEED_KMH * 60, np.inf)  # minuti
     np.fill_diagonal(street, 0.0)
 
-    # demand: ukupan broj putovanja isti u oba režima da budu uporedivi
+    # demand: ukupan broj putovanja isti u oba rezima da budu uporedivi
     total_trips = 430.0 * n * (n - 1)
     if demand_mode == "uniform":
         demand = rng.uniform(60, 800, (n, n))
     else:
-        # gravity: mase čvorova (produkcija i atrakcija), opadanje sa daljinom
+        # gravity: mase cvorova (produkcija i atrakcija), opadanje sa daljinom
         prod = rng.lognormal(0, 0.8, n)
         attr = rng.lognormal(0, 0.8, n)
         with np.errstate(divide="ignore"):
             demand = prod[:, None] * attr[None, :] / np.maximum(dist, 0.3) ** beta
-        demand *= rng.lognormal(0, 0.3, (n, n))  # šum
+        demand *= rng.lognormal(0, 0.3, (n, n))  # sum
     demand = (demand + demand.T) / 2
     np.fill_diagonal(demand, 0.0)
     demand *= total_trips / demand.sum()
@@ -69,7 +69,7 @@ def generate_city(n=None, seed=0, demand_mode="gravity", n_range=(20, 60),
     city = CityGraph(coords=coords, street_time=street, demand=demand,
                      name=f"synth-{demand_mode}-{seed}")
     problems = city.validate()
-    if problems:  # nikad ne vraćaj grad koji ne prolazi sopstvenu validaciju
+    if problems:  # nikad ne vracaj grad koji ne prolazi sopstvenu validaciju
         raise RuntimeError(f"generator dao nevalidan grad (seed={seed}): {problems}")
     return city
 
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    style.primeni()
+    style.apply_style()
     fig, axes = plt.subplots(2, 5, figsize=(18, 7))
     t0 = time.perf_counter()
     for k, ax in enumerate(axes.flat):

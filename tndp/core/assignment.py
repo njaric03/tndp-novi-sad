@@ -17,40 +17,40 @@ UNSERVED_FACTOR = BUS_SPEED_KMH / WALK_SPEED_KMH * TEZINA_PESACENJA
 @dataclass
 class AssignmentResult:
     travel_time: np.ndarray  # (n, n), inf za nepokrivene parove
-    transfers: np.ndarray    # (n, n), -1 za nepokrivene; None ako se ne računa
-    C_p: float               # prosečno vreme po putniku, samo opsluženi parovi
-    C_p_all: float           # isto, ali nepokriveni naplaćeni po UNSERVED_FACTOR
-    C_o: float               # ukupno vreme vožnje linija u jednom smeru
+    transfers: np.ndarray    # (n, n), -1 za nepokrivene; None ako se ne racuna
+    C_p: float               # prosecno vreme po putniku, samo opsluzeni parovi
+    C_p_all: float           # isto, ali nepokriveni naplaceni po UNSERVED_FACTOR
+    C_o: float               # ukupno vreme voznje linija u jednom smeru
     d: dict                  # d_0, d_1, d_2, d_3p, d_un udeli demanda
-    boardings: np.ndarray = None  # (R,) ulazaka po liniji; None ako se ne računa
-    max_load: np.ndarray = None   # (R,) najopterećenija deonica linije
+    boardings: np.ndarray = None  # (R,) ulazaka po liniji; None ako se ne racuna
+    max_load: np.ndarray = None   # (R,) najopterecenija deonica linije
 
     @property
     def is_connected(self):
         return self.d["d_un"] == 0.0
 
 
-# skale za normalizaciju putničkog i operaterskog člana
+# skale za normalizaciju putnickog i operaterskog clana
 def cost_scales(city, num_routes=None, max_len=None):
     return city.street_shortest_mean_demand, city.mst_time
 
 
-# jedina funkcija cilja: oba člana su odnos prema svojoj donjoj granici
+# jedina funkcija cilja: oba clana su odnos prema svojoj donjoj granici
 def objective(result, scales, alpha=0.5):
     cp_scale, co_scale = scales
     return alpha * result.C_p_all / cp_scale + (1 - alpha) * result.C_o / co_scale
 
 
-# passenger assignment preko "route grafa": platforma = (linija, pozicija), plus zemaljski čvor po čvoru grada
+# passenger assignment preko "route grafa": platforma = (linija, pozicija), plus zemaljski cvor po cvoru grada
 def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfers=True,
            compute_loads=False, headways=None):
     n = city.n
     routes = network.routes
     offsets = np.cumsum([0] + [len(r) for r in routes])
     num_platforms = int(offsets[-1])
-    ground = num_platforms  # zemaljski čvor grada i ima indeks ground + i
+    ground = num_platforms  # zemaljski cvor grada i ima indeks ground + i
 
-    # ulazak košta ili fiksni penal iz literature ili, kad su frekvencije poznate
+    # ulazak kosta ili fiksni penal iz literature ili, kad su frekvencije poznate
     board = ([transfer_penalty] * len(routes) if headways is None
              else [float(h) / 2.0 for h in headways])
 
@@ -91,7 +91,7 @@ def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfe
     served_demand = demand[served].sum()
     C_p = float((demand[served] * travel_time[served]).sum() / served_demand) \
         if served_demand > 0 else float("inf")
-    # C_p_all: isti prosek nad SVIM parovima, gde nepokriveni plaćaju UNSERVED_FACTOR puta ulično najkraće vreme
+    # C_p_all: isti prosek nad SVIM parovima, gde nepokriveni placaju UNSERVED_FACTOR puta ulicno najkrace vreme
     charged = np.where(served, travel_time, UNSERVED_FACTOR * city.street_shortest)
     C_p_all = float((demand * charged).sum() / total)
     C_o = float(network.route_times(city).sum())

@@ -1,4 +1,4 @@
-# Osetljivost zaključaka na dve konstante koje u funkciji cilja ostaju stvar izbora: UNSERVED_FACTOR i alpha
+# Osetljivost zakljucaka na dve konstante koje u funkciji cilja ostaju stvar izbora: UNSERVED_FACTOR i alpha
 
 import argparse
 from pathlib import Path
@@ -65,7 +65,7 @@ def panel(ax, values, curves, xlabel, marker_at=None):
     for name, ys in curves.items():
         ax.plot(values, ys, "o-", ms=4, lw=1.8, label=name,
                 color=color_for(name))
-    # tačke gde se dve metode presecaju: tu ranžiranje zavisi od konstante
+    # tacke gde se dve metode presecaju: tu ranziranje zavisi od konstante
     names = list(curves)
     for i in range(len(names)):
         for j in range(i + 1, len(names)):
@@ -105,7 +105,7 @@ def main():
     print("sweep po alpha:")
     by_alpha = sweep(policy, cfg, cities, ALPHAS, "alpha")
 
-    style.primeni()
+    style.apply_style()
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.6))
     panel(axes[0], FACTORS, by_factor, "UNSERVED_FACTOR (naplata nepokrivenog para)",
           marker_at=A.UNSERVED_FACTOR)

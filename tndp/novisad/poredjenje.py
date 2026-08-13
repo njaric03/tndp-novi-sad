@@ -1,4 +1,4 @@
-# Glavni rezultat studije slučaja: politika trenirana na SINTETICI pušta se na graf Novog Sada u jednom prolazu
+# Glavni rezultat studije slucaja: politika trenirana na SINTETICI pusta se na graf Novog Sada u jednom prolazu
 
 import argparse
 import time
@@ -19,7 +19,7 @@ REZULTATI = KOREN / "results"
 MODEL = KOREN / "runs" / "novisad-r19" / "best.pt"
 
 
-# koliko se mreža poklapa sa GSP-om, mereno na neusmerenim parovima uzastopnih zona
+# koliko se mreza poklapa sa GSP-om, mereno na neusmerenim parovima uzastopnih zona
 def _preklapanje(mreza, gsp):
     def ivice(net):
         return {frozenset((a, b)) for r in net.routes for a, b in zip(r, r[1:])}

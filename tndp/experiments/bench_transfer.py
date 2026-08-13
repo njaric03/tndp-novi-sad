@@ -1,4 +1,4 @@
-# Transfer: politika trenirana na sintetici pušta se na benchmark instance iz literature, bez ikakvog dotreniravanja
+# Transfer: politika trenirana na sintetici pusta se na benchmark instance iz literature, bez ikakvog dotreniravanja
 
 import argparse
 import time

@@ -1,4 +1,4 @@
-# acceptance: naša cost funkcija mora reprodukovati objavljene brojeve na objavljenim Mandl mrežama (Holliday et al.
+# acceptance: nasa cost funkcija mora reprodukovati objavljene brojeve na objavljenim Mandl mrezama (Holliday et al.
 
 from pathlib import Path
 

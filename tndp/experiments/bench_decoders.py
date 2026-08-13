@@ -1,4 +1,4 @@
-# poređenje načina dekodiranja iste trenirane politike: greedy, sampling i MCTS. manji broj gradova jer je MCTS spor
+# poredjenje nacina dekodiranja iste trenirane politike: greedy, sampling i MCTS. manji broj gradova jer je MCTS spor
 
 import argparse
 import time

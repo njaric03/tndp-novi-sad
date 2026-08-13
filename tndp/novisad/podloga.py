@@ -154,7 +154,7 @@ def _graf():
     return np.array(xy), csr_matrix((np.array(w), (np.array(r), np.array(c))), shape=(n, n))
 
 
-# indeks najblizeg uličnog cvora za svako teziste zone
+# indeks najblizeg ulicnog cvora za svako teziste zone
 def _snap(xy, lon, lat):
     out = []
     for x, y in zip(lon, lat):

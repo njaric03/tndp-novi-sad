@@ -8,7 +8,7 @@ from tndp.baselines.greedy import greedy_network
 from tndp.core.assignment import cost_scales
 from tndp.core.network import TransitNetwork
 
-# Lokalna pretraga nad kompletnim mrežama: ono što u literaturi radi metaheuristika (Mumford 2013 SA, Nikolić 2013 BCO
+# Lokalna pretraga nad kompletnim mrezama: ono sto u literaturi radi metaheuristika (Mumford 2013 SA, Nikolic 2013 BCO
 
 
 def _extend(route, city, rng, max_len):
@@ -16,7 +16,7 @@ def _extend(route, city, rng, max_len):
         return None
     side = int(rng.integers(2))
     end = route[0] if side == 0 else route[-1]
-    # dodati čvor postaje novi kraj linije, pa mora biti dozvoljen terminal
+    # dodati cvor postaje novi kraj linije, pa mora biti dozvoljen terminal
     options = [int(c) for c in city.neighbors[end]
                if c not in route and city.terminal[c]]
     if not options:
@@ -82,7 +82,7 @@ def hill_climb(city, num_routes, min_len, max_len, alpha=0.5, seed=0,
     elif not isinstance(init, str):
         cur = [list(r) for r in init]
     elif init == "greedy":
-        # greedy init je bolji start, ali greedy kandidati su najkraći putevi pa ih na instancama sa velikim min_len ume da bude
+        # greedy init je bolji start, ali greedy kandidati su najkraci putevi pa ih na instancama sa velikim min_len ume da bude
         try:
             cur = [r[:] for r in greedy_network(city, num_routes, min_len,
                                                 max_len, alpha=alpha)[0].routes]

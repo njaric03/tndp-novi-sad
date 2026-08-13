@@ -37,8 +37,8 @@ MESTA = [(0, 1), (0, -1), (1, 0), (-1, 0), (0, 2), (0, -2),
 
 # Imena 32 zone na jednoj karti se sudaraju oko centra, gde su zone najmanje.
 # Mesto se bira probanjem: natpis se nacrta, izmeri mu se STVARNI okvir preko
-# renderera, i ako se seče sa vec postavljenim, briše se i proba sledeće mesto.
-# Procena širine iz broja slova ne radi, jer slova nisu iste širine.
+# renderera, i ako se sece sa vec postavljenim, brise se i proba sledece mesto.
+# Procena sirine iz broja slova ne radi, jer slova nisu iste sirine.
 def _natpisi(ax, imena, lon, lat):
     fig = ax.figure
     fig.canvas.draw()
@@ -155,7 +155,7 @@ def main(checkpoint=MODEL):
     # objasnjenje sta je sta ide u potpis figure u radu, ne na sliku: tekst
     # preko cele sirine bi bio najsiri element, pa bbox_inches="tight" vise
     # ne bi mogao da skrati praznine oko karte i karta bi u radu ispala mala
-    style.primeni()
+    style.apply_style()
 
     # Glavni rezultat studije slucaja ide sam i veliki, sa imenima zona.
     # Na tri panela jedan uz drugi se mreza politike ne moze procitati, a bas

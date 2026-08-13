@@ -1,5 +1,5 @@
-# ablacija: uniform tražnja umesto gravity. pitanje je uci li mreza
-# prostornu strukturu tražnje ili samo topologiju ulicne mreze
+# ablacija: uniform traznja umesto gravity. pitanje je uci li mreza
+# prostornu strukturu traznje ili samo topologiju ulicne mreze
 iters: 3000
 batch: 16
 n_range: [15, 30]

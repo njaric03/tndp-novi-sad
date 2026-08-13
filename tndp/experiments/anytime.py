@@ -1,4 +1,4 @@
-# Kvalitet u funkciji utrošenog vremena
+# Kvalitet u funkciji utrosenog vremena
 
 import argparse
 import time
@@ -13,7 +13,7 @@ from tndp.core.assignment import assign, objective
 from tndp.experiments.common import held_out_cities, load_policy, scales_for
 from tndp.rl.evaluate import decode, decode_sampling
 from tndp.rl.mcts import mcts_decode
-from tndp.viz import rad
+from tndp.viz import paper
 
 SAMPLES_K = [1, 2, 4, 8, 16, 32, 64]
 RANDOM_N = [25, 100, 400, 1600, 6400]
@@ -63,7 +63,7 @@ def main():
             rows.append(f"| {name} | {budget} | {dt:.3f} | {obj:.3f} |")
             print(rows[-1])
 
-    # jednokratne metode kao tačke
+    # jednokratne metode kao tacke
     for name, solve in [("greedy", lambda c: greedy_network(c, R, lo, hi, alpha=a)[0]),
                         ("RL greedy dekod", lambda c: decode(policy, c, R, lo, hi, a)[0])]:
         dt, obj = run(solve, cities, scales, R, lo, hi, a)
@@ -74,10 +74,10 @@ def main():
     (results / "anytime.md").write_text(
         "\n".join([f"# Anytime poređenje ({args.cities} gradova, alpha={a}, "
                    f"model {args.checkpoint})", ""] + rows) + "\n", encoding="utf-8")
-    # sliku crta viz.rad iz ove iste tabele, da se figura u radu i tabela
-    # ne mogu razići
+    # sliku crta viz.paper iz ove iste tabele, da se figura u radu i tabela
+    # ne mogu razici
     print(f"snimljeno u {results / 'anytime.md'}")
-    print("->", *rad.budzet(results / "slika-budzet"))
+    print("->", *paper.budget(results / "slika-budzet"))
 
 
 if __name__ == "__main__":

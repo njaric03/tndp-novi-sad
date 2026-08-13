@@ -1,4 +1,4 @@
-# Provere invarijanti na kojima počiva funkcija cilja, plus osetljivost na dve konstante koje u njoj ostaju
+# Provere invarijanti na kojima pociva funkcija cilja, plus osetljivost na dve konstante koje u njoj ostaju
 
 
 import numpy as np

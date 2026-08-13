@@ -1,4 +1,4 @@
-# zajedničko za skripte u experiments/: učitavanje politike, uparena statistika i formatiranje tabela
+# zajednicko za skripte u experiments/: ucitavanje politike, uparena statistika i formatiranje tabela
 
 import numpy as np
 import torch
@@ -11,11 +11,11 @@ from tndp.synth import generate_city
 SEED_BASE = 20_000  # van trening poola (0..pool) i validacije (10k+)
 
 
-# učitaj checkpoint; podrazumevano best.pt (najbolji na validaciji) ako postoji, jer policy.pt je samo poslednja iteracija
+# ucitaj checkpoint; podrazumevano best.pt (najbolji na validaciji) ako postoji, jer policy.pt je samo poslednja iteracija
 def load_policy(path):
     ckpt = torch.load(path, weights_only=False)
     cfg = ckpt["cfg"]
-    # checkpointi napravljeni pre uvođenja v2 featura nemaju ključ; svi su v1
+    # checkpointi napravljeni pre uvodjenja v2 featura nemaju kljuc; svi su v1
     cfg.setdefault("features", "v1")
     policy = TndpPolicy(hidden=cfg["hidden"], layers=cfg["layers"],
                         features=cfg["features"])
@@ -55,7 +55,7 @@ def scales_for(cities):
 
 # uparena razlika u odnosu na referentnu metodu
 def paired_vs(values, reference):
-    d = reference - values          # >0 znači da je metoda bolja od reference
+    d = reference - values          # >0 znaci da je metoda bolja od reference
     se = d.std(ddof=1) / np.sqrt(len(d))
     if np.allclose(d, 0):
         p = 1.0
@@ -73,10 +73,10 @@ def fmt_p(p):
 # preoptimisticna: pri 5 testova i pragu 0.05 jedan lazno pozitivan je ocekivan
 def holm(ps):
     m = len(ps)
-    red = sorted(range(m), key=lambda i: ps[i])
-    izlaz = [0.0] * m
-    dosad = 0.0
-    for k, i in enumerate(red):
-        dosad = max(dosad, min(1.0, (m - k) * ps[i]))
-        izlaz[i] = dosad
-    return izlaz
+    order = sorted(range(m), key=lambda i: ps[i])
+    out = [0.0] * m
+    running = 0.0
+    for k, i in enumerate(order):
+        running = max(running, min(1.0, (m - k) * ps[i]))
+        out[i] = running
+    return out

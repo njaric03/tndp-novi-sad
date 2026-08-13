@@ -1,4 +1,4 @@
-# GATv2 encoder + pointer glava za izbor čvora + halt glava + value glava
+# GATv2 encoder + pointer glava za izbor cvora + halt glava + value glava
 
 import torch
 import torch.nn as nn
@@ -16,7 +16,7 @@ class TndpPolicy(nn.Module):
         self.convs = nn.ModuleList([
             GATv2Conv(hidden, hidden // heads, heads=heads, edge_dim=2)
             for _ in range(layers)])
-        # ulaz: [embedding čvora, globalni kontekst, embedding kraja na koji se kači]
+        # ulaz: [embedding cvora, globalni kontekst, embedding kraja na koji se kaci]
         self.node_score = nn.Sequential(
             nn.Linear(3 * hidden, hidden), nn.ReLU(), nn.Linear(hidden, 1))
         self.halt_score = nn.Sequential(
@@ -30,7 +30,7 @@ class TndpPolicy(nn.Module):
             h = h + torch.relu(conv(h, edge_index, edge_attr))
         return h
 
-    # logiti nad akcijama: 2n parova (kraj, čvor) po rasporedu maske [HEAD nad svim čvorovima, TAIL nad svim čvorovima]
+    # logiti nad akcijama: 2n parova (kraj, cvor) po rasporedu maske [HEAD nad svim cvorovima, TAIL nad svim cvorovima]
     def action_logits(self, h, decision, mask, ends):
         n = h.shape[0]
         context = h.mean(0)
@@ -46,7 +46,7 @@ class TndpPolicy(nn.Module):
             ~torch.as_tensor(mask, dtype=torch.bool).reshape(-1), -torch.inf)
         if decision == HALT:
             halt = self.halt_score(context).reshape(1)
-            scores = torch.cat([scores, halt])  # poslednji logit = završi liniju
+            scores = torch.cat([scores, halt])  # poslednji logit = zavrsi liniju
         return scores
 
     def state_value(self, h):

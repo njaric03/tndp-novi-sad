@@ -4,13 +4,13 @@ from tndp.core.assignment import assign, objective
 from tndp.core.network import is_duplicate  # noqa: F401  (re-export za baselines)
 
 
-# tačno ista skalarna funkcija cilja koju RL trenira i po kojoj se izveštava
+# tacno ista skalarna funkcija cilja koju RL trenira i po kojoj se izvestava
 def network_objective(city, network, scales, alpha=0.5):
     res = assign(city, network, compute_transfers=False)
     return objective(res, scales, alpha)
 
 
-# čvorovi na kojima linija sme da počne ili se završi (Mandl instance nose tu masku; kod sintetike su svi čvorovi
+# cvorovi na kojima linija sme da pocne ili se zavrsi (Mandl instance nose tu masku; kod sintetike su svi cvorovi
 def terminal_nodes(city):
     return np.flatnonzero(city.terminal)
 
@@ -26,7 +26,7 @@ def trim_to_terminals(route, city, min_len):
     return route
 
 
-# slučajna prosta putanja u uličnom grafu: slučajan dozvoljen start pa nasumično proširivanje sa oba kraja do ciljne
+# slucajna prosta putanja u ulicnom grafu: slucajan dozvoljen start pa nasumicno prosirivanje sa oba kraja do ciljne
 def random_route(city, rng, min_len, max_len, max_tries=50):
     neighbors = city.neighbors
     starts = terminal_nodes(city)

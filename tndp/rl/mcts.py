@@ -7,7 +7,7 @@ from tndp.core.network import TransitNetwork
 from tndp.rl.env import HALT, TndpEnv
 from tndp.rl.features import edge_tensors, node_features
 
-# MCTS dekodiranje sa naučenim priorima (PUCT), po uzoru na AlphaTransit
+# MCTS dekodiranje sa naucenim priorima (PUCT), po uzoru na AlphaTransit
 
 
 class _Node:
@@ -75,7 +75,7 @@ def _rollout_value(policy, env, edge_index, edge_attr):
 def _puct(node, c, bounds):
     total = sum(node.N.values())
     sqrt_total = math.sqrt(total + 1)
-    # FPU: neposećena akcija nasleđuje tekuću procenu roditelja umesto 0
+    # FPU: neposecena akcija nasledjuje tekucu procenu roditelja umesto 0
     fpu = bounds.norm(sum(node.W.values()) / total) if total > 0 else 0.5
     best, best_score = None, -1e18
     for a, p in node.P.items():
@@ -124,10 +124,10 @@ def mcts_decode(policy, city, num_routes, min_len=2, max_len=8, alpha=0.5,
     while not env.done:
         for _ in range(sims - sum(root.N.values())):
             _simulate(policy, env, root, edge_index, edge_attr, c_puct, bounds)
-        best = max(root.N, key=root.N.get)  # najposećenija akcija
+        best = max(root.N, key=root.N.get)  # najposecenija akcija
         env.set_state(root.state)
         env.step(best)
-        # zadrži podstablo izabrane akcije umesto da se gradi iznova: ranije se ceo posao od ~30 simulacija bacao posle svakog
+        # zadrzi podstablo izabrane akcije umesto da se gradi iznova: ranije se ceo posao od ~30 simulacija bacao posle svakog
         root = root.children[best]
     net = TransitNetwork(routes=env.routes)
     return net, assign(city, net)

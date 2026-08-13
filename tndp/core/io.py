@@ -19,7 +19,7 @@ def load_benchmark_city(instance_dir, name=None):
     street = np.full((n, n), np.inf)
     np.fill_diagonal(street, 0.0)
     street[links[:, 0].astype(int) - 1, links[:, 1].astype(int) - 1] = links[:, 2]
-    street = np.minimum(street, street.T)  # fajlovi navode oba smera, za svaki slučaj
+    street = np.minimum(street, street.T)  # fajlovi navode oba smera, za svaki slucaj
 
     demand = np.zeros((n, n))
     demand[dem[:, 0].astype(int) - 1, dem[:, 1].astype(int) - 1] = dem[:, 2]
@@ -31,7 +31,7 @@ def load_benchmark_city(instance_dir, name=None):
                      name=name, terminal=terminal)
 
 
-# fajl sa rešenjima iz literature: ime, broj linija R, pa R redova "1-2-3"
+# fajl sa resenjima iz literature: ime, broj linija R, pa R redova "1-2-3"
 def load_literature_solutions(path):
     solutions = {}
     for block in Path(path).read_text().split("\n\n"):

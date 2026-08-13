@@ -1,4 +1,4 @@
-# REINFORCE sa naučenim baseline-om (value glava), po Kool et al
+# REINFORCE sa naucenim baseline-om (value glava), po Kool et al
 
 import argparse
 import csv
@@ -21,13 +21,13 @@ DEFAULTS = dict(
     value_coef=0.5, grad_clip=1.0, num_routes=4, min_len=2, max_len=8,
     n_range=[15, 25], demand_mode="gravity", hidden=64, layers=3,
     eval_every=25, eval_cities=8, seed=0,
-    # pool: fiksan skup trening gradova (kao Holliday), brže od generisanja u letu i reproducibilnije
+    # pool: fiksan skup trening gradova (kao Holliday), brze od generisanja u letu i reproducibilnije
     pool_size=512, baseline="value",
     # alpha se uzorkuje po epizodi (kao Holliday), pa jedna politika pokriva ceo Pareto front putnik/operater umesto samo
     alpha_fixed=None, alpha_eval=0.5,
-    # best.pt se bira preko VIŠE tačaka fronta, ne samo alpha_eval: politika koja pokriva ceo front ne sme da se selektuje u
+    # best.pt se bira preko VISE tacaka fronta, ne samo alpha_eval: politika koja pokriva ceo front ne sme da se selektuje u
     val_alphas=[0.25, 0.5, 0.75],
-    # standardizacija advantage-a unutar batch-a; REINFORCE sa terminalnom nagradom je inače vrlo šumovit
+    # standardizacija advantage-a unutar batch-a; REINFORCE sa terminalnom nagradom je inace vrlo sumovit
     standardize_adv=True,
     # skup ulaznih featura; "v2" dodaje prolaznost, koreness i bliskost i popravlja skaliranje stepena (vidi tndp/rl/model.py)
     features="v1",
@@ -79,10 +79,10 @@ def main():
     gen = torch.Generator().manual_seed(cfg["seed"])
     start_iter, best_val, t_offset = 1, -np.inf, 0.0
 
-    # topao start: težine gotovog treninga kao početna tačka
+    # topao start: tezine gotovog treninga kao pocetna tacka
     if args.init:
         src = torch.load(args.init, map_location="cpu", weights_only=False)
-        # skup featura mora da se poklopi, inače bi se težine ulaznog sloja prenele na feature koji više ne znače isto
+        # skup featura mora da se poklopi, inace bi se tezine ulaznog sloja prenele na feature koji vise ne znace isto
         src_version = src["cfg"].get("features", "v1")
         if src_version != cfg["features"]:
             raise SystemExit(f"checkpoint je na featurima {src_version}, config traži "
@@ -106,13 +106,13 @@ def main():
     # fiksni validation set: gradovi koje trening nikad ne vidi
     val_cities = make_pool(cfg, 10_000, cfg["eval_cities"])
     a_eval = cfg["alpha_eval"]
-    # alpha_eval je uvek među tačkama validacije, čak i ako nije u val_alphas
+    # alpha_eval je uvek medju tackama validacije, cak i ako nije u val_alphas
     val_alphas = sorted({float(a) for a in cfg["val_alphas"]} | {float(a_eval)})
     val_envs = {a: [TndpEnv(c, cfg["num_routes"], cfg["min_len"],
                             cfg["max_len"], a) for c in val_cities]
                 for a in val_alphas}
 
-    # random baseline na istim gradovima, po tački fronta
+    # random baseline na istim gradovima, po tacki fronta
     rand_reward = {}
     for a in val_alphas:
         rr = []
@@ -143,7 +143,7 @@ def main():
             env = TndpEnv(city, cfg["num_routes"], cfg["min_len"],
                           cfg["max_len"], alpha)
             net, reward, res, logp, ent = rollout(policy, env, sample=True, gen=gen)
-            # nekonačna nagrada bi kroz standardizaciju advantage-a postala NaN i tiho otrovala sve težine; bolje pasti odmah i glasno
+            # nekonacna nagrada bi kroz standardizaciju advantage-a postala NaN i tiho otrovala sve tezine; bolje pasti odmah i glasno
             if not np.isfinite(reward):
                 raise RuntimeError(
                     f"nekonačna nagrada na {city.name}: cilj={-reward}, "
@@ -155,7 +155,7 @@ def main():
                 adv = reward - greedy_r
                 vloss = torch.zeros(())
             else:
-                # value glava predviđa nagradu iz početnog stanja
+                # value glava predvidja nagradu iz pocetnog stanja
                 env.reset()
                 h0 = policy.encode(node_features(env, policy.features), *edge_tensors(city))
                 value = policy.state_value(h0)
@@ -198,13 +198,13 @@ def main():
                     vr.append(env.reward()[0])
                 by_alpha[a] = float(np.mean(vr))
             val_reward = by_alpha[a_eval]
-            # skor za izbor best.pt: koliko je politika bolja od random searcha, prosečeno preko tačaka fronta
+            # skor za izbor best.pt: koliko je politika bolja od random searcha, proseceno preko tacaka fronta
             val_score = float(np.mean([rand_reward[a] / by_alpha[a]
                                        for a in val_alphas]))
-            # najbolji na validaciji, ne poslednja iteracija: REINFORCE ume da se pokvari pred kraj i onda se isporučuje gori model
+            # najbolji na validaciji, ne poslednja iteracija: REINFORCE ume da se pokvari pred kraj i onda se isporucuje gori model
             is_best = val_score > best_val
             best_val = max(best_val, val_score)
-            # optimizer i RNG stanja idu u checkpoint da bi --resume mogao da nastavi tačno odatle; sec je ukupno vreme svih deonica
+            # optimizer i RNG stanja idu u checkpoint da bi --resume mogao da nastavi tacno odatle; sec je ukupno vreme svih deonica
             ckpt = {"cfg": cfg, "state_dict": policy.state_dict(), "iter": it,
                     "val_reward": val_reward, "val_by_alpha": by_alpha,
                     "val_score": val_score, "best_val": best_val,

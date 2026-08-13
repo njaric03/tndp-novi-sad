@@ -12,7 +12,7 @@ def ucitaj_zone(samo_studija=True):
     return redovi
 
 
-# vremena vožnje između zona po stvarnoj uličnoj mreži; graf je usmeren pa jednosmerne ulice daju tau[i][j] != tau[j][i]
+# vremena voznje izmedju zona po stvarnoj ulicnoj mrezi; graf je usmeren pa jednosmerne ulice daju tau[i][j] != tau[j][i]
 def izgradi(prag_snap_m=500):
     import networkx as nx
     import osmnx as ox
@@ -62,7 +62,7 @@ def izgradi(prag_snap_m=500):
     return zone, tau
 
 
-# dve zone su susedne ako im se granice dodiruju; ovo je kandidat za ulične ivice CityGraph-a
+# dve zone su susedne ako im se granice dodiruju; ovo je kandidat za ulicne ivice CityGraph-a
 def susedstvo():
     import json
 

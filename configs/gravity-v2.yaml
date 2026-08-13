@@ -1,8 +1,8 @@
 # isti trening kao gravity-v1.yaml, samo do konvergencije. u runs/gravity-v1/log.csv
-# je validaciona nagrada na iteraciji 3000 još rasla monotono (poslednje
-# četvrtine -1.724, -1.709, -1.697, -1.678) a entropija još padala (1.79 -> 0.94),
+# je validaciona nagrada na iteraciji 3000 jos rasla monotono (poslednje
+# cetvrtine -1.724, -1.709, -1.697, -1.678) a entropija jos padala (1.79 -> 0.94),
 # dakle 3000 je bilo odabrano po vremenu a ne po krivi. visoka entropija je i
-# razlog zašto greedy dekodiranje toliko zaostaje za samplingom.
+# razlog zasto greedy dekodiranje toliko zaostaje za samplingom.
 iters: 12000
 batch: 16
 n_range: [15, 30]

@@ -17,7 +17,7 @@ MIN_LEN, MAX_LEN = 2, 8
 
 
 # C_p je ovde prosek nad opsluzenim parovima, jer je to konvencija u kojoj su objavljeni brojevi iz literature; sve
-def row(name: str, city, net: TransitNetwork) -> str:
+def row(name, city, net):
     res = assign(city, net)
     d = res.d
     return (
@@ -26,7 +26,7 @@ def row(name: str, city, net: TransitNetwork) -> str:
     )
 
 
-def main() -> None:
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--alpha", type=float, default=0.5)
     parser.add_argument("--samples", type=int, default=1000)

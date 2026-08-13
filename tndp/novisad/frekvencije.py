@@ -1,4 +1,4 @@
-# Validacija frekvencijske faze na stvarnom redu vožnje
+# Validacija frekvencijske faze na stvarnom redu voznje
 
 from pathlib import Path
 
@@ -7,7 +7,7 @@ from scipy.stats import rankdata
 
 from tndp.core import frequencies as F
 from tndp.novisad.instanca import gsp_mreza, ucitaj
-from tndp.novisad.kalibracija import intervali_iz_reda_voznje
+from tndp.novisad.kalibracija import intervali_iz_reda_voznje, opterecenja_2017
 
 REZULTATI = Path(__file__).resolve().parent.parent.parent / "results"
 # vrednosti na kojima se meri osetljivost; srednja je podrazumevana u core/frequencies.py
@@ -31,9 +31,9 @@ def _mere(model, stvarno):
     }
 
 
-def oceni_gsp(city, mreza, kapacitet=F.KAPACITET, udeo_vrha=F.UDEO_VRHA):
-    # putovanja_dnevno se NE prosleđuje: matrica Novog Sada već nosi dnevni broj putovanja za radni dan
-    return F.oceni(city, mreza, kapacitet=kapacitet, udeo_vrha=udeo_vrha)
+def oceni_gsp(city, mreza, kapacitet=F.CAPACITY, udeo_vrha=F.PEAK_SHARE):
+    # daily_trips se NE prosledjuje: matrica Novog Sada vec nosi dnevni broj putovanja za radni dan
+    return F.evaluate(city, mreza, capacity=kapacitet, peak_share=udeo_vrha)
 
 
 def main():
@@ -75,30 +75,41 @@ def main():
         print(f"  {ime:10s} {v:6.2f}  medijana |greška| {mr['medijana |greška|']:5.1f} min"
               f"  Spearman {mr['Spearman']:+.3f}")
 
-    praznjenje = _praznjenje(city, mreza, stvarno, o)
+    praznjenje = _praznjenje(city, mreza, linije, stvarno, o)
     print("\nlinija koje ostaju bez ijednog putnika:")
-    for ime, n in praznjenje.items():
-        print(f"  {ime:34s} {n:2d} od {len(linije)}")
+    for ime, (n, poznate, udeo) in praznjenje.items():
+        print(f"  {ime:34s} {n:2d} od {len(linije)}, "
+              f"{len(poznate)} u brojanju 2017 sa {udeo:.1%} prevoza")
 
     _izvestaj(linije, stvarno, model, o, mere, osetljivost, praznjenje, vrh)
 
 
-# Koliko linija ostane bez ijednog putnika, u tri režima
-def _praznjenje(city, mreza, stvarno, o):
+# Koliko linija ostane bez ijednog putnika, u tri rezima. Uz broj ide i koliko
+# tih linija ima u brojanju iz 2017 i koliki deo prevoza one stvarno nose, jer
+# tek to kaze da li model prazni beznacajne linije ili nosive.
+def _praznjenje(city, mreza, linije, stvarno, o):
     from tndp.core.assignment import assign
-    prvi = assign(city, mreza, compute_transfers=False, compute_loads=True)
-    posle = assign(city, mreza, compute_transfers=False, compute_loads=True,
-                   headways=o["h"])
-    sa_redom = assign(city, mreza, compute_transfers=False, compute_loads=True,
-                      headways=stvarno)
-    return {"prvi prolaz, fiksni penal": int((prvi.boardings == 0).sum()),
-            "posle konvergencije petlje": int((posle.boardings == 0).sum()),
-            "sa stvarnim redom vožnje": int((sa_redom.boardings == 0).sum())}
+    opterecenja = opterecenja_2017()
+    ukupno = sum(opterecenja.values())
+
+    def mera(res):
+        prazne = [k for k, b in zip(linije, res.boardings) if b == 0]
+        poznate = sorted(k for k in prazne if k in opterecenja)
+        return len(prazne), poznate, sum(opterecenja[k] for k in poznate) / ukupno
+
+    return {"prvi prolaz, fiksni penal":
+                mera(assign(city, mreza, compute_transfers=False, compute_loads=True)),
+            "posle konvergencije petlje":
+                mera(assign(city, mreza, compute_transfers=False, compute_loads=True,
+                            headways=o["h"])),
+            "sa stvarnim redom vožnje":
+                mera(assign(city, mreza, compute_transfers=False, compute_loads=True,
+                            headways=stvarno))}
 
 
 def _izvestaj(linije, stvarno, model, o, mere, osetljivost, praznjenje, vrh):
     r = ["# Frekvencije: model naspram stvarnog reda vožnje", "",
-         "Frekvencijska faza (`core/frequencies.oceni`) dimenzioniše intervale iz",
+         "Frekvencijska faza (`core/frequencies.evaluate`) dimenzioniše intervale iz",
          "opterećenja najopterećenije deonice. Do sad je puštana samo na Mandlu i",
          "Mumfordu, gde nema reda vožnje pa nema ni provere. Ovde se pušta na",
          "**postojeću GSP mrežu Novog Sada**, čiji je red vožnje poznat.", "",
@@ -128,10 +139,15 @@ def _izvestaj(linije, stvarno, model, o, mere, osetljivost, praznjenje, vrh):
           "Greška nije ravnomerna nego **dvopolna**: linija je ili na podu od 5 min",
           "ili na plafonu od 60. Uzrok je što linija koja ostane bez putnika dobija",
           "najređi dozvoljen interval.", "",
-          "| režim | linija bez ijednog putnika |", "|---|---|"]
-    for ime, n in praznjenje.items():
-        r.append(f"| {ime} | {n} od {len(linije)} |")
-    r += ["", "Čitanje: dodela najkraćim putem sama po sebi isprazni šest linija, među",
+          "| režim | linija bez ijednog putnika | od toga u brojanju 2017 | udeo prevoza koji nose |",
+          "|---|---|---|---|"]
+    for ime, (n, poznate, udeo) in praznjenje.items():
+        r.append(f"| {ime} | {n} od {len(linije)} | {len(poznate)} "
+                 f"({', '.join(poznate)}) | {udeo:.1%} |")
+    r += ["", "Poslednje dve kolone su ono što nalaz čini ozbiljnim: linije koje petlja",
+          "isprazni nisu rubne. Osam ih je u brojanju iz 2017. i u stvarnosti nose",
+          "trećinu prevoza.", "",
+          "Čitanje: dodela najkraćim putem sama po sebi isprazni šest linija, među",
           "paralelnim linijama u istom koridoru pobednik uzima sve. Petlja koja",
           "izvodi intervale iz opterećenja to pogorša na devet, jer linija sa malim",
           "opterećenjem dobije dug interval, time postane još manje privlačna, i",

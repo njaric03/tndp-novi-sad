@@ -115,10 +115,10 @@ def test_policy_and_decoders(city):
 
 
 # v1 mora ostati bit-identican jer su svi modeli na njemu, v2 dobija tacno tri kolone vise
-def test_verzije_featura(city):
+def test_feature_versions(city):
     pytest.importorskip("torch")
     pytest.importorskip("torch_geometric")
-    from tndp.rl.features import DODACI, node_features, num_features
+    from tndp.rl.features import EXTRAS, node_features, num_features
     from tndp.rl.model import TndpPolicy
 
     env = TndpEnv(city, R, LO, HI)
@@ -135,9 +135,9 @@ def test_verzije_featura(city):
         assert abs(float(x2[:, k].mean())) < 0.5
     assert TndpPolicy(features="v2").embed.in_features == num_features("v2")
     # svaki dodatak se moze traziti sam; to je i poenta razdvajanja
-    for ime in DODACI:
-        assert node_features(env, [ime]).shape[1] == num_features("v1") + 1
-        assert TndpPolicy(features=[ime]).embed.in_features == num_features("v1") + 1
+    for name in EXTRAS:
+        assert node_features(env, [name]).shape[1] == num_features("v1") + 1
+        assert TndpPolicy(features=[name]).embed.in_features == num_features("v1") + 1
     # rank-degree ne dodaje kolonu nego menja postojecu
     xr = node_features(env, ["rank-degree"])
     assert xr.shape[1] == num_features("v1")

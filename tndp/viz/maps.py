@@ -11,7 +11,7 @@ LINE_COLORS = ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00",
                "#a65628", "#f781bf", "#999999"]
 
 
-# nacrtaj mrezu linija na gradu: sive ulice u pozadini, cvorovi skalirani tražnjom
+# nacrtaj mrezu linija na gradu: sive ulice u pozadini, cvorovi skalirani traznjom
 def draw_network(ax, city, network, title=""):
     for i, j in city.street_edges:
         ax.plot(city.coords[[i, j], 0], city.coords[[i, j], 1],
@@ -31,7 +31,7 @@ def draw_network(ax, city, network, title=""):
 
 # uporedni prikaz vise mreza na istom gradu (npr
 def compare_networks(city, named_networks, out_path, alpha=0.5):
-    style.primeni()
+    style.apply_style()
     fig, axes = plt.subplots(1, len(named_networks),
                              figsize=(6 * len(named_networks), 5.5))
     if len(named_networks) == 1:

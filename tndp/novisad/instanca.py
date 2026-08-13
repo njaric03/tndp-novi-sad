@@ -1,4 +1,4 @@
-# graf Novog Sada u obliku koji model razume: 32 mesne zajednice su čvorovi
+# graf Novog Sada u obliku koji model razume: 32 mesne zajednice su cvorovi
 
 import csv
 import re
@@ -11,7 +11,7 @@ from tndp.core.network import TransitNetwork
 from tndp.novisad import konstante
 from tndp.novisad.ulice import ucitaj_zone
 
-# stepeni -> kilometri na geografskoj širini Novog Sada, isto kao u traznja.py
+# stepeni -> kilometri na geografskoj sirini Novog Sada, isto kao u traznja.py
 KM_PO_STEPENU_LAT = 111.32
 KM_PO_STEPENU_LON = 78.0
 
@@ -36,7 +36,7 @@ def _susedstvo(imena):
     return adj
 
 
-# CityGraph očekuje koordinate u ravni; lokalna ekvidistantna projekcija je na ovoj veličini dovoljna (grad je ~15 km
+# CityGraph ocekuje koordinate u ravni; lokalna ekvidistantna projekcija je na ovoj velicini dovoljna (grad je ~15 km
 def _koordinate(zone):
     lat = np.array([float(r["lat"]) for r in zone])
     lon = np.array([float(r["lon"]) for r in zone])
@@ -44,7 +44,7 @@ def _koordinate(zone):
     return xy - xy.mean(axis=0)
 
 
-# tau.csv je najkraće vreme kroz celu uličnu mrežu za SVAKI par zona, dakle metrički zatvarač
+# tau.csv je najkrace vreme kroz celu ulicnu mrezu za SVAKI par zona, dakle metricki zatvarac
 def ucitaj():
     zone = ucitaj_zone()
     imena = [r["mz"] for r in zone]
@@ -61,7 +61,7 @@ def ucitaj():
     return city, imena
 
 
-# --- postojeća GSP mreža -----------------------------------------------------
+# --- postojeca GSP mreza -----------------------------------------------------
 
 # oznaka varijante -> osnovna linija: 1GL i 1J su varijante linije 1, 10APT linije 10, 18A i 18B linije 18
 def _osnovna(oznaka):
@@ -75,7 +75,7 @@ def _stajaliste_u_zonu():
                 if r["u_studiji"] == "1"}
 
 
-# model gradi PROSTE puteve, a `ruta` u linije.csv je ceo kružni tok linije: ista zona se javlja i u odlasku i u povratku
+# model gradi PROSTE puteve, a `ruta` u linije.csv je ceo kruzni tok linije: ista zona se javlja i u odlasku i u povratku
 def _prost_put(niz):
     najbolji = (0, 0)
     poslednje = {}
@@ -89,7 +89,7 @@ def _prost_put(niz):
     return niz[najbolji[0]:najbolji[1]]
 
 
-# posle sečenja petlji uzastopne zone ne moraju više biti susedne; isto važi i za zone koje trasa samo proseca bez
+# posle secenja petlji uzastopne zone ne moraju vise biti susedne; isto vazi i za zone koje trasa samo proseca bez
 def _spoji(niz, street):
     pred = dijkstra(np.where(np.isfinite(street), street, 0.0),
                     directed=False, return_predecessors=True)[1]
@@ -115,7 +115,7 @@ def _u_zone(ruta, u_zonu, mesto):
     return niz
 
 
-# rekonstrukcija postojeće mreže: po jedna trasa za svaku od 19 osnovnih gradskih linija
+# rekonstrukcija postojece mreze: po jedna trasa za svaku od 19 osnovnih gradskih linija
 def gsp_mreza(city, imena):
     mesto = {m: i for i, m in enumerate(imena)}
     u_zonu = _stajaliste_u_zonu()

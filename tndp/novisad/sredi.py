@@ -5,10 +5,10 @@ import re
 
 from tndp.novisad import konstante
 
-# prag rastojanja za spajanje NSmart stanice sa GSP stajalištem; dve baze su nezavisno digitalizovane pa se ista tačka
+# prag rastojanja za spajanje NSmart stanice sa GSP stajalistem; dve baze su nezavisno digitalizovane pa se ista tacka
 PRAG_SPOJA_M = 25
 
-# niz all_stations je nadovezivanje vožnji svih varijanti linije; seče se tamo gde uzastopna stajališta nisu susedna
+# niz all_stations je nadovezivanje voznji svih varijanti linije; sece se tamo gde uzastopna stajalista nisu susedna
 PRAG_SECENJA_M = 1500
 
 TIPOVI = {"1": "gradska", "2": "prigradska", "3": "medjumesna"}
@@ -31,7 +31,7 @@ def metara(a, b):
     return math.hypot((a[1] - b[1]) * 78000.0, (a[0] - b[0]) * 111320.0)
 
 
-# GSP-ova stajališta nose tarifnu zonu koje u NSmart-u nema
+# GSP-ova stajalista nose tarifnu zonu koje u NSmart-u nema
 def _gsp_tacke():
     tacke = {}
     for zapis in _ucitaj("gsp_stajalista.json").values():
@@ -68,7 +68,7 @@ def stajalista():
                            float(s["coordinates"]["longitude"])) for s in ns["stations"]}
 
 
-MIN_STAJALISTA = 3  # segment kraći od ovoga nije ruta nego ostatak nadovezivanja
+MIN_STAJALISTA = 3  # segment kraci od ovoga nije ruta nego ostatak nadovezivanja
 
 
 def _segmenti(ids, koord):
@@ -83,7 +83,7 @@ def _segmenti(ids, koord):
     return sorted(delovi, key=len, reverse=True)
 
 
-# svaki segment je jedna varijanta linije, ne samo najduži: linija koja u selu ide jednosmernom petljom ima stajališta
+# svaki segment je jedna varijanta linije, ne samo najduzi: linija koja u selu ide jednosmernom petljom ima stajalista
 def linije(koord):
     ns = _ucitaj("nsmart.json")
     redovi = []
@@ -140,7 +140,7 @@ def polasci():
                 "niskopodni"], redovi)
 
 
-# granice iz OSM-a dolaze kao neuređene spoljne linije relacije
+# granice iz OSM-a dolaze kao neuredjene spoljne linije relacije
 def mesne_zajednice():
     from shapely.geometry import mapping
     from shapely.ops import linemerge, polygonize, unary_union
