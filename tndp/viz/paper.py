@@ -95,7 +95,9 @@ def pareto(out):
             continue
         ax1.annotate(f"$\\alpha$ = {a:g}", (cp, co), fontsize=9.0,
                      xytext=(6, 4), textcoords="offset points", color="#555555")
-    ax1.set_xlabel("$C_p$, prosečno vreme putovanja (min)")
+    # crta se C_p_all, ne C_p: nepokriveni parovi su naplaceni, inace bi metoda
+    # koja ispusti najteze parove izgledala najbolje bas na ovoj osi
+    ax1.set_xlabel("$C_{p,all}$, prosečno vreme putovanja (min)")
     ax1.set_ylabel("$C_o$, ukupno vreme linija (min)")
     ax1.set_title("front putnik/prevoznik, oznake su $\\alpha$", fontsize=11.5)
     ax1.legend(loc="upper right")

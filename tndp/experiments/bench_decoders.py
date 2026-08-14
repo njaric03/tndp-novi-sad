@@ -2,14 +2,13 @@
 
 import argparse
 import time
-from pathlib import Path
 
-import numpy as np
 
 from tndp.experiments.common import (evaluate_method, fmt_p, held_out_cities,
                                      load_policy, paired_vs, scales_for)
 from tndp.rl.evaluate import decode, decode_sampling
 from tndp.rl.mcts import mcts_decode
+from tndp import RESULTS
 
 
 def main():
@@ -61,7 +60,7 @@ def main():
                      f"| {s['C_o'].mean():.0f} | {s['d_un'].mean():.3f} "
                      f"| {times[name]:.2f} |")
 
-    out = Path(__file__).parent.parent.parent / "results" / "bench-decoders.md"
+    out = RESULTS / "bench-decoders.md"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"snimljeno u {out}")
 

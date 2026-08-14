@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 from tndp.viz import style
 import numpy as np
+from tndp import RESULTS
 
 
 def main():
@@ -32,9 +33,8 @@ def main():
 
     fig.tight_layout()
     # runs/ je van gita, pa slika ide i u results/ odakle se predaje
-    results = Path(__file__).parent.parent.parent / "results"
-    results.mkdir(exist_ok=True)
-    out = [run / "curves.png", results / f"curves-{run.name}.png"]
+    RESULTS.mkdir(exist_ok=True)
+    out = [run / "curves.png", RESULTS / f"curves-{run.name}.png"]
     for p in out:
         fig.savefig(p, dpi=120)
     print("snimljeno u " + " i ".join(str(p) for p in out))

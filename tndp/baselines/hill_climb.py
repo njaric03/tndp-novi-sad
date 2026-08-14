@@ -3,7 +3,7 @@ import time
 import numpy as np
 
 from tndp.baselines.common import (is_duplicate, network_objective,
-                                   random_route, terminal_nodes)
+                                   random_route)
 from tndp.baselines.greedy import greedy_network
 from tndp.core.assignment import cost_scales
 from tndp.core.network import TransitNetwork

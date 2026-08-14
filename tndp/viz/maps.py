@@ -3,7 +3,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from tndp.viz import style
-import numpy as np
 
 from tndp.core.assignment import assign
 

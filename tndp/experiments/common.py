@@ -64,8 +64,12 @@ def paired_vs(values, reference):
     return float(d.mean()), float(se), p
 
 
+# "-" je rezervisano za referentni red, koji pozivaoci upisuju sami; ovde se
+# zato i vrlo velike p vrednosti ispisuju kao broj, da se ta dva ne pobrkaju
 def fmt_p(p):
-    return "-" if p >= 0.999 else ("<0.001" if p < 0.001 else f"{p:.3f}")
+    if p < 0.001:
+        return "<0.001"
+    return ">0.999" if p > 0.999 else f"{p:.3f}"
 
 
 # Holm korekcija za vise poredjenja nad istim podacima

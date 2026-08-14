@@ -1,23 +1,17 @@
 # Validacija frekvencijske faze na stvarnom redu voznje
 
-from pathlib import Path
 
 import numpy as np
-from scipy.stats import rankdata
 
 from tndp.core import frequencies as F
+from tndp.novisad import konstante
 from tndp.novisad.instanca import gsp_mreza, ucitaj
 from tndp.novisad.kalibracija import intervali_iz_reda_voznje, opterecenja_2017
+from tndp import RESULTS
 
-REZULTATI = Path(__file__).resolve().parent.parent.parent / "results"
 # vrednosti na kojima se meri osetljivost; srednja je podrazumevana u core/frequencies.py
 KAPACITETI = [60.0, 80.0, 100.0, 120.0]
 UDELI_VRHA = [0.08, 0.10, 0.12]
-
-
-# Spearman preko rankdata, NE preko argsort(argsort)
-def _spearman(a, b):
-    return float(np.corrcoef(rankdata(a), rankdata(b))[0, 1])
 
 
 def _mere(model, stvarno):
@@ -26,7 +20,7 @@ def _mere(model, stvarno):
         "medijana |greška|": float(np.median(np.abs(razlika))),
         "prosečna greška": float(np.mean(razlika)),
         "Pearson": float(np.corrcoef(model, stvarno)[0, 1]),
-        "Spearman": _spearman(model, stvarno),
+        "Spearman": konstante.spearman(model, stvarno),
         "unutar 5 min": float(np.mean(np.abs(razlika) <= 5.0)),
     }
 
@@ -165,10 +159,10 @@ def _izvestaj(linije, stvarno, model, o, mere, osetljivost, praznjenje, vrh):
           f"(Spearman {mere['Spearman']:+.3f}), pojedinačni intervali nisu. Svaki",
           "zaključak koji traži tačan interval po liniji, a tu spada i poređenje",
           "vidova prevoza sa tramvajem, mora sačekati dodelu po strategiji.", ""]
-    REZULTATI.mkdir(exist_ok=True)
-    (REZULTATI / "novisad-frekvencije.md").write_text("\n".join(r) + "\n",
+    RESULTS.mkdir(exist_ok=True)
+    (RESULTS / "novisad-frekvencije.md").write_text("\n".join(r) + "\n",
                                                       encoding="utf-8")
-    print(f"\n-> {REZULTATI / 'novisad-frekvencije.md'}")
+    print(f"\n-> {RESULTS / 'novisad-frekvencije.md'}")
 
 
 if __name__ == "__main__":

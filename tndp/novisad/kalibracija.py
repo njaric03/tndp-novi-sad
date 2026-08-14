@@ -3,16 +3,15 @@
 import csv
 import re
 from collections import defaultdict
-from pathlib import Path
 
 import numpy as np
-from scipy.stats import rankdata
 
 from tndp.core.assignment import assign
 from tndp.core.city import CityGraph
 from tndp.core.frequencies import H_MAX, H_MIN
 from tndp.novisad import konstante, traznja
 from tndp.novisad.instanca import gsp_mreza, ucitaj
+from tndp import RESULTS
 
 BETE = [0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 MERE = ["euklidsko", "tau"]
@@ -20,7 +19,6 @@ MERE = ["euklidsko", "tau"]
 PRAGOVI = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0]
 # koliko TV-a se smatra istim rezultatom pri izboru; vidi komentar u main()
 TOLERANCIJA = 0.002
-REZULTATI = Path(__file__).resolve().parent.parent.parent / "results"
 
 
 def _osnovna(oznaka):
@@ -57,11 +55,6 @@ def intervali_iz_reda_voznje():
 def _udeli(vrednosti, linije, samo):
     v = np.array([x for x, k in zip(vrednosti, linije) if k in samo], dtype=float)
     return v / v.sum() if v.sum() > 0 else v
-
-
-# Spearman preko rankdata, NE preko argsort(argsort)
-def _spearman(a, b):
-    return float(np.corrcoef(rankdata(a), rankdata(b))[0, 1])
 
 
 # ulasci po liniji koje model predvidja za dati par (beta, pesacki prag)
@@ -101,7 +94,7 @@ def main():
                 u = _udeli(ulasci, linije, zajednicke)
                 # ukupno varijaciono rastojanje dva profila: polovina zbira apsolutnih razlika udela, u [0, 1]
                 tv = float(np.abs(u - cilj_udeli).sum() / 2.0)
-                nalazi.append((mera, beta, prag, tv, _spearman(u, cilj_udeli)))
+                nalazi.append((mera, beta, prag, tv, konstante.spearman(u, cilj_udeli)))
 
     # TV razlikuje prag ali NE i betu, po beti je ravan na tri decimale
     najbolji_tv = min(x[3] for x in nalazi)
@@ -191,9 +184,9 @@ def _izvestaj(nalazi, usvojen, najbolji, poredak, u, cilj, h, vrh, res):
           "naiđe, pa se opterećenje deli po frekvencijama (Spiess-Florian, strategija",
           "umesto puta). Taj model ovde nije implementiran i to je gornja granica",
           "tačnosti svakog poređenja po linijama u ovom radu.", ""]
-    REZULTATI.mkdir(exist_ok=True)
-    (REZULTATI / "novisad-kalibracija.md").write_text("\n".join(r), encoding="utf-8")
-    print(f"\n-> {REZULTATI / 'novisad-kalibracija.md'}")
+    RESULTS.mkdir(exist_ok=True)
+    (RESULTS / "novisad-kalibracija.md").write_text("\n".join(r), encoding="utf-8")
+    print(f"\n-> {RESULTS / 'novisad-kalibracija.md'}")
 
 
 if __name__ == "__main__":

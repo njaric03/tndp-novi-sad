@@ -7,7 +7,7 @@
 # mrezom trazi isti R.
 #
 # duzina linije [2, 14] su izmerene granice GSP mreze prevedene u zonski graf
-# (tndp/novisad/grad.py: min 2, medijana 8, maksimum 14 zona). Ranije je ovde
+# (tndp/novisad/instanca.py: min 2, medijana 8, maksimum 14 zona). Ranije je ovde
 # stajalo [4, 20] po broju zonskih koraka SIROVE trase, a sirova trasa sadrzi
 # oba smera pa istu zonu broji dvaput; model gradi proste puteve i takva
 # granica mu je davala prostor za linije kakvih u gradu nema.

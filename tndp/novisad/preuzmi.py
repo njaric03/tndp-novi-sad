@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import time
 
@@ -9,10 +10,20 @@ from tndp.novisad import konstante
 PAUZA = 0.2  # sekundi izmedju zahteva, da se sajt ne gnjavi
 
 
+# Neki od izvora povremeno serviraju nepotpun lanac sertifikata. To se resava
+# tako sto se lanac popravi (certifi/REQUESTS_CA_BUNDLE), ne tako sto se
+# provera ugasi: bez nje svaki posrednik na putu moze da podmetne podatke iz
+# kojih se posle racuna cela studija. Gasenje ostaje moguce, ali samo svesno,
+# preko TNDP_INSECURE=1, i uz glasno upozorenje u izlazu.
 def _sesija():
     s = requests.Session()
     s.headers["User-Agent"] = "tndp-seminarski/0.1 (akademska upotreba)"
-    s.verify = False
+    if os.environ.get("TNDP_INSECURE") == "1":
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        s.verify = False
+        print("UPOZORENJE: TNDP_INSECURE=1, TLS sertifikati se NE proveravaju. "
+              "Preuzeti podaci nisu proverenog porekla.")
     return s
 
 

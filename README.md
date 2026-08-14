@@ -66,9 +66,16 @@ penalom od 5 min po presedanju, pa iz toga:
 - `C_p_all`, isti prosek nad svim parovima, gde nepokriven par plaća `UNSERVED_FACTOR`
   puta ulično najkraće vreme. Faktor je 8: četiri puta je odnos brzina autobusa i pešaka
   (20 naspram 5 km/h), a još dvaput jer se minut pešačenja doživljava kao dva minuta
-  vožnje. Kriterijum je da nepokriven par mora koštati više od najgoreg opsluženog, koji
-  na izmerenim mrežama ide do 6.8 puta uličnog vremena; inače se optimizatoru isplati da
-  ispusti baš najteže parove. Ovo je metrika po kojoj se porede metode.
+  vožnje. Ovo je metrika po kojoj se porede metode.
+
+  Faktor 8 **nije** iznad najgoreg opsluženog para. Mereno na izmerenim mrežama
+  (`python -m tndp.experiments.checks`, provera 2), opslužen par putuje 1.9 puta duže
+  od uličnog najkraćeg u demand-ponderisanom proseku, 5.3 puta na 95. percentilu, a
+  maksimum ide do 20.9 puta. Faktor 8 je iznad 98% opslužene tražnje; preostala 2%
+  su parovi koje se optimizatoru i dalje isplati ispustiti umesto opslužiti. To je
+  poznato ograničenje cilja, ne rešen problem: faktor iznad ~20 bi ga zatvorio, ali
+  bi mrežu naterao da pokrije sve po svaku cenu. Sweep po faktoru od 1.5 do 8
+  ispisuje ista provera i treba da ide uz rezultate.
 - `C_o`, ukupno vreme vožnje svih linija u jednom smeru.
 - `d_0/d_1/d_2/d_un`, udeli tražnje bez presedanja, sa jednim, sa dva, i nepokrivene.
 
@@ -81,10 +88,16 @@ alpha * C_p_all / (donja granica C_p)  +  (1 - alpha) * C_o / (vreme MST-a)
 Obe skale su donje granice iste vrste: demand-ponderisano najkraće vreme ulicom (kao da
 mreža ide svuda) i ukupno vreme minimalnog razapinjućeg stabla (najmanja mreža koliko
 treba da svaki čvor bude dostupan). Zato je vrednost oko 1 kad je mreža blizu teorijskog
-poda, i zato `alpha` zaista balansira: mereno preko kandidat-rešenja, odnos rasipanja ta
-dva člana je oko 1.4:1. Nema zasebne kazne za nepokrivenu tražnju, ona je već u
-`C_p_all`. Ista funkcija se koristi u RL nagradi i u cilju klasičnih metoda, inače
-poređenje ne bi merilo metode nego razliku u zadatku.
+poda. Nema zasebne kazne za nepokrivenu tražnju, ona je već u `C_p_all`. Ista funkcija se
+koristi u RL nagradi i u cilju klasičnih metoda, inače poređenje ne bi merilo metode nego
+razliku u zadatku.
+
+Skale jesu iste vrste, ali **nisu jednako osetljive**. Mereno preko kandidat-rešenja
+(`checks.py`, provera 1), putnički član rasipa 2.9 puta više od operaterskog. Posledica
+je da `alpha = 0.5` nije neutralna tačka: jednak uticaj oba člana je oko `alpha ≈ 0.25`,
+a pri `alpha = 0.5` cilj prati uglavnom putnički član. To treba imati u vidu pri čitanju
+svake tabele na `alpha = 0.5` i objašnjava zašto se poredak metoda menja duž fronta
+([pareto.md](results/pareto.md)).
 
 Dve konstante ostaju stvar izbora, `UNSERVED_FACTOR` i `alpha`. Osetljivost na obe
 ispisuje `python -m tndp.experiments.checks` i treba da ide uz rezultate.
@@ -117,12 +130,14 @@ Sve tri optimizuju istu funkciju cilja i sa istim `alpha` kao politika.
 [env.py](tndp/rl/env.py): epizoda gradi svih *R* linija redom. Za svaku liniju bira se
 početni čvor, pa se naizmenično bira proširenje ili `halt` kad je dužina u dozvoljenom
 opsegu. Akcija proširenja je par (kraj, čvor), ne samo čvor, jer linija raste na obe
-strane; inače za čvor susedan oba kraja varijanta na početak nije dostižna, a takvih
-poteza je na Delaunay grafovima oko 13%. Nedozvoljeni potezi se maskiraju umesto da se
-kažnjavaju kroz nagradu, pa politika ne troši trening na pravila koja su ionako poznata.
+strane; inače za čvor susedan oba kraja varijanta na početak nije dostižna. Na Delaunay
+grafovima 40% poteza nudi bar jedan takav čvor (`checks.py`, provera 8), a među samim
+dozvoljenim akcijama dvosmisleno je oko 10%. Nedozvoljeni potezi se maskiraju umesto da
+se kažnjavaju kroz nagradu, pa politika ne troši trening na pravila koja su ionako
+poznata.
 Halt je maskiran i ako bi linija bila duplikat već sagrađene.
 
-[model.py](tndp/rl/model.py): 13 atributa po čvoru (normalizovane koordinate, produkcija
+[features.py](tndp/rl/features.py): 13 atributa po čvoru (normalizovane koordinate, produkcija
 i atrakcija tražnje, stepen, koncentracija tražnje, pokrivenost, pripadnost tekućoj
 liniji, da li je početak, da li je rep, napredak epizode, popunjenost linije, `alpha`),
 ulične ivice u oba smera sa vremenom i tražnjom kao edge feature.
@@ -134,8 +149,9 @@ različite raspodele, što je za model čija je poenta transfer veći problem od
 Posle rang transformacije raspodela je ista na svakoj instanci. Apsolutni odnosi koje
 rang briše vraćeni su kao jedan skalar po gradu (`concentration`, udeo tražnje u top 10%
 parova). Sirova tražnja ulazi u funkciju cilja nedirnuta, transformiše se samo ulaz u
-mrežu. Tri sloja GATv2 daju embeddinge; pointer glava skorira parove (kraj, čvor)
-uslovljeno embeddingom tog kraja, posebna glava skorira `halt`, value glava daje baseline.
+mrežu. [model.py](tndp/rl/model.py): tri sloja GATv2 daju embeddinge; pointer glava
+skorira parove (kraj, čvor) uslovljeno embeddingom tog kraja, posebna glava skorira
+`halt`, value glava daje baseline.
 
 [train.py](tndp/rl/train.py): REINFORCE sa naučenim baseline-om (value glava), opciono
 self-critical (greedy rollout, Kool et al.), sa standardizacijom advantage-a unutar
@@ -198,26 +214,30 @@ python -m tndp.novisad.karta           # karte i results/novisad-struktura.md
 
 ## Rezultati
 
-Model iz svih glavnih tabela je `runs/gravity-v2` (sintetika, benchmark instance) i
-`runs/novisad-r19` (Novi Sad). Tabele nose standardnu devijaciju po gradovima i uparene
+Model iz glavnih tabela je `runs/gravity-v2` (sintetika, benchmark instance) i
+`runs/novisad-r19` (Novi Sad). Dva izuzetka, oba označena u zaglavlju samog fajla:
+ablacije su na `runs/gravity-v1` jer se porede međusobno na kraćem rasporedu od 3000
+iteracija, a [bench-freq.md](results/bench-freq.md) je takođe još na `gravity-v1` i
+čeka ponovno pokretanje. Tabele nose standardnu devijaciju po gradovima i uparene
 razlike u odnosu na referentnu metodu (Wilcoxon, iste instance), jer se gradovi po težini
 razlikuju mnogo više nego metode među sobom. Svaki eksperiment validira mrežu koju metoda
 vrati i pada ako prekrši ograničenja.
 
-Redosled kojim se sve regeneriše:
+Redosled kojim se sve regeneriše. Zastavice nisu ukras: podrazumevane vrednosti skripti
+se razlikuju od onoga čime su predate tabele pravljene, pa bez njih brojevi ne izlaze isti.
 
 ```bash
 python -m tndp.rl.train --config configs/gravity-v2.yaml
 python -m tndp.experiments.bench_synth    runs/gravity-v2/best.pt --cities 20 --out main-20-v2
-python -m tndp.experiments.bench_transfer runs/gravity-v2/best.pt   # Mandl + Mumford
-python -m tndp.experiments.pareto         runs/gravity-v2/best.pt   # Pareto front i slika
-python -m tndp.experiments.anytime        runs/gravity-v2/best.pt   # kvalitet vs budžet
-python -m tndp.experiments.hybrid         runs/gravity-v2/best.pt   # politika kao start pretrage
-python -m tndp.experiments.bench_decoders runs/gravity-v2/best.pt   # greedy/sampling/MCTS
-python -m tndp.experiments.bench_freq     runs/gravity-v2/best.pt   # frekvencije i flota
-python -m tndp.experiments.show_networks  runs/gravity-v2/best.pt   # slika mreža
-python -m tndp.viz.policy                 runs/gravity-v2/best.pt   # heatmap politike
-python -m tndp.viz.curves                 runs/gravity-v2           # kriva treninga
+python -m tndp.experiments.bench_transfer runs/gravity-v2/best.pt --instances Mandl1 Mumford0 Mumford1 Mumford2 Mumford3
+python -m tndp.experiments.pareto         runs/gravity-v2/best.pt              # Pareto front i slika
+python -m tndp.experiments.anytime        runs/gravity-v2/best.pt --cities 20  # kvalitet vs budžet
+python -m tndp.experiments.hybrid         runs/gravity-v2/best.pt --cities 3   # politika kao start pretrage
+python -m tndp.experiments.bench_decoders runs/gravity-v2/best.pt --cities 12  # greedy/sampling/MCTS
+python -m tndp.experiments.bench_freq     runs/gravity-v1/best.pt              # frekvencije i flota (v1, vidi gore)
+python -m tndp.experiments.show_networks  runs/gravity-v2/best.pt              # slika mreža
+python -m tndp.viz.policy                 runs/gravity-v2/best.pt              # heatmap politike
+python -m tndp.viz.curves                 runs/gravity-v2                      # kriva treninga
 ```
 
 [bench-mandl.md](results/bench-mandl.md) služi kao provera implementacije assignment-a
@@ -273,7 +293,11 @@ Model treniran na gradovima sa 15 do 30 čvorova i `R = 4` pušta se bez dodatno
 na instance sa do 127 čvorova i 60 linija ([bench-transfer.md](results/bench-transfer.md)).
 Zaostatak za lokalnom pretragom je 4% na Mandlu (1.288 naspram 1.241) i 12% na Mumford3
 (4.552 naspram 4.081), ali ne prati veličinu monotono: najveći je na Mumford0 (47%), gde
-politika jedina ostavlja tražnju bez veze.
+politika jedina ostavlja tražnju bez veze. Van raspodele nije samo veličina nego i
+dozvoljena dužina linije ([bench_transfer.py](tndp/experiments/bench_transfer.py),
+`INSTANCES`): Mumford1 i Mumford2 traže najmanje 10 čvorova po liniji, Mumford3 najmanje
+12, a politika je trenirana na opsegu [2, 8]. Mumford0 to ne objašnjava, njegov opseg je
+[2, 15] pa mu je samo gornja granica van trening raspona.
 
 Na Novom Sadu ([novisad-poredjenje.md](results/novisad-poredjenje.md), `n = 32` zone,
 `R = 19`) poredak je isti kao na sintetici: lokalna pretraga 1.648, konstruktivna
@@ -295,11 +319,39 @@ python -m venv .venv && .venv\Scripts\activate
 pip install -e .[dev]        # core: numpy, scipy, matplotlib
 pip install -e .[rl]         # torch, torch-geometric (trening i evaluacija)
 pip install -e .[geo]        # osmnx, geopandas (samo za Novi Sad pipeline)
-pytest                       # Mandl acceptance, assignment na ruke, regresija
+pytest                       # vidi niže šta pokriva i šta se preskače
 pip install -e .[nb]         # notebooks/, opciono
 python -m ipykernel install --user --name tndp --display-name "Python (tndp)"
 python -m tndp.experiments.checks   # invarijante i osetljivost na konstante
 ```
+
+### Šta testovi pokrivaju
+
+| fajl | šta proverava | uslov |
+|---|---|---|
+| `test_assignment.py` | dodela putnika na ruke: vremena, presedanja, nepokriveni parovi | uvek |
+| `test_frequencies.py` | intervali, flota, skale i petlja druge faze, sve na ruke | uvek |
+| `test_mandl_acceptance.py` | naša cost funkcija naspram objavljenih Mandl vrednosti | uvek |
+| `test_regresija.py` | generator, baselines, MDP, politika i sva tri dekodera | RL testovi traže `[rl]` |
+| `test_novisad.py` | zonski graf, rekonstruisana GSP mreža, frekvencije na njoj | traži `data/novisad/` |
+
+Dva skupa se **tiho preskaču** ako im uslov nije ispunjen, pa `pytest -rs` pokazuje
+šta je stvarno pušteno. Bez `pip install -e .[rl]` cela RL polovina suite-a ne radi, a
+`data/novisad/` se ne isporučuje u repou nego se pravi skriptama iz `tndp/novisad/`.
+
+### Okruženje u kom su tabele napravljene
+
+```
+Python 3.11   torch 2.13.0+cpu   torch-geometric 2.8.0.post1
+numpy 2.4.6   scipy 1.17.1       matplotlib 3.11.1
+```
+
+Klasične metode i `RL greedy dekod` su deterministični i reprodukuju se do treće
+decimale na svakoj instalaciji. Redovi **`RL sampling 32` nisu tako robusni**:
+dekoder uzima najbolju od 32 uzorkovane epizode, pa razlika u poslednjim bitovima
+GATv2 izlaza, koju donosi druga verzija `torch-geometric`, ume da promeni koja
+epizoda pobedi. Na proseku preko 20 gradova to je ±0.002, ali na pojedinačnoj
+instanci ide i do ±0.03. Ako brojevi ne izlaze isti, prvo proveri verzije.
 
 ## Struktura
 

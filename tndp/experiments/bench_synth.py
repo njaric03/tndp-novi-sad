@@ -2,9 +2,7 @@
 
 import argparse
 import time
-from pathlib import Path
 
-import numpy as np
 
 from tndp.baselines.greedy import greedy_network
 from tndp.baselines.hill_climb import hill_climb
@@ -14,6 +12,7 @@ from tndp.experiments.common import (evaluate_method, fmt_p, held_out_cities,
                                      load_policy, paired_vs, scales_for)
 from tndp.rl.evaluate import decode, decode_sampling
 from tndp.viz.bench import plot_synth
+from tndp import RESULTS
 
 
 def main():
@@ -77,11 +76,10 @@ def main():
             f"| {s['C_o'].mean():.0f} | {s['d_0'].mean():.2f} "
             f"| {s['d_un'].mean():.3f} | {times[name]:.2f} |")
 
-    results = Path(__file__).parent.parent.parent / "results"
-    (results / f"{args.out}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (RESULTS / f"{args.out}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     plot_synth({k: {m: float(v.mean()) for m, v in s.items()}
-                for k, s in stats.items()}, results / f"{args.out}.png")
-    print(f"snimljeno u {results / (args.out + '.md')} i .png")
+                for k, s in stats.items()}, RESULTS / f"{args.out}.png")
+    print(f"snimljeno u {RESULTS / (args.out + '.md')} i .png")
 
 
 if __name__ == "__main__":

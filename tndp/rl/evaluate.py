@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 
-from tndp.core.assignment import assign
 from tndp.core.network import TransitNetwork
 from tndp.rl.env import HALT, TndpEnv
 from tndp.rl.features import edge_tensors, node_features

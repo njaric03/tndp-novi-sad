@@ -2,7 +2,6 @@
 
 import argparse
 import time
-from pathlib import Path
 
 import numpy as np
 
@@ -13,6 +12,7 @@ from tndp.experiments.common import (fmt_p, held_out_cities, load_policy,
                                      paired_vs, scales_for)
 from tndp.rl.evaluate import decode_sampling
 from tndp.viz.style import color_for, save
+from tndp import RESULTS
 
 EVALS = 3000       # ukupan budzet evaluacija cilja po gradu
 GRID = np.unique(np.round(np.logspace(0, np.log10(EVALS), 40)).astype(int))
@@ -113,9 +113,8 @@ def main():
                      f"{delta} | {'-' if name == ref else fmt_p(p)} | "
                      f"{np.mean(secs[name]):.2f} |")
 
-    out = Path(__file__).parent.parent.parent / "results"
-    out.mkdir(exist_ok=True)
-    (out / "hybrid.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    RESULTS.mkdir(exist_ok=True)
+    (RESULTS / "hybrid.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n" + "\n".join(lines))
 
     import matplotlib.pyplot as plt
@@ -134,7 +133,7 @@ def main():
     ax.set_title("Da li RL start ubrzava lokalnu pretragu")
     ax.legend(fontsize=8)
     ax.grid(alpha=0.3)
-    print("snimljeno u " + ", ".join(save(fig, out / "hybrid")))
+    print("snimljeno u " + ", ".join(save(fig, RESULTS / "hybrid")))
 
 
 if __name__ == "__main__":

@@ -1,5 +1,15 @@
 from pathlib import Path
 
+import numpy as np
+from scipy.stats import rankdata
+
+
+# Spearman preko rankdata, NE preko argsort(argsort): vezani rangovi moraju da
+# dobiju prosecan rang, inace korelacija zavisi od redosleda ulaza
+def spearman(a, b):
+    return float(np.corrcoef(rankdata(a), rankdata(b))[0, 1])
+
+
 # gde zavrsavaju sirovi i sredjeni podaci; ceo data/novisad/ je u.gitignore
 DATA = Path(__file__).resolve().parent.parent.parent / "data" / "novisad"
 RAW = DATA / "raw"

@@ -1,7 +1,12 @@
 import numpy as np
 
 from tndp.core.assignment import assign, objective
-from tndp.core.network import is_duplicate  # noqa: F401  (re-export za baselines)
+from tndp.core.network import is_duplicate
+
+# is_duplicate se ovde samo prosledjuje dalje, da baselines imaju jedno mesto
+# odakle uzimaju sve sto im treba; __all__ to cini namerom umesto slucajem
+__all__ = ["is_duplicate", "network_objective", "terminal_nodes",
+           "trim_to_terminals", "random_route"]
 
 
 # tacno ista skalarna funkcija cilja koju RL trenira i po kojoj se izvestava

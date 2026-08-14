@@ -1,7 +1,6 @@
 # Osetljivost zakljucaka na dve konstante koje u funkciji cilja ostaju stvar izbora: UNSERVED_FACTOR i alpha
 
 import argparse
-from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
@@ -15,6 +14,7 @@ from tndp.baselines.random_search import random_search
 from tndp.core.assignment import assign, cost_scales, objective
 from tndp.viz.style import color_for, save
 from tndp.viz import style
+from tndp import RESULTS
 
 FACTORS = [1.5, 2.0, 3.0, 4.0, 6.0, 8.0]
 ALPHAS = [0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9]
@@ -117,9 +117,8 @@ def main():
     fig.suptitle(f"Zavisi li rangiranje metoda od izabranih konstanti "
                  f"({args.cities} gradova)", fontsize=11)
 
-    out = Path(__file__).parent.parent.parent / "results"
-    out.mkdir(exist_ok=True)
-    print("snimljeno u " + ", ".join(save(fig, out / "sensitivity")))
+    RESULTS.mkdir(exist_ok=True)
+    print("snimljeno u " + ", ".join(save(fig, RESULTS / "sensitivity")))
 
 
 if __name__ == "__main__":

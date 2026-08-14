@@ -1,7 +1,6 @@
 import csv
 
 import numpy as np
-from scipy.stats import rankdata
 
 from tndp.novisad import konstante
 from tndp.novisad.ulice import ucitaj_zone
@@ -53,7 +52,6 @@ def _privlacnost(zone):
 def izgradi(beta=BETA, mera="euklidsko", ukupno=None, prag=PESACKI_PRAG):
     zone = ucitaj_zone()
     imena = [r["mz"] for r in zone]
-    n = len(zone)
     prod = np.array([float(r["stanovnika"]) for r in zone])
     attr = _privlacnost(zone)
     ukupno = ukupno or PUTOVANJA
@@ -79,11 +77,6 @@ def _upisi(imena, traznja):
         w.writerow(["mz"] + imena)
         for i, ime in enumerate(imena):
             w.writerow([ime] + [f"{x:.1f}" for x in traznja[i]])
-
-
-# Spearman preko rankdata, NE preko argsort(argsort)
-def _spearman(a, b):
-    return float(np.corrcoef(rankdata(a), rankdata(b))[0, 1])
 
 
 def main():
@@ -112,7 +105,7 @@ def main():
 
     _, alt = izgradi(mera="tau")
     print(f"Spearman euklidsko rastojanje vs vreme vožnje: "
-          f"{_spearman(traznja[gore], alt[gore]):+.3f}")
+          f"{konstante.spearman(traznja[gore], alt[gore]):+.3f}")
 
     print("\nosetljivost na beta (prosek je ponderisan tražnjom):")
     print(f"{'beta':>5s} {'prosečna dužina':>16s} {'udeo < 2 km':>12s} {'udeo > 5 km':>12s}")

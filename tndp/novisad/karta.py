@@ -185,7 +185,8 @@ def main(checkpoint=MODEL):
 
     # struktura linija: brojevi koji idu u tabelu u radu, da tvrdnja o
     # "dugim petljama i patrljcima" ne ostane utisak sa slike
-    redovi = ["| mreža | linija $\\geq 5$ zona | linija od 2 zone | "
+    # bez LaTeX-a u tabeli: results/*.md se citaju i kao obican markdown
+    redovi = ["| mreža | linija ≥ 5 zona | linija od 2 zone | "
               "najviše linija kroz jednu zonu |", "|---|---|---|---|"]
     for ime, net in (("GSP, postojeća", gsp), ("lokalna pretraga", hc),
                      ("politika, uzorkovanje 32", rl)):

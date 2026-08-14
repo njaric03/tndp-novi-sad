@@ -1,7 +1,6 @@
 # nacrtaj mreze koje razne metode grade na istom held-out gradu pokretanje: python -m tndp.experiments.show_networks
 
 import argparse
-from pathlib import Path
 
 from tndp.baselines.greedy import greedy_network
 from tndp.baselines.hill_climb import hill_climb
@@ -11,6 +10,7 @@ from tndp.rl.evaluate import decode_sampling
 from tndp.synth import generate_city
 
 from tndp.viz.maps import compare_networks
+from tndp import RESULTS
 
 SEED = 20_000  # isti grad kao prvi u bench_synth
 
@@ -35,7 +35,7 @@ def main():
         "RL (sampling 32)": decode_sampling(policy, city, R, k=32, min_len=lo,
                                             max_len=hi, alpha=a)[0],
     }
-    out = Path(__file__).parent.parent.parent / "results" / "networks.png"
+    out = RESULTS / "networks.png"
     compare_networks(city, nets, out, alpha=a)
     print(f"snimljeno u {out}")
 

@@ -2,7 +2,6 @@
 
 import argparse
 import time
-from pathlib import Path
 
 import numpy as np
 
@@ -14,6 +13,7 @@ from tndp.experiments.common import held_out_cities, load_policy, scales_for
 from tndp.rl.evaluate import decode, decode_sampling
 from tndp.rl.mcts import mcts_decode
 from tndp.viz import paper
+from tndp import RESULTS
 
 SAMPLES_K = [1, 2, 4, 8, 16, 32, 64]
 RANDOM_N = [25, 100, 400, 1600, 6400]
@@ -70,14 +70,13 @@ def main():
         rows.append(f"| {name} | 1 | {dt:.3f} | {obj:.3f} |")
         print(rows[-1])
 
-    results = Path(__file__).parent.parent.parent / "results"
-    (results / "anytime.md").write_text(
+    (RESULTS / "anytime.md").write_text(
         "\n".join([f"# Anytime poređenje ({args.cities} gradova, alpha={a}, "
                    f"model {args.checkpoint})", ""] + rows) + "\n", encoding="utf-8")
     # sliku crta viz.paper iz ove iste tabele, da se figura u radu i tabela
     # ne mogu razici
-    print(f"snimljeno u {results / 'anytime.md'}")
-    print("->", *paper.budget(results / "slika-budzet"))
+    print(f"snimljeno u {RESULTS / 'anytime.md'}")
+    print("->", *paper.budget(RESULTS / "slika-budzet"))
 
 
 if __name__ == "__main__":

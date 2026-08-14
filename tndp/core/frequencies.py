@@ -49,16 +49,19 @@ def evaluate(city, network, alpha=0.5, passes=3, capacity=CAPACITY,
              peak_share=PEAK_SHARE, daily_trips=None):
     ratio = 1.0 if daily_trips is None else daily_trips / city.demand.sum()
 
+    # prvi prolaz jos ne zna intervale, pa ulazak kosta fiksni penal iz literature
     res = assign(city, network, compute_loads=True)
     h = headways(res.max_load * ratio, capacity, peak_share)
     for _ in range(passes):
         res = assign(city, network, compute_loads=True, headways=h)
         h_new = headways(res.max_load * ratio, capacity, peak_share)
         if np.allclose(h_new, h):
-            h = h_new
-            break
+            break  # res je vec racunat sa ovim h, nema sta da se ponavlja
         h = h_new
-    res = assign(city, network, compute_loads=True, headways=h)
+    else:
+        # petlja je istrosila prolaze bez konvergencije: h se promenilo posle
+        # poslednje dodele, pa res mora jos jednom da se uskladi sa njim
+        res = assign(city, network, compute_loads=True, headways=h)
     vehicles = fleet(city, network, h)
     return {
         "res": res,

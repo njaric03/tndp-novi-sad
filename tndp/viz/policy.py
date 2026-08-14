@@ -12,9 +12,10 @@ import torch
 from tndp.core.network import TransitNetwork
 from tndp.rl.env import HALT, TndpEnv
 from tndp.rl.features import edge_tensors, node_features
-from tndp.viz.maps import LINE_COLORS, draw_network
+from tndp.viz.maps import draw_network
 from tndp.viz.style import save
 from tndp.viz import style
+from tndp import RESULTS
 
 
 # ulice u pozadini, isto kao u maps.draw_network ali bez linija
@@ -24,12 +25,18 @@ def _streets(ax, city):
                 color="0.88", lw=0.8, zorder=1)
 
 
-# verovatnoce sledeceg poteza po cvoru
+# jedan prolaz politike kroz tekuce stanje; decision() se zove tacno jednom, pa
+# maska po kojoj se racunaju verovatnoce i ona po kojoj se bira potez ne mogu da se raziđu
 @torch.no_grad()
-def step_probs(policy, env, edge_index, edge_attr):
+def _forward(policy, env, edge_index, edge_attr):
     decision, mask = env.decision()
     h = policy.encode(node_features(env, policy.features), edge_index, edge_attr)
-    logits = policy.action_logits(h, decision, mask, env.ends)
+    return decision, policy.action_logits(h, decision, mask, env.ends)
+
+
+# verovatnoce sledeceg poteza po cvoru
+def step_probs(policy, env, edge_index, edge_attr):
+    decision, logits = _forward(policy, env, edge_index, edge_attr)
     p = torch.softmax(logits, dim=0).numpy()
     n = env.city.n
     halt = float(p[-1]) if decision == HALT else 0.0
@@ -42,11 +49,12 @@ def heatmap(policy, city, cfg, alpha, out, panels=2):
     env.reset()
     snaps = []
     while not env.done:
-        probs, halt, decision = step_probs(policy, env, edge_index, edge_attr)
+        decision, logits = _forward(policy, env, edge_index, edge_attr)
         if len(env.routes) == 0:
-            snaps.append((env.current[:], probs.copy(), halt))
-        h = policy.encode(node_features(env, policy.features), edge_index, edge_attr)
-        logits = policy.action_logits(h, decision, env.decision()[1], env.ends)
+            p = torch.softmax(logits, dim=0).numpy()
+            n = city.n
+            halt = float(p[-1]) if decision == HALT else 0.0
+            snaps.append((env.current[:], p[:2 * n].reshape(2, n).sum(0), halt))
         a = int(logits.argmax())
         env.step(-1 if (decision == HALT and a == len(logits) - 1) else a)
 
@@ -136,9 +144,7 @@ def filmstrip(policy, city, cfg, alpha, out):
     env.reset()
     stages = []
     while not env.done:
-        decision, mask = env.decision()
-        h = policy.encode(node_features(env, policy.features), edge_index, edge_attr)
-        logits = policy.action_logits(h, decision, mask, env.ends)
+        decision, logits = _forward(policy, env, edge_index, edge_attr)
         a = int(logits.argmax())
         is_halt = decision == HALT and a == len(logits) - 1
         env.step(-1 if is_halt else a)
@@ -168,13 +174,12 @@ def main():
     cities = held_out_cities(cfg, max(20, args.city + 1))
     city = cities[args.city]
 
-    out = Path(__file__).parent.parent.parent / "results"
-    out.mkdir(exist_ok=True)
+    RESULTS.mkdir(exist_ok=True)
     print("snimljeno u " + ", ".join(
-        heatmap(policy, city, cfg, a, out / "policy-heatmap")
-        + filmstrip(policy, city, cfg, a, out / "filmstrip")
+        heatmap(policy, city, cfg, a, RESULTS / "policy-heatmap")
+        + filmstrip(policy, city, cfg, a, RESULTS / "filmstrip")
         + first_move_correlation(policy, cfg, a, cities,
-                                 out / "policy-traznja.md")))
+                                 RESULTS / "policy-traznja.md")))
 
 
 if __name__ == "__main__":

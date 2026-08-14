@@ -4,7 +4,6 @@ import argparse
 import time
 from pathlib import Path
 
-import numpy as np
 
 from tndp.baselines.greedy import greedy_network
 from tndp.baselines.hill_climb import hill_climb
@@ -91,7 +90,7 @@ def main():
 
 def _izvestaj(redovi, city, R, lo, hi, cfg, a, ckpt):
     gsp_cilj = next(r["cilj"] for r in redovi if r["metoda"].startswith("GSP"))
-    r = [f"# Novi Sad: model naspram postojeće GSP mreže", "",
+    r = ["# Novi Sad: model naspram postojeće GSP mreže", "",
          f"Politika je trenirana na SINTETIČKIM gradovima (n {cfg['n_range']}, "
          f"R={cfg['num_routes']}, dužina linije [{cfg['min_len']}, {cfg['max_len']}])",
          "i puštena na Novi Sad u jednom prolazu, bez dotreniravanja. To je tvrdnja",

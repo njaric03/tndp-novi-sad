@@ -7,8 +7,11 @@ from scipy.sparse.csgraph import dijkstra
 # standardni transfer penal iz literature
 TRANSFER_PENALTY_MIN = 5.0
 # nepokriven par se naplacuje kao da putnik istu razdaljinu prelazi pesice
-# faktor mora biti iznad najgoreg OPSLUZENOG para, izmereno do 6.8x ulicnog vremena
-# 20/5 je odnos brzina, 2.0 je uobicajena tezina pesackog minuta
+# 20/5 je odnos brzina, 2.0 je uobicajena tezina pesackog minuta, odatle 8
+# faktor NIJE iznad najgoreg opsluzenog para: opsluzen par ide u proseku 1.9x
+# ulicnog vremena, 95. percentil 7.0x, a maksimum do 20.9x (checks.py, provera 2)
+# 8 pokriva 98% opsluzene traznje; preostalih 2% su parovi koje se optimizatoru
+# i dalje isplati ispustiti, i to je poznato ogranicenje cilja a ne resen problem
 BUS_SPEED_KMH, WALK_SPEED_KMH = 20.0, 5.0
 TEZINA_PESACENJA = 2.0
 UNSERVED_FACTOR = BUS_SPEED_KMH / WALK_SPEED_KMH * TEZINA_PESACENJA
@@ -30,8 +33,9 @@ class AssignmentResult:
         return self.d["d_un"] == 0.0
 
 
-# skale za normalizaciju putnickog i operaterskog clana
-def cost_scales(city, num_routes=None, max_len=None):
+# skale za normalizaciju putnickog i operaterskog clana; obe zavise samo od
+# grada, ne od R i max_len, pa jedan grad ima jedne skale za sve konfiguracije
+def cost_scales(city):
     return city.street_shortest_mean_demand, city.mst_time
 
 

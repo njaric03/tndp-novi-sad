@@ -17,8 +17,8 @@ from pathlib import Path
 import numpy as np
 
 from tndp.core.assignment import assign, cost_scales, objective
-from tndp.experiments.common import (SEED_BASE, fmt_p, held_out_cities, holm,
-                                     load_policy, paired_vs)
+from tndp.experiments.common import (fmt_p, held_out_cities, holm, load_policy,
+                                     paired_vs)
 from tndp.rl.evaluate import decode_sampling
 
 ROOT = Path(__file__).resolve().parent.parent.parent

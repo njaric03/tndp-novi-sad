@@ -2,9 +2,7 @@
 
 import argparse
 import time
-from pathlib import Path
 
-import numpy as np
 
 from tndp.baselines.greedy import greedy_network
 from tndp.baselines.hill_climb import hill_climb
@@ -13,8 +11,8 @@ from tndp.core.assignment import assign, cost_scales, objective
 from tndp.core.io import load_benchmark_city
 from tndp.experiments.common import load_policy
 from tndp.rl.evaluate import decode, decode_sampling
+from tndp import BENCHMARKS, RESULTS
 
-DATA = Path(__file__).parent.parent.parent / "data" / "benchmarks"
 
 # standardni parametri instanci (Mumford 2013, tabela u data/benchmarks/Mumford)
 INSTANCES = {
@@ -50,7 +48,7 @@ def main():
 
     for key in args.instances:
         rel, R, lo, hi = INSTANCES[key]
-        city = load_benchmark_city(DATA / rel)
+        city = load_benchmark_city(BENCHMARKS / rel)
         assert city.validate() == [], city.validate()
         scales = cost_scales(city)
 
@@ -80,7 +78,7 @@ def main():
             lines.append(row)
             print("  " + row)
 
-    out = Path(__file__).parent.parent.parent / "results" / f"{args.out}.md"
+    out = RESULTS / f"{args.out}.md"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"\nsnimljeno u {out}")
 

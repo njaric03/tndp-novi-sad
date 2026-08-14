@@ -1,7 +1,6 @@
 # Pareto front putnik/operater: sweep po alpha
 
 import argparse
-from pathlib import Path
 
 from tndp.baselines.greedy import greedy_network
 from tndp.baselines.hill_climb import hill_climb
@@ -9,6 +8,7 @@ from tndp.experiments.common import (evaluate_method, held_out_cities,
                                      load_policy, scales_for)
 from tndp.rl.evaluate import decode_sampling
 from tndp.viz import paper
+from tndp import RESULTS
 
 ALPHAS = [0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9]
 
@@ -42,17 +42,16 @@ def main():
                         f"| {s['d_un'].mean():.3f} |")
             print(rows[-1])
 
-    results = Path(__file__).parent.parent.parent / "results"
     header = [f"# Pareto front ({args.cities} held-out gradova, R={R}, "
               f"model {args.checkpoint})", "",
               "Ista trenirana politika je puštena na svaku vrednost alpha "
               "(alpha je feature čvora i uzorkuje se tokom treninga);",
               "baselines se za svaku tačku pokreću iznova.", ""]
-    (results / "pareto.md").write_text("\n".join(header + rows) + "\n", encoding="utf-8")
+    (RESULTS / "pareto.md").write_text("\n".join(header + rows) + "\n", encoding="utf-8")
     # sliku crta viz.paper iz ove iste tabele, da se figura u radu i tabela
     # ne mogu razici
-    print(f"snimljeno u {results / 'pareto.md'}")
-    print("->", *paper.pareto(results / "slika-pareto"))
+    print(f"snimljeno u {RESULTS / 'pareto.md'}")
+    print("->", *paper.pareto(RESULTS / "slika-pareto"))
 
 
 if __name__ == "__main__":

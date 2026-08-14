@@ -11,6 +11,7 @@ from tndp.core.assignment import assign, cost_scales, objective
 from tndp.core.io import load_benchmark_city
 from tndp.core.network import TransitNetwork
 from tndp.synth import generate_city
+from tndp import BENCHMARKS
 
 SEED_BASE, NUM_CITIES = 20_000, 12
 R, MIN_LEN, MAX_LEN, ALPHA, N_RANGE = 4, 2, 8, 0.5, (15, 30)
@@ -32,7 +33,7 @@ def greedy_results(cs, alpha=ALPHA):
 
 # --- 1
 def check_balance(cs):
-    hdr("1. balans putničkog i operaterskog člana (cilj ~1:1)")
+    hdr("1. balans putničkog i operaterskog člana (koliko svaki pomera cilj)")
     cp_sd, co_sd = [], []
     for c in cs[:8]:
         sc = cost_scales(c)
@@ -50,21 +51,41 @@ def check_balance(cs):
     print(f"  sd putničkog člana C_p_all/donja_granica : {a:.3f}")
     print(f"  sd operaterskog člana C_o/MST           : {b:.3f}")
     print(f"  odnos uticaja: {a / b:.2f} : 1")
-    print(f"  (sa starom skalom R*(max_len-1)*mean(tau) bilo je ~2.1 : 1)")
+    # alpha pri kojoj oba člana jednako pomeraju cilj: a*sd_cp = (1-a)*sd_co
+    print(f"  -> članovi NISU jednako skalirani. Jednak uticaj je na "
+          f"alpha ~ {b / (a + b):.2f},")
+    print("     ne na 0.5; pri alpha=0.5 cilj prati uglavnom putnički član.")
 
 
 # --- 2
 def check_unserved_factor(cs):
     hdr("2. osetljivost na UNSERVED_FACTOR (odnos brzina 20/5 puta težina pešačenja 2)")
     base = A.UNSERVED_FACTOR
-    ratios = []
+    # cela raspodela, ne samo prosek: faktor deli opslužene parove na one koje se
+    # isplati opslužiti i one koje se isplati ispustiti, pa je bitan gornji rep
+    mean_r, p95, mx, over = [], [], [], []
     for res, c in zip(greedy_results(cs[:8]), cs[:8]):
         m = np.isfinite(res.travel_time) & (c.street_shortest > 0)
-        ratios.append(np.average(res.travel_time[m] / c.street_shortest[m],
-                                 weights=c.demand[m]))
-    print(f"  opslužen par putuje {np.mean(ratios):.2f}x duže od uličnog najkraćeg")
-    print(f"  -> faktor mora biti osetno iznad toga, inače 'ne opslužiti' "
-          f"košta koliko i 'opslužiti'\n")
+        r = res.travel_time[m] / c.street_shortest[m]
+        w = c.demand[m]
+        mean_r.append(np.average(r, weights=w))
+        mx.append(r.max())
+        order = np.argsort(r)
+        cum = np.cumsum(w[order]) / w.sum()
+        p95.append(float(r[order][np.searchsorted(cum, 0.95)]))
+        over.append(float(w[r > base].sum() / w.sum()))
+    print("  odnos vreme_mrežom / ulično najkraće, po opsluženom paru:")
+    print(f"    demand-ponderisan prosek       {np.mean(mean_r):.2f}x")
+    print(f"    demand-ponderisan 95. percentil {np.mean(p95):.2f}x")
+    print(f"    maksimum                        {max(mx):.2f}x "
+          f"(po gradu {min(mx):.1f}-{max(mx):.1f})")
+    print(f"  -> faktor {base:g} NIJE iznad najgoreg opsluženog para; iznad je "
+          f"{100 * (1 - np.mean(over)):.0f}% opslužene tražnje.")
+    print(f"     Preostalih {100 * np.mean(over):.1f}% (po gradu do "
+          f"{100 * max(over):.1f}%) su parovi koje se optimizatoru i dalje")
+    print(f"     isplati ispustiti. Tek faktor iznad {max(mx):.0f} bi to zatvorio, "
+          f"ali bi mrežu naterao\n     da pokrije sve po svaku cenu; sweep ispod "
+          f"pokazuje šta se time dobija.\n")
     print(f"  {'faktor':>7} {'d_un':>7} {'C_p_all':>9} {'C_o':>7} {'cilj':>7}")
     try:
         for f in (1.5, 2.0, 3.0, 4.0, 6.0, 8.0):
@@ -161,12 +182,10 @@ def check_input_scale():
     except ImportError:
         print("  torch nije instaliran, preskočeno")
         return
-    from pathlib import Path
-    data = Path(__file__).parent.parent.parent / "data" / "benchmarks"
     sets = [("gravity (trening)", generate_city(seed=SEED_BASE, n_range=N_RANGE)),
             ("uniform", generate_city(seed=1, n_range=N_RANGE, demand_mode="uniform")),
-            ("Mandl1", load_benchmark_city(data / "Mandl/Mandl1")),
-            ("Mumford1", load_benchmark_city(data / "Mumford/Mumford1"))]
+            ("Mandl1", load_benchmark_city(BENCHMARKS / "Mandl/Mandl1")),
+            ("Mumford1", load_benchmark_city(BENCHMARKS / "Mumford/Mumford1"))]
     print(f"  {'instanca':>18} {'node skew':>10} {'node max|z|':>12} "
           f"{'edge skew':>10} {'edge max|z|':>12}")
     for nm, c in sets:
@@ -199,8 +218,39 @@ def check_reward_variance(cs):
     print(f"    unutar grada            {within:.4f}  ({within / total:.0%})  signal")
     print(f"    između gradova          {between:.4f}  ({between / total:.0%})  "
           f"gornja granica za value(s0)")
-    print("  -> self-critical baseline (abl-selfcritical.yaml) hvata i deo")
-    print("     unutar-gradske varijanse; verovatno bolji default od value glave")
+    print("  -> value(s0) vidi samo 8% varijanse, pa se cinilo da bi self-critical")
+    print("     baseline, koji hvata i unutar-gradsku, bio bolji default.")
+    print("     IZMERENO JE SUPROTNO: abl-selfcritical daje 2.186 naspram 1.877")
+    print("     osnovne (results/ablacije.md), i to je jedina varijanta koja gubi")
+    print("     od greedyja sa p < 0.001. Dekompozicija dakle ne predvidja ishod.")
+
+
+# --- 8
+# Akcija je par (kraj, cvor), ne samo cvor. Ovo meri koliko bi se izgubilo da
+# nije tako: cvor susedan OBA kraja bi imao samo jednu dostizanu varijantu.
+def check_both_ends(cs, episodes=20):
+    from tndp.rl.env import HALT, HEAD, TAIL, TndpEnv
+    hdr("8. koliko poteza nudi isti čvor na oba kraja linije")
+    both = total = 0
+    for c in cs:
+        rng = np.random.default_rng(0)
+        for _ in range(episodes):
+            env = TndpEnv(c, R, MIN_LEN, MAX_LEN, ALPHA)
+            while not env.done:
+                decision, mask = env.decision()
+                if env.current and mask.any():
+                    total += 1
+                    if set(np.flatnonzero(mask[HEAD])) & set(np.flatnonzero(mask[TAIL])):
+                        both += 1
+                opts = list(np.flatnonzero(mask.reshape(-1)))
+                if decision == HALT:
+                    opts.append(-1)
+                env.step(int(opts[rng.integers(len(opts))]))
+    print(f"  poteza sa bar jednim čvorom dozvoljenim na oba kraja: "
+          f"{both}/{total} = {100 * both / total:.1f}%")
+    print("  (nasumične epizode; to je udeo POTEZA sa bar jednim takvim čvorom,")
+    print("   ne udeo akcija. Po akcijama je dvosmisleno oko 10%: toliko bi ih")
+    print("   bilo nedostižno da je akcija samo čvor umesto para (kraj, čvor).)")
 
 
 def main():
@@ -212,6 +262,7 @@ def main():
     check_paired(cs)
     check_input_scale()
     check_reward_variance(cs)
+    check_both_ends(cs)
     print("\nsve provere prošle")
 
 

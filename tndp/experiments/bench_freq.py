@@ -2,7 +2,6 @@
 
 import argparse
 import time
-from pathlib import Path
 
 import numpy as np
 
@@ -14,8 +13,8 @@ from tndp.core.assignment import assign, cost_scales, objective
 from tndp.core.io import load_benchmark_city
 from tndp.experiments.common import load_policy
 from tndp.rl.evaluate import decode, decode_sampling
+from tndp import BENCHMARKS, RESULTS
 
-DATA = Path(__file__).parent.parent.parent / "data" / "benchmarks"
 
 # (putanja, R, min_len, max_len, pretpostavljen dnevni broj putovanja)
 INSTANCE = {
@@ -60,7 +59,7 @@ def main():
 
     for key in args.instances:
         rel, R, lo, hi, daily = INSTANCE[key]
-        city = load_benchmark_city(DATA / rel)
+        city = load_benchmark_city(BENCHMARKS / rel)
         sc = cost_scales(city)
 
         methods = {
@@ -95,7 +94,7 @@ def main():
               "| konstanta | vrednost | flota | čekanje | med. interval |",
               "|---|---|---|---|---|"]
     rel, R, lo, hi, daily = INSTANCE["Mandl1"]
-    city = load_benchmark_city(DATA / rel)
+    city = load_benchmark_city(BENCHMARKS / rel)
     net = greedy_network(city, R, lo, hi, alpha=a)[0]
     for cap in (60, 80, 120):
         o = F.evaluate(city, net, alpha=a, capacity=cap, daily_trips=daily)
@@ -110,7 +109,7 @@ def main():
         lines.append(f"| putovanja dnevno | {trips:,} | {o['flota']:.0f} | "
                      f"{o['cekanje']:.2f} | {np.median(o['h']):.1f} |".replace(",", "."))
 
-    out = Path(__file__).parent.parent.parent / "results" / "bench-freq.md"
+    out = RESULTS / "bench-freq.md"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"\nsnimljeno u {out}")
 
