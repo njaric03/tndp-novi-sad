@@ -83,15 +83,27 @@ python -m tndp.viz.curves                 runs/gravity-v2                      #
 
 ### Novi Sad
 
+Redosled je obavezan, svaki korak čita ono što je prethodni upisao:
+
 ```bash
-python -m tndp.novisad.preuzmi && python -m tndp.novisad.sredi
-python -m tndp.novisad.kalibracija     # results/novisad-kalibracija.md
-python -m tndp.novisad.frekvencije     # results/novisad-frekvencije.md
-python -m tndp.novisad.poredjenje      # results/novisad-poredjenje.md
-python -m tndp.novisad.karta           # karte i results/novisad-struktura.md
+python -m tndp.novisad.preuzmi     # sirovi izvori u data/novisad/raw/
+python -m tndp.novisad.sredi       # stajalista, linije, polasci, stanovništvo
+python -m tndp.novisad.zone        # zone.csv, stajalista_zone.csv
+python -m tndp.novisad.sadrzaji    # privlacnost.csv, POI iz OpenStreetMap-a
+python -m tndp.novisad.ulice       # tau.csv, susedstvo.csv, preko osmnx
+python -m tndp.novisad.traznja     # traznja.csv, gravitaciona matrica
+
+python -m tndp.novisad.kalibracija # results/novisad-kalibracija.md
+python -m tndp.novisad.frekvencije # results/novisad-frekvencije.md
+python -m tndp.novisad.poredjenje  # results/novisad-poredjenje.md
+python -m tndp.novisad.karta       # karte i results/novisad-struktura.md
 ```
 
 `data/novisad/` nije u repou, pravi se ovim skriptama.
+
+Trening za studiju slučaja ne traži ništa od ovoga. `configs/novisad-r19.yaml`
+uči na sintetičkim gradovima veličine Novog Sada, a podaci gore služe tek
+evaluaciji, pa ta dva posla mogu da idu uporedo.
 
 ## Rezultati
 

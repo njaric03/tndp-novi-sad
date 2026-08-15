@@ -10,17 +10,34 @@ from tndp.novisad import konstante
 PAUZA = 0.2  # sekundi izmedju zahteva, da se sajt ne gnjavi
 
 
-# neki izvori povremeno imaju nepotpun sertifikatski lanac - popravlja se (certifi),
-# ne gasi provera. gasenje ostaje moguce preko TNDP_INSECURE=1, svesno i uz upozorenje
+# GSP sajt nosi samopotpisan sertifikat (subject == issuer == CN=gspns.rs, vazi
+# 2024-2034, bez SAN-a), a povezujemo se na www.gspns.co.rs, dakle ni ime hosta se
+# ne poklapa. Ni pinovanje ne pomaze jer provera imena svejedno pada, pa za taj
+# host izbor stoji izmedju neprovereno i nikako.
+#
+# Provera se zato gasi SAMO za njega, preko adaptera montiranog na taj prefiks;
+# svi ostali izvori (NSmart, Overpass, nsinfo) ostaju provereni. Nezavisna
+# kontrola podatka je kalibracija na objavljenom brojanju putnika iz 2017.
+class _BezProvere(requests.adapters.HTTPAdapter):
+    def send(self, request, **kw):
+        kw["verify"] = False
+        return super().send(request, **kw)
+
+
+# nepotpun sertifikatski lanac se inace popravlja preko certifi, ne gasenjem provere.
+# gasenje za SVE izvore odjednom ostaje moguce preko TNDP_INSECURE=1, svesno i uz upozorenje
 def _sesija():
     s = requests.Session()
     s.headers["User-Agent"] = "tndp-seminarski/0.1 (akademska upotreba)"
+    s.mount(konstante.GSP, _BezProvere())
+    print(f"napomena: {konstante.GSP} ima samopotpisan sertifikat, provera je "
+          "iskljucena samo za njega; ostali izvori se proveravaju")
     if os.environ.get("TNDP_INSECURE") == "1":
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         s.verify = False
-        print("UPOZORENJE: TNDP_INSECURE=1, TLS sertifikati se NE proveravaju. "
-              "Preuzeti podaci nisu proverenog porekla.")
+        print("UPOZORENJE: TNDP_INSECURE=1, TLS sertifikati se NE proveravaju NI ZA "
+              "JEDAN izvor. Preuzeti podaci nisu proverenog porekla.")
     return s
 
 
