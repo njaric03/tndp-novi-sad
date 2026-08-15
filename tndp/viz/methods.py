@@ -1,23 +1,20 @@
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from tndp.viz import style
 import numpy as np
 
 
-# poredjenje metoda: cilj (glavna metrika), pa razbijanje na putnicku stranu (d_0, udeo direktnih putovanja; d_un
+# poredjenje metoda u tri panela: cilj, pokrivenost putovanja i kompromis putnik/operater
 def plot_synth(stats, out_path):
     names = list(stats)
     x = np.arange(len(names))
-    palette = ["tab:gray", "tab:orange", "tab:red", "tab:blue", "tab:green",
-               "tab:purple", "tab:brown"]
-    colors = [palette[i % len(palette)] for i in range(len(names))]
 
     style.apply_style()
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
 
-    axes[0].bar(x, [stats[n]["cilj"] for n in names], color=colors)
+    # boja po metodi iz style.METHOD_COLORS, da ista metoda ima istu boju na svakoj slici
+    axes[0].bar(x, [stats[n]["cilj"] for n in names],
+                color=[style.color_for(n) for n in names])
     axes[0].set_title("cilj (manje je bolje)")
 
     axes[1].bar(x - 0.2, [stats[n]["d_0"] for n in names], 0.4,

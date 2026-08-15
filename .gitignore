@@ -18,6 +18,7 @@ data/novisad/
 Thumbs.db
 .idea/
 .pytest_cache/
+.ruff_cache/
 results/overnight.log
 results/rerun.log
 results/hybrid.log

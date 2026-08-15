@@ -5,6 +5,7 @@ import re
 from collections import defaultdict
 
 import numpy as np
+from scipy.stats import spearmanr
 
 from tndp.core.assignment import assign
 from tndp.core.city import CityGraph
@@ -94,7 +95,7 @@ def main():
                 u = _udeli(ulasci, linije, zajednicke)
                 # ukupno varijaciono rastojanje dva profila: polovina zbira apsolutnih razlika udela, u [0, 1]
                 tv = float(np.abs(u - cilj_udeli).sum() / 2.0)
-                nalazi.append((mera, beta, prag, tv, konstante.spearman(u, cilj_udeli)))
+                nalazi.append((mera, beta, prag, tv, float(spearmanr(u, cilj_udeli).statistic)))
 
     # TV razlikuje prag ali NE i betu, po beti je ravan na tri decimale
     najbolji_tv = min(x[3] for x in nalazi)
@@ -105,9 +106,8 @@ def main():
     for m, b, p, tv, sp in sorted(u_igri, key=lambda x: -x[4])[:12]:
         print(f"{m:>10} {b:5.2f} {p:5.1f} {tv:7.3f} {sp:+9.3f}")
 
-    # Sweep bira betu, ali kod je NE koristi: traznja.BETA je 2.0 jer je to vrednost
-    # generatora, a razlika prema sweep optimumu je u trecoj decimali Spearmana.
-    # Izvestaj zato opisuje betu koju pipeline stvarno vrti, ne argmax sweep-a.
+    # sweep bira betu, kod je ne koristi - traznja.BETA=2.0 je ono sto pipeline
+    # stvarno vrti, razlika od sweep optimuma je u 3. decimali Spearmana
     mera, _, prag, _, _ = najbolji
     usvojen = next(x for x in nalazi
                    if (x[0], x[1], x[2]) == (mera, traznja.BETA, prag))

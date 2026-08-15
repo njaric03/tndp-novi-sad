@@ -6,7 +6,8 @@ from scipy.stats import wilcoxon
 
 from tndp.core.assignment import assign, cost_scales, objective
 from tndp.rl.model import TndpPolicy
-from tndp.synth import generate_city
+from tndp.core.synth import generate_city
+from tndp import RESULTS
 
 SEED_BASE = 20_000  # van trening poola (0..pool) i validacije (10k+)
 
@@ -31,14 +32,11 @@ def held_out_cities(cfg, count):
                           n_range=tuple(cfg["n_range"])) for k in range(count)]
 
 
-# pusti jednu metodu preko svih gradova
 def evaluate_method(solve, cities, scales, num_routes, min_len, max_len, alpha):
     per_city = {k: [] for k in ("cilj", "C_p", "C_p_all", "C_o", "d_0", "d_un")}
     for city, sc in zip(cities, scales):
         net = solve(city)
-        problems = net.check(city, num_routes, min_len, max_len)
-        if problems:
-            raise AssertionError(f"nevalidna mreža na {city.name}: {problems}")
+        net.require_valid(city, num_routes, min_len, max_len)
         res = assign(city, net)
         per_city["cilj"].append(objective(res, sc, alpha))
         per_city["C_p"].append(res.C_p)
@@ -53,7 +51,6 @@ def scales_for(cities):
     return [cost_scales(c) for c in cities]
 
 
-# uparena razlika u odnosu na referentnu metodu
 def paired_vs(values, reference):
     d = reference - values          # >0 znaci da je metoda bolja od reference
     se = d.std(ddof=1) / np.sqrt(len(d))
@@ -70,6 +67,23 @@ def fmt_p(p):
     if p < 0.001:
         return "<0.001"
     return ">0.999" if p > 0.999 else f"{p:.3f}"
+
+
+# celije "Δ vs referenca" i "p" za jedan red tabele; referentni red dobija crtice
+def paired_cells(values, reference, is_reference=False):
+    if is_reference:
+        return "-", "-"
+    d, se, p = paired_vs(values, reference)
+    return f"{d:+.3f} ± {se:.3f}", fmt_p(p)
+
+
+# svaka skripta pise tabelu na isti nacin: jedan fajl u results/, pa poruka gde je
+def write_table(name, lines):
+    RESULTS.mkdir(exist_ok=True)
+    out = RESULTS / name
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"snimljeno u {out}")
+    return out
 
 
 # Holm korekcija za vise poredjenja nad istim podacima

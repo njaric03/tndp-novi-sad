@@ -115,7 +115,7 @@ def _simulate(policy, env, root, edge_index, edge_attr, c, bounds):
 
 @torch.no_grad()
 def mcts_decode(policy, city, num_routes, min_len=2, max_len=8, alpha=0.5,
-                sims=50, c_puct=1.5):
+                sims=50):
     env = TndpEnv(city, num_routes, min_len, max_len, alpha)
     edge_index, edge_attr = edge_tensors(city)
     env.reset()
@@ -123,7 +123,7 @@ def mcts_decode(policy, city, num_routes, min_len=2, max_len=8, alpha=0.5,
     root = _make_node(policy, env, edge_index, edge_attr)
     while not env.done:
         for _ in range(sims - sum(root.N.values())):
-            _simulate(policy, env, root, edge_index, edge_attr, c_puct, bounds)
+            _simulate(policy, env, root, edge_index, edge_attr, 1.5, bounds)
         best = max(root.N, key=root.N.get)  # najposecenija akcija
         env.set_state(root.state)
         env.step(best)

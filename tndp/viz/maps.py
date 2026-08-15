@@ -1,5 +1,3 @@
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from tndp.viz import style
@@ -10,7 +8,6 @@ LINE_COLORS = ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00",
                "#a65628", "#f781bf", "#999999"]
 
 
-# nacrtaj mrezu linija na gradu: sive ulice u pozadini, cvorovi skalirani traznjom
 def draw_network(ax, city, network, title=""):
     for i, j in city.street_edges:
         ax.plot(city.coords[[i, j], 0], city.coords[[i, j], 1],
@@ -20,7 +17,7 @@ def draw_network(ax, city, network, title=""):
                s=6 + 60 * w / w.max(), color="0.4", zorder=2)
     for k, route in enumerate(network.routes):
         pts = city.coords[route]
-        off = (k - len(network.routes) / 2) * 0.03  # razmak paralelnih linija
+        off = (k - len(network.routes) / 2) * 0.03
         ax.plot(pts[:, 0] + off, pts[:, 1] + off, color=LINE_COLORS[k % 8],
                 lw=2.2, zorder=3, label=f"linija {k + 1}", solid_capstyle="round")
     ax.set_title(title, fontsize=10)
@@ -28,8 +25,7 @@ def draw_network(ax, city, network, title=""):
     ax.axis("off")
 
 
-# uporedni prikaz vise mreza na istom gradu (npr
-def compare_networks(city, named_networks, out_path, alpha=0.5):
+def compare_networks(city, named_networks, out_path):
     style.apply_style()
     fig, axes = plt.subplots(1, len(named_networks),
                              figsize=(6 * len(named_networks), 5.5))

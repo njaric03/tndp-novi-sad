@@ -35,10 +35,8 @@ MESTA = [(0, 1), (0, -1), (1, 0), (-1, 0), (0, 2), (0, -2),
          (1, 1), (-1, 1), (1, -1), (-1, -1), (0, 3), (0, -3), (2, 0), (-2, 0)]
 
 
-# Imena 32 zone na jednoj karti se sudaraju oko centra, gde su zone najmanje.
-# Mesto se bira probanjem: natpis se nacrta, izmeri mu se STVARNI okvir preko
-# renderera, i ako se sece sa vec postavljenim, brise se i proba sledece mesto.
-# Procena sirine iz broja slova ne radi, jer slova nisu iste sirine.
+# 32 imena se sudaraju oko centra. Probamo svako mesto iz MESTA, merimo stvarni
+# okvir teksta (broj slova ne radi, nisu iste sirine) i uzimamo najmanje preklapanje
 def _natpisi(ax, imena, lon, lat):
     fig = ax.figure
     fig.canvas.draw()
@@ -106,7 +104,6 @@ def _panel(ax, city, imena, lon, lat, put, gustina, net, naslov, podnaslov, boja
         ax.plot(xy[:, 0] + pom, xy[:, 1] + pom, lw=lw, color=boja, alpha=0.92,
                 zorder=4, solid_capstyle="round", solid_joinstyle="round")
 
-    # cvorovi trase, tamo gde linija stvarno staje
     u_mrezi = sorted({v for r in net.routes for v in r})
     ax.scatter(lon[u_mrezi], lat[u_mrezi], s=13 if lw < 2 else 22,
                c="#1a1a1a", zorder=5, linewidths=0.7, edgecolors="white")
@@ -152,9 +149,8 @@ def main(checkpoint=MODEL):
                 f"$C_p$ {res.C_p:.1f} min    "
                 f"$C_o$ {res.C_o:.0f} min")
 
-    # objasnjenje sta je sta ide u potpis figure u radu, ne na sliku: tekst
-    # preko cele sirine bi bio najsiri element, pa bbox_inches="tight" vise
-    # ne bi mogao da skrati praznine oko karte i karta bi u radu ispala mala
+    # legenda ide u potpis figure, ne na sliku - sirok tekst bi pokvario
+    # bbox_inches="tight" i karta bi u radu ispala mala
     style.apply_style()
 
     # Glavni rezultat studije slucaja ide sam i veliki, sa imenima zona.

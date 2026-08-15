@@ -1,14 +1,9 @@
-# Uparen test izmedju MODELA, na istim gradovima.
-#
-# Ablacione tabele porede svaku varijantu sa greedyjem, sto ne odgovara na
-# pitanje zbog kog ablacija i postoji: da li se varijanta razlikuje od OSNOVNE
-# POLITIKE. Ovde se svaki model pusta na isti skup held-out gradova i poredi
-# uparenim Wilcoxonom sa referentnim modelom, uz Holm korekciju jer se testira
-# vise varijanti odjednom.
+# Uparen test izmedju MODELA (ne model vs greedy kao u ablacijama) - da li
+# varijanta stvarno odstupa od osnovne politike. Wilcoxon + Holm za vise varijanti.
 #
 # pokretanje:
 #   python -m tndp.experiments.compare_models runs/gravity-v1/best.pt \
-#       runs/abl-betweenness/best.pt runs/abl-coreness/best.pt --cities 20
+#       runs/gravity-v1-s1/best.pt runs/abl-akm/best.pt --cities 20
 
 import argparse
 import time
@@ -18,11 +13,8 @@ import numpy as np
 
 from tndp.core.assignment import assign, cost_scales, objective
 from tndp.experiments.common import (fmt_p, held_out_cities, holm, load_policy,
-                                     paired_vs)
+                                     paired_vs, write_table)
 from tndp.rl.evaluate import decode_sampling
-
-ROOT = Path(__file__).resolve().parent.parent.parent
-RESULTS = ROOT / "results"
 
 
 # vrednost cilja po gradu, da se moze uparivati
@@ -96,9 +88,7 @@ def _report(args, cfg0, ref_v, rows):
           "i da nijedan red u tabeli ne sme da se čita kao efekat featura.", "",
           "Za tvrdnju o featuru treba više seedova po varijanti, pa poređenje",
           "raspodela umesto pojedinačnih runova.", ""]
-    RESULTS.mkdir(exist_ok=True)
-    (RESULTS / f"{args.out}.md").write_text("\n".join(r) + "\n", encoding="utf-8")
-    print(f"\n-> {RESULTS / (args.out + '.md')}")
+    write_table(f"{args.out}.md", r)
 
 
 if __name__ == "__main__":

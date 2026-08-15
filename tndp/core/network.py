@@ -14,7 +14,6 @@ def is_duplicate(route, routes):
     return canon(route) in {canon(r) for r in routes}
 
 
-# mreza linija; svaka linija je lista indeksa cvorova
 @dataclass
 class TransitNetwork:
     routes: list
@@ -24,7 +23,6 @@ class TransitNetwork:
         problems = []
         if num_routes is not None and len(self.routes) != num_routes:
             problems.append(f"broj linija {len(self.routes)}, traženo {num_routes}")
-        # linija i njen obrnuti redosled su ista linija
         keys = [canon(r) for r in self.routes if r]
         if len(set(keys)) != len(keys):
             problems.append("mreža sadrži duplirane linije")
@@ -43,7 +41,12 @@ class TransitNetwork:
                     problems.append(f"linija {ri}: ivica {a}-{b} ne postoji u uličnom grafu")
         return problems
 
-    # vreme voznje svake linije u jednom smeru
+    # isto sto i check(), ali puca; svaki eksperiment staje ako metoda vrati nevalidnu mrezu
+    def require_valid(self, city, num_routes=None, min_len=2, max_len=None):
+        problems = self.check(city, num_routes, min_len, max_len)
+        if problems:
+            raise ValueError(f"nevalidna mreža na {city.name}: {problems}")
+
     def route_times(self, city):
         return np.array([sum(city.street_time[a, b] for a, b in zip(r, r[1:]))
                          for r in self.routes])

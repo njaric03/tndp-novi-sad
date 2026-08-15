@@ -61,8 +61,6 @@ def ucitaj():
     return city, imena
 
 
-# --- postojeca GSP mreza -----------------------------------------------------
-
 # oznaka varijante -> osnovna linija: 1GL i 1J su varijante linije 1, 10APT linije 10, 18A i 18B linije 18
 def _osnovna(oznaka):
     m = re.match(r"^\d+", oznaka)

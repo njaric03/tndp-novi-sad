@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from functools import cached_property
 
 import numpy as np
 from scipy.sparse.csgraph import (connected_components, dijkstra,
@@ -13,9 +14,7 @@ class CityGraph:
     demand: np.ndarray       # (n, n), dijagonala 0
     name: str = ""
     terminal: np.ndarray = field(default=None)  # sme li linija tu da pocne/zavrsi
-    _sp: np.ndarray = field(default=None, repr=False, compare=False)
-    _mst: float = field(default=None, repr=False, compare=False)
-    _nb: list = field(default=None, repr=False, compare=False)
+    # kesevi koje puni features.py; ostalo kesira cached_property nize
     _feat: dict = field(default=None, repr=False, compare=False)
     _netfeat: dict = field(default=None, repr=False, compare=False)
     _edge: tuple = field(default=None, repr=False, compare=False)
@@ -33,33 +32,26 @@ class CityGraph:
         return np.where(np.isfinite(self.street_time), self.street_time, 0.0)
 
     # najkraca vremena ulicom za sve parove; koristi se kao donja granica putnickog troska i za naplatu nepokrivenih parova
-    @property
+    @cached_property
     def street_shortest(self):
-        if self._sp is None:
-            self._sp = dijkstra(self._street_dense(), directed=False)
-        return self._sp
+        return dijkstra(self._street_dense(), directed=False)
 
     # susedi po cvoru u ulicnom grafu; kesirano jer ih env i sve baselines traze na svakom potezu
-    @property
+    @cached_property
     def neighbors(self):
-        if self._nb is None:
-            finite = np.isfinite(self.street_time) & ~np.eye(self.n, dtype=bool)
-            self._nb = [np.flatnonzero(finite[i]) for i in range(self.n)]
-        return self._nb
+        finite = np.isfinite(self.street_time) & ~np.eye(self.n, dtype=bool)
+        return [np.flatnonzero(finite[i]) for i in range(self.n)]
 
-    # donja granica putnickog troska: prosecno ulicno vreme po putniku kad bi mreza isla svuda
     @property
     def street_shortest_mean_demand(self):
         return float((self.demand * self.street_shortest).sum() / self.demand.sum())
 
-    # ukupno vreme minimalnog razapinjuceg stabla: donja granica koliko mreze uopste treba da bi svaki cvor bio dostupan
-    @property
+    # donja granica koliko mreze uopste treba da bi svaki cvor bio dostupan
+    @cached_property
     def mst_time(self):
-        if self._mst is None:
-            self._mst = float(minimum_spanning_tree(self._street_dense()).sum())
-        return self._mst
+        return float(minimum_spanning_tree(self._street_dense()).sum())
 
-    @property
+    @cached_property
     def street_edges(self):
         # neusmerene ivice kao parovi i < j
         i, j = np.nonzero(np.isfinite(self.street_time) & ~np.eye(self.n, dtype=bool))
@@ -82,6 +74,12 @@ class CityGraph:
         if n_comp != 1:
             problems.append(f"ulični graf nije povezan ({n_comp} komponenti)")
         return problems
+
+    # isto sto i validate(), ali puca; skripte hoce da stanu na neispravnom ulazu
+    def require_valid(self):
+        problems = self.validate()
+        if problems:
+            raise ValueError(f"nevalidan grad {self.name}: {problems}")
 
     def save(self, path):
         np.savez_compressed(path, coords=self.coords, street_time=self.street_time,

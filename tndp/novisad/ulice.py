@@ -5,11 +5,9 @@ import numpy as np
 from tndp.novisad import konstante
 
 
-def ucitaj_zone(samo_studija=True):
+def ucitaj_zone():
     with open(konstante.DATA / "zone.csv", encoding="utf-8") as f:
-        redovi = [r for r in csv.DictReader(f)
-                  if not samo_studija or r["u_studiji"] == "1"]
-    return redovi
+        return [r for r in csv.DictReader(f) if r["u_studiji"] == "1"]
 
 
 # vremena voznje izmedju zona po stvarnoj ulicnoj mrezi; graf je usmeren pa jednosmerne ulice daju tau[i][j] != tau[j][i]
@@ -81,7 +79,7 @@ def susedstvo():
         w.writerow(["a", "b"])
         w.writerows(parovi)
 
-    stepen = {ime: 0 for ime in imena}
+    stepen = dict.fromkeys(imena, 0)
     for a, b in parovi:
         stepen[a] += 1
         stepen[b] += 1

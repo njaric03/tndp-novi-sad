@@ -6,12 +6,9 @@ from scipy.sparse.csgraph import dijkstra
 
 # standardni transfer penal iz literature
 TRANSFER_PENALTY_MIN = 5.0
-# nepokriven par se naplacuje kao da putnik istu razdaljinu prelazi pesice
-# 20/5 je odnos brzina, 2.0 je uobicajena tezina pesackog minuta, odatle 8
-# faktor NIJE iznad najgoreg opsluzenog para: opsluzen par ide u proseku 1.9x
-# ulicnog vremena, 95. percentil 7.0x, a maksimum do 20.9x (checks.py, provera 2)
-# 8 pokriva 98% opsluzene traznje; preostalih 2% su parovi koje se optimizatoru
-# i dalje isplati ispustiti, i to je poznato ogranicenje cilja a ne resen problem
+# nepokriven par placa kao da ide peske: 20/5 (brzina) * 2.0 (tezina peske minuta) = 8
+# nije iznad najgoreg opsluzenog para (taj ide do 20.9x), samo iznad 98% traznje - ostatak
+# se optimizatoru svejedno isplati ispustiti (checks.py, provera 2)
 BUS_SPEED_KMH, WALK_SPEED_KMH = 20.0, 5.0
 TEZINA_PESACENJA = 2.0
 UNSERVED_FACTOR = BUS_SPEED_KMH / WALK_SPEED_KMH * TEZINA_PESACENJA
@@ -45,9 +42,13 @@ def objective(result, scales, alpha=0.5):
     return alpha * result.C_p_all / cp_scale + (1 - alpha) * result.C_o / co_scale
 
 
+# isti cilj, ali od gotove mreze: presedanja se ne racunaju jer u cilj ne ulaze
+def network_objective(city, network, scales, alpha=0.5):
+    return objective(assign(city, network, compute_transfers=False), scales, alpha)
+
+
 # passenger assignment preko "route grafa": platforma = (linija, pozicija), plus zemaljski cvor po cvoru grada
-def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfers=True,
-           compute_loads=False, headways=None):
+def assign(city, network, compute_transfers=True, compute_loads=False, headways=None):
     n = city.n
     routes = network.routes
     offsets = np.cumsum([0] + [len(r) for r in routes])
@@ -55,7 +56,7 @@ def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfe
     ground = num_platforms  # zemaljski cvor grada i ima indeks ground + i
 
     # ulazak kosta ili fiksni penal iz literature ili, kad su frekvencije poznate
-    board = ([transfer_penalty] * len(routes) if headways is None
+    board = ([TRANSFER_PENALTY_MIN] * len(routes) if headways is None
              else [float(h) / 2.0 for h in headways])
 
     rows, cols, weights = [], [], []
@@ -86,7 +87,7 @@ def assign(city, network, transfer_penalty=TRANSFER_PENALTY_MIN, compute_transfe
     # sa fiksnim penalom put sa k presedanja plati (k+1) penala, pa se prvi skida, penal je tu proxy za neugodnost presedanja
     travel_time = dist[:, ground_ids]
     if headways is None:
-        travel_time = travel_time - transfer_penalty
+        travel_time = travel_time - TRANSFER_PENALTY_MIN
     np.fill_diagonal(travel_time, 0.0)
 
     demand = city.demand

@@ -2,9 +2,9 @@
 
 
 import numpy as np
+from scipy.stats import spearmanr
 
 from tndp.core import frequencies as F
-from tndp.novisad import konstante
 from tndp.novisad.instanca import gsp_mreza, ucitaj
 from tndp.novisad.kalibracija import intervali_iz_reda_voznje, opterecenja_2017
 from tndp import RESULTS
@@ -20,7 +20,7 @@ def _mere(model, stvarno):
         "medijana |greška|": float(np.median(np.abs(razlika))),
         "prosečna greška": float(np.mean(razlika)),
         "Pearson": float(np.corrcoef(model, stvarno)[0, 1]),
-        "Spearman": konstante.spearman(model, stvarno),
+        "Spearman": float(spearmanr(model, stvarno).statistic),
         "unutar 5 min": float(np.mean(np.abs(razlika) <= 5.0)),
     }
 
@@ -78,9 +78,8 @@ def main():
     _izvestaj(linije, stvarno, model, o, mere, osetljivost, praznjenje, vrh)
 
 
-# Koliko linija ostane bez ijednog putnika, u tri rezima. Uz broj ide i koliko
-# tih linija ima u brojanju iz 2017 i koliki deo prevoza one stvarno nose, jer
-# tek to kaze da li model prazni beznacajne linije ili nosive.
+# koliko linija ostane bez putnika, u tri rezima, plus koliko tih linija je
+# stvarno vazno (iz brojanja 2017) - to kaze da li model prazni beznacajne ili nosive
 def _praznjenje(city, mreza, linije, stvarno, o):
     from tndp.core.assignment import assign
     opterecenja = opterecenja_2017()

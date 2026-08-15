@@ -4,11 +4,11 @@ import argparse
 import time
 
 
-from tndp.experiments.common import (evaluate_method, fmt_p, held_out_cities,
-                                     load_policy, paired_vs, scales_for)
+from tndp.experiments.common import (evaluate_method, held_out_cities,
+                                     load_policy, paired_cells, scales_for,
+                                     write_table)
 from tndp.rl.evaluate import decode, decode_sampling
 from tndp.rl.mcts import mcts_decode
-from tndp import RESULTS
 
 
 def main():
@@ -50,19 +50,13 @@ def main():
              "| dekoder | cilj | Δ vs greedy | p | C_p_all | C_o | d_un | s/grad |",
              "|---|---|---|---|---|---|---|---|"]
     for name, s in stats.items():
-        if name == ref:
-            delta, p = "-", "-"
-        else:
-            d, se, pv = paired_vs(s["cilj"], stats[ref]["cilj"])
-            delta, p = f"{d:+.3f} ± {se:.3f}", fmt_p(pv)
+        delta, p = paired_cells(s["cilj"], stats[ref]["cilj"], name == ref)
         lines.append(f"| {name} | {s['cilj'].mean():.3f} ± {s['cilj'].std(ddof=1):.3f} "
                      f"| {delta} | {p} | {s['C_p_all'].mean():.2f} "
                      f"| {s['C_o'].mean():.0f} | {s['d_un'].mean():.3f} "
                      f"| {times[name]:.2f} |")
 
-    out = RESULTS / "bench-decoders.md"
-    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"snimljeno u {out}")
+    write_table("bench-decoders.md", lines)
 
 
 if __name__ == "__main__":

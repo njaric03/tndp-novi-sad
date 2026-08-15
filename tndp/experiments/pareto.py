@@ -5,7 +5,7 @@ import argparse
 from tndp.baselines.greedy import greedy_network
 from tndp.baselines.hill_climb import hill_climb
 from tndp.experiments.common import (evaluate_method, held_out_cities,
-                                     load_policy, scales_for)
+                                     load_policy, scales_for, write_table)
 from tndp.rl.evaluate import decode_sampling
 from tndp.viz import paper
 from tndp import RESULTS
@@ -47,10 +47,9 @@ def main():
               "Ista trenirana politika je puštena na svaku vrednost alpha "
               "(alpha je feature čvora i uzorkuje se tokom treninga);",
               "baselines se za svaku tačku pokreću iznova.", ""]
-    (RESULTS / "pareto.md").write_text("\n".join(header + rows) + "\n", encoding="utf-8")
+    write_table("pareto.md", header + rows)
     # sliku crta viz.paper iz ove iste tabele, da se figura u radu i tabela
     # ne mogu razici
-    print(f"snimljeno u {RESULTS / 'pareto.md'}")
     print("->", *paper.pareto(RESULTS / "slika-pareto"))
 
 

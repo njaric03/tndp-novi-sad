@@ -81,21 +81,21 @@ def granice(imena):
 
 
 # nacrtaj podlogu na osu; vraca granice prikaza
-def nacrtaj(ax, imena, ulice_alpha=0.7, vrednosti=None, cmap="Blues"):
+def nacrtaj(ax, imena, vrednosti=None):
     from matplotlib.collections import LineCollection
 
     obicne, glavne = ulice()
     ax.add_collection(LineCollection(obicne, linewidths=0.35, colors="#c8c8c8",
-                                     alpha=ulice_alpha, zorder=0))
+                                     alpha=0.7, zorder=0))
     ax.add_collection(LineCollection(glavne, linewidths=1.1, colors="#9a9a9a",
-                                     alpha=min(1.0, ulice_alpha + 0.25), zorder=0))
+                                     alpha=0.95, zorder=0))
     # zona se boji svojom vrednoscu; traznja je svojstvo zone, ne tacke u njoj
     po_zoni = granice_po_zoni(tuple(imena))
     if vrednosti is not None:
         from matplotlib import colormaps
         from matplotlib.colors import Normalize
         norm = Normalize(vmin=float(np.min(vrednosti)), vmax=float(np.max(vrednosti)))
-        boja = colormaps[cmap]
+        boja = colormaps["Blues"]
         for ime, v in zip(imena, vrednosti):
             for pr in po_zoni.get(ime, []):
                 ax.fill(pr[:, 0], pr[:, 1], color=boja(0.12 + 0.62 * norm(v)),

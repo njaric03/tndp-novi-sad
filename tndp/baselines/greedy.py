@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.sparse.csgraph import dijkstra
 
-from tndp.baselines.common import is_duplicate, network_objective
-from tndp.core.assignment import cost_scales
+from tndp.baselines.routes import is_duplicate
+from tndp.core.assignment import cost_scales, network_objective
 from tndp.core.network import TransitNetwork
 
 
@@ -36,7 +36,6 @@ def shortest_path_candidates(city, min_len, max_len):
     return candidates
 
 
-# u svakoj iteraciji dodaj kandidata koji najvise popravlja skalarni cilj
 def greedy_network(city, num_routes, min_len, max_len, alpha=0.5, evals=None):
     scales = cost_scales(city)
     candidates = shortest_path_candidates(city, min_len, max_len)

@@ -1,6 +1,7 @@
 import csv
 
 import numpy as np
+from scipy.stats import spearmanr
 
 from tndp.novisad import konstante
 from tndp.novisad.ulice import ucitaj_zone
@@ -105,7 +106,7 @@ def main():
 
     _, alt = izgradi(mera="tau")
     print(f"Spearman euklidsko rastojanje vs vreme vožnje: "
-          f"{konstante.spearman(traznja[gore], alt[gore]):+.3f}")
+          f"{float(spearmanr(traznja[gore], alt[gore]).statistic):+.3f}")
 
     print("\nosetljivost na beta (prosek je ponderisan tražnjom):")
     print(f"{'beta':>5s} {'prosečna dužina':>16s} {'udeo < 2 km':>12s} {'udeo > 5 km':>12s}")

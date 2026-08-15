@@ -10,11 +10,8 @@ from tndp.novisad import konstante
 PAUZA = 0.2  # sekundi izmedju zahteva, da se sajt ne gnjavi
 
 
-# Neki od izvora povremeno serviraju nepotpun lanac sertifikata. To se resava
-# tako sto se lanac popravi (certifi/REQUESTS_CA_BUNDLE), ne tako sto se
-# provera ugasi: bez nje svaki posrednik na putu moze da podmetne podatke iz
-# kojih se posle racuna cela studija. Gasenje ostaje moguce, ali samo svesno,
-# preko TNDP_INSECURE=1, i uz glasno upozorenje u izlazu.
+# neki izvori povremeno imaju nepotpun sertifikatski lanac - popravlja se (certifi),
+# ne gasi provera. gasenje ostaje moguce preko TNDP_INSECURE=1, svesno i uz upozorenje
 def _sesija():
     s = requests.Session()
     s.headers["User-Agent"] = "tndp-seminarski/0.1 (akademska upotreba)"
@@ -50,7 +47,6 @@ def _json_iz_html(tekst):
     return []
 
 
-# katalog linija sa stranice mreze: numericki id, kategorija, relacija, oznaka
 def linije_sa_mreze(html):
     pat = re.compile(
         r'id="(\d+)"[^>]*class="button-linija (grad|prigrad|medjumesni) ablin\d+"'
@@ -187,7 +183,6 @@ def preuzmi_ulice():
           f"{put.stat().st_size // 1024} KB")
 
 
-# sadrzaji za stranu privlacnosti gravitacionog modela
 def preuzmi_sadrzaje():
     import osmnx as ox
 
@@ -197,7 +192,7 @@ def preuzmi_sadrzaje():
     if put.exists():
         print(f"  {put.name} već postoji, preskačem")
         return
-    g = ox.features_from_bbox(konstante.BBOX_ULICE, {t: True for t in konstante.POI_TAGOVI})
+    g = ox.features_from_bbox(konstante.BBOX_ULICE, dict.fromkeys(konstante.POI_TAGOVI, True))
     g = g.copy()
     g["geometry"] = g.geometry.representative_point()  # poligoni -> tacke
     kolone = ["geometry"] + [t for t in konstante.POI_TAGOVI if t in g.columns]

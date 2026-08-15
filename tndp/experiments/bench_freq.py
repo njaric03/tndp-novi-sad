@@ -11,9 +11,9 @@ from tndp.baselines.random_search import random_search
 from tndp.core import frequencies as F
 from tndp.core.assignment import assign, cost_scales, objective
 from tndp.core.io import load_benchmark_city
-from tndp.experiments.common import load_policy
+from tndp.experiments.common import load_policy, write_table
 from tndp.rl.evaluate import decode, decode_sampling
-from tndp import BENCHMARKS, RESULTS
+from tndp import BENCHMARKS
 
 
 # (putanja, R, min_len, max_len, pretpostavljen dnevni broj putovanja)
@@ -109,9 +109,7 @@ def main():
         lines.append(f"| putovanja dnevno | {trips:,} | {o['flota']:.0f} | "
                      f"{o['cekanje']:.2f} | {np.median(o['h']):.1f} |".replace(",", "."))
 
-    out = RESULTS / "bench-freq.md"
-    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"\nsnimljeno u {out}")
+    write_table("bench-freq.md", lines)
 
 
 if __name__ == "__main__":

@@ -9,9 +9,9 @@ from tndp.baselines.hill_climb import hill_climb
 from tndp.baselines.random_search import random_search
 from tndp.core.assignment import assign, cost_scales, objective
 from tndp.core.io import load_benchmark_city
-from tndp.experiments.common import load_policy
+from tndp.experiments.common import load_policy, write_table
 from tndp.rl.evaluate import decode, decode_sampling
-from tndp import BENCHMARKS, RESULTS
+from tndp import BENCHMARKS
 
 
 # standardni parametri instanci (Mumford 2013, tabela u data/benchmarks/Mumford)
@@ -49,7 +49,7 @@ def main():
     for key in args.instances:
         rel, R, lo, hi = INSTANCES[key]
         city = load_benchmark_city(BENCHMARKS / rel)
-        assert city.validate() == [], city.validate()
+        city.require_valid()
         scales = cost_scales(city)
 
         methods = {
@@ -78,9 +78,7 @@ def main():
             lines.append(row)
             print("  " + row)
 
-    out = RESULTS / f"{args.out}.md"
-    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"\nsnimljeno u {out}")
+    write_table(f"{args.out}.md", lines)
 
 
 if __name__ == "__main__":

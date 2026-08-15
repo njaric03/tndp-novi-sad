@@ -41,12 +41,12 @@ def _ucitaj_stajalista():
         return list(csv.DictReader(f))
 
 
-# stajalista kroz koja prolazi bar jedna linija trazenog tipa
-def _stajalista_tipa(tip=TIP_LINIJE):
+# stajalista kroz koja prolazi bar jedna gradska linija
+def _stajalista_tipa():
     with open(konstante.DATA / "linije.csv", encoding="utf-8") as f:
         na_rutama = set()
         for r in csv.DictReader(f):
-            if r["tip"] == tip:
+            if r["tip"] == TIP_LINIJE:
                 na_rutama |= set(r["ruta"].split(";"))
     return na_rutama
 

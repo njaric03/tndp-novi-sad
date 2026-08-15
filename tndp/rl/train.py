@@ -14,7 +14,7 @@ from tndp.rl.env import TndpEnv
 from tndp.rl.evaluate import decode, decode_sampling, rollout
 from tndp.rl.features import edge_tensors, node_features
 from tndp.rl.model import TndpPolicy
-from tndp.synth import generate_city
+from tndp.core.synth import generate_city
 
 DEFAULTS = dict(
     name="bez-imena", iters=200, batch=8, lr=1e-4, entropy_coef=0.01,
@@ -31,15 +31,9 @@ DEFAULTS = dict(
     standardize_adv=True,
     # skup ulaznih featura; "v2" dodaje prolaznost, koreness i bliskost i popravlja skaliranje stepena (vidi tndp/rl/model.py)
     features="v1",
-    # koliko uzoraka koristi validacija. 1 je argmax, sto je i bilo ponasanje do
-    # sada i zato ostaje podrazumevano: svi objavljeni modeli su tako birani.
-    # Rezultati se izvestavaju pod uzorkovanjem 32, pa argmax meri drugu stvar.
-    # Mereno na tri semena gravity-v1, poredak modela je isti kod oba dekodera
-    # (Spearman +1.0), ali je nivo pomeren: argmax daje 2.237 tamo gde
-    # uzorkovanje 32 daje 1.877, dok val_samples=8 daje 1.889.
-    # Dakle argmax dobro RANGIRA, ali lose PROCENJUJE. Za izbor najbolje
-    # iteracije unutar runa to je verovatno svejedno; za poredjenje sa
-    # objavljenim brojevima nije.
+    # koliko uzoraka za validaciju; 1 = argmax, tako su birani svi dosadasnji modeli.
+    # argmax dobro rangira modele ali ih potcenjuje (2.24 vs 1.88 pod uzorkovanjem 32),
+    # pa je OK za izbor iteracije unutar runa, ne za poredjenje sa objavljenim brojevima
     val_samples=1,
 )
 
@@ -79,7 +73,6 @@ def main():
     gen = torch.Generator().manual_seed(cfg["seed"])
     start_iter, best_val, t_offset = 1, -np.inf, 0.0
 
-    # topao start: tezine gotovog treninga kao pocetna tacka
     if args.init:
         src = torch.load(args.init, map_location="cpu", weights_only=False)
         # skup featura mora da se poklopi, inace bi se tezine ulaznog sloja prenele na feature koji vise ne znace isto
@@ -91,7 +84,6 @@ def main():
         print(f"topao start iz {args.init}: iteracija {src['iter']}, "
               f"vs random {src['val_score']:.3f}")
 
-    # nastavak prekinutog treninga
     if args.resume:
         ck = torch.load(out / "policy.pt", map_location="cpu", weights_only=False)
         policy.load_state_dict(ck["state_dict"])
@@ -112,7 +104,6 @@ def main():
                             cfg["max_len"], a) for c in val_cities]
                 for a in val_alphas}
 
-    # random baseline na istim gradovima, po tacki fronta
     rand_reward = {}
     for a in val_alphas:
         rr = []
@@ -137,7 +128,6 @@ def main():
         opt.zero_grad()
         for _ in range(cfg["batch"]):
             city = pool[int(rng.integers(len(pool)))]
-            # svaka epizoda dobija svoj alpha, pa jedna politika pokriva ceo Pareto front
             alpha = (cfg["alpha_fixed"] if cfg["alpha_fixed"] is not None
                      else float(rng.uniform(0.0, 1.0)))
             env = TndpEnv(city, cfg["num_routes"], cfg["min_len"],
@@ -155,7 +145,6 @@ def main():
                 adv = reward - greedy_r
                 vloss = torch.zeros(())
             else:
-                # value glava predvidja nagradu iz pocetnog stanja
                 env.reset()
                 h0 = policy.encode(node_features(env, policy.features), *edge_tensors(city))
                 value = policy.state_value(h0)

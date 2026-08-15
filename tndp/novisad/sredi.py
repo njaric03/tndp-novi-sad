@@ -88,18 +88,18 @@ def linije(koord):
     ns = _ucitaj("nsmart.json")
     redovi = []
     pokriveno = set()
-    for l in ns["lines"]:
-        ids = [int(x) for x in l["all_stations"] if int(x) in koord]
+    for linija in ns["lines"]:
+        ids = [int(x) for x in linija["all_stations"] if int(x) in koord]
         if len(ids) < MIN_STAJALISTA:
             continue
         pokriveno |= set(ids)
         delovi = [d for d in _segmenti(ids, koord) if len(d) >= MIN_STAJALISTA]
         for k, ruta in enumerate(delovi):
-            duzina = sum(metara(koord[ruta[i]], koord[ruta[i + 1]])
-                         for i in range(len(ruta) - 1)) / 1000.0
-            redovi.append([l["line_number_for_display"], k,
-                           TIPOVI.get(l["line_type"], "?"), l["line_title"],
-                           l["direction_id_for_display"], len(ruta), f"{duzina:.2f}",
+            duzina = sum(metara(koord[x], koord[y])
+                         for x, y in zip(ruta, ruta[1:])) / 1000.0
+            redovi.append([linija["line_number_for_display"], k,
+                           TIPOVI.get(linija["line_type"], "?"), linija["line_title"],
+                           linija["direction_id_for_display"], len(ruta), f"{duzina:.2f}",
                            len(delovi), ";".join(str(x) for x in ruta)])
     redovi.sort(key=lambda r: (r[2], len(r[0]), r[0], r[1]))
     _upisi_csv("linije.csv",

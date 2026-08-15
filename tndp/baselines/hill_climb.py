@@ -2,10 +2,9 @@ import time
 
 import numpy as np
 
-from tndp.baselines.common import (is_duplicate, network_objective,
-                                   random_route)
+from tndp.baselines.routes import is_duplicate, random_route
 from tndp.baselines.greedy import greedy_network
-from tndp.core.assignment import cost_scales
+from tndp.core.assignment import cost_scales, network_objective
 from tndp.core.network import TransitNetwork
 
 # Lokalna pretraga nad kompletnim mrezama: ono sto u literaturi radi metaheuristika (Mumford 2013 SA, Nikolic 2013 BCO
@@ -51,10 +50,8 @@ def _mutate(routes, city, rng, min_len, max_len):
     return out
 
 
-# hill climbing sa restartima
 def hill_climb(city, num_routes, min_len, max_len, alpha=0.5, seed=0,
-               max_evals=3000, max_seconds=None, init="greedy",
-               patience=300, trace=None):
+               max_evals=3000, init="greedy", trace=None):
     rng = np.random.default_rng(seed)
     scales = cost_scales(city)
     t0 = time.perf_counter()
@@ -97,8 +94,6 @@ def hill_climb(city, num_routes, min_len, max_len, alpha=0.5, seed=0,
 
     stale = 0
     while evals < max_evals:
-        if max_seconds is not None and time.perf_counter() - t0 >= max_seconds:
-            break
         cand = _mutate(cur, city, rng, min_len, max_len)
         if cand is None:
             continue
@@ -111,7 +106,7 @@ def hill_climb(city, num_routes, min_len, max_len, alpha=0.5, seed=0,
                     trace.append((evals, time.perf_counter() - t0, best_obj))
         else:
             stale += 1
-            if stale >= patience:  # zaglavljeno u lokalnom minimumu, restart
+            if stale >= 300:  # zaglavljeno u lokalnom minimumu, restart
                 cur = fresh()
                 cur_obj, stale = score(cur), 0
 

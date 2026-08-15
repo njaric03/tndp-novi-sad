@@ -74,14 +74,13 @@ def generate_city(n=None, seed=0, demand_mode="gravity", n_range=(20, 60),
     return city
 
 
-# brz vizuelni pregled: python -m tndp.synth
+# brz vizuelni pregled: python -m tndp.core.synth
 if __name__ == "__main__":
     import time
-    from pathlib import Path
 
-    import matplotlib
-    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
+    from tndp import RESULTS
 
     style.apply_style()
     fig, axes = plt.subplots(2, 5, figsize=(18, 7))
@@ -100,7 +99,7 @@ if __name__ == "__main__":
     dt = time.perf_counter() - t0
     print(f"10 gradova za {dt:.2f} s")
 
-    out = Path(__file__).parent.parent / "results" / "synth-preview.png"
+    out = RESULTS / "synth-preview.png"
     fig.tight_layout()
     fig.savefig(out, dpi=120)
     print(f"snimljeno u {out}")

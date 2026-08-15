@@ -9,7 +9,7 @@ from tndp.baselines.greedy import greedy_network
 from tndp.baselines.hill_climb import hill_climb
 from tndp.core.assignment import assign, objective
 from tndp.experiments.common import (fmt_p, held_out_cities, load_policy,
-                                     paired_vs, scales_for)
+                                     paired_vs, scales_for, write_table)
 from tndp.rl.evaluate import decode_sampling
 from tndp.viz.style import color_for, save
 from tndp import RESULTS
@@ -64,7 +64,7 @@ def main():
         rl_net, _ = decode_sampling(policy, city, R, k=k, min_len=lo,
                                     max_len=hi, alpha=a)
         rl_secs = time.perf_counter() - t0
-        assert rl_net.check(city, R, lo, hi) == [], rl_net.check(city, R, lo, hi)
+        rl_net.require_valid(city, R, lo, hi)
         rl_obj = objective(assign(city, rl_net, compute_transfers=False), sc, a)
         objs[f"RL sampling {k} (bez penjanja)"].append(rl_obj)
         secs[f"RL sampling {k} (bez penjanja)"].append(rl_secs)
@@ -83,7 +83,7 @@ def main():
                                   max_evals=max(1, args.evals - spent),
                                   init=init, trace=trace)
             dt = time.perf_counter() - t0 + extra_secs
-            assert net.check(city, R, lo, hi) == [], net.check(city, R, lo, hi)
+            net.require_valid(city, R, lo, hi)
             objs[name].append(obj)
             secs[name].append(dt)
             curves[name].append(on_grid(trace, offset=spent))
@@ -113,8 +113,7 @@ def main():
                      f"{delta} | {'-' if name == ref else fmt_p(p)} | "
                      f"{np.mean(secs[name]):.2f} |")
 
-    RESULTS.mkdir(exist_ok=True)
-    (RESULTS / "hybrid.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_table("hybrid.md", lines)
     print("\n" + "\n".join(lines))
 
     import matplotlib.pyplot as plt

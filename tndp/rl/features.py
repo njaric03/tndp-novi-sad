@@ -6,7 +6,6 @@ from scipy.sparse.csgraph import dijkstra
 from scipy.stats import norm, rankdata
 
 
-# Rang -> priblizno N(0,1)
 def rank_normal(v):
     return norm.ppf(rankdata(v) / (len(v) + 1.0))
 
@@ -18,7 +17,6 @@ ALIASES = {"v1": (), "v2": ALL_FEATURES}
 BASE_COUNT = 13
 
 
-# lista dodataka u kanonskom redosledu, iz stringa ili iz liste
 def spec(features):
     if isinstance(features, str):
         features = ALIASES[features]
@@ -109,7 +107,6 @@ def _static_node_features(city, extras):
     return city._feat[key]
 
 
-# feature vektor po cvoru za trenutno stanje epizode
 def node_features(env, features="v1"):
     city = env.city
     n = city.n
@@ -138,7 +135,6 @@ def node_features(env, features="v1"):
     return torch.tensor(x, dtype=torch.float32)
 
 
-# ulicne ivice u oba smera + tau i demand para kao edge feature
 def edge_tensors(city):
     if city._edge is None:
         e = city.street_edges

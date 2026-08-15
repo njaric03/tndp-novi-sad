@@ -3,17 +3,11 @@
 # pokazuju iste brojeve, a jedini nacin da to bude sigurno je jedan izvor.
 # pokretanje: python -m tndp.viz.paper
 
-from pathlib import Path
-
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
 from tndp.viz import style
-
-ROOT = Path(__file__).resolve().parent.parent.parent
-RESULTS = ROOT / "results"
+from tndp import RESULTS
 
 
 # markdown tabela iz results/*.md u listu recnika; prazna ako fajl nema tabelu

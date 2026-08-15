@@ -9,7 +9,8 @@ from tndp.baselines.greedy import greedy_network
 from tndp.baselines.hill_climb import hill_climb
 from tndp.baselines.random_search import random_search
 from tndp.core.assignment import assign, objective
-from tndp.experiments.common import held_out_cities, load_policy, scales_for
+from tndp.experiments.common import (held_out_cities, load_policy, scales_for,
+                                     write_table)
 from tndp.rl.evaluate import decode, decode_sampling
 from tndp.rl.mcts import mcts_decode
 from tndp.viz import paper
@@ -25,7 +26,7 @@ def run(solve, cities, scales, R, lo, hi, a):
     objs, t0 = [], time.perf_counter()
     for c, sc in zip(cities, scales):
         net = solve(c)
-        assert net.check(c, R, lo, hi) == [], net.check(c, R, lo, hi)
+        net.require_valid(c, R, lo, hi)
         objs.append(objective(assign(c, net, compute_transfers=False), sc, a))
     return (time.perf_counter() - t0) / len(cities), float(np.mean(objs))
 
@@ -70,12 +71,11 @@ def main():
         rows.append(f"| {name} | 1 | {dt:.3f} | {obj:.3f} |")
         print(rows[-1])
 
-    (RESULTS / "anytime.md").write_text(
-        "\n".join([f"# Anytime poređenje ({args.cities} gradova, alpha={a}, "
-                   f"model {args.checkpoint})", ""] + rows) + "\n", encoding="utf-8")
+    write_table("anytime.md",
+                [f"# Anytime poređenje ({args.cities} gradova, alpha={a}, "
+                 f"model {args.checkpoint})", ""] + rows)
     # sliku crta viz.paper iz ove iste tabele, da se figura u radu i tabela
     # ne mogu razici
-    print(f"snimljeno u {RESULTS / 'anytime.md'}")
     print("->", *paper.budget(RESULTS / "slika-budzet"))
 
 

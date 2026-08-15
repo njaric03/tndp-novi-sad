@@ -30,7 +30,6 @@ def rollout(policy, env, sample=True, gen=None):
             torch.stack(log_probs).sum(), torch.stack(entropies).mean())
 
 
-# greedy dekodiranje politike na zadatom gradu
 @torch.no_grad()
 def decode(policy, city, num_routes, min_len=2, max_len=8, alpha=0.5):
     env = TndpEnv(city, num_routes, min_len, max_len, alpha)

@@ -7,10 +7,11 @@ import tndp.core.assignment as A
 from tndp.baselines.greedy import greedy_network
 from tndp.baselines.hill_climb import hill_climb
 from tndp.baselines.random_search import random_search
-from tndp.core.assignment import assign, cost_scales, objective
+from tndp.core.assignment import (assign, cost_scales, network_objective,
+                                  objective)
 from tndp.core.io import load_benchmark_city
 from tndp.core.network import TransitNetwork
-from tndp.synth import generate_city
+from tndp.core.synth import generate_city
 from tndp import BENCHMARKS
 
 SEED_BASE, NUM_CITIES = 20_000, 12
@@ -123,29 +124,33 @@ def check_alpha_sweep(cs):
 def check_invariants(cs):
     hdr("4. invarijante")
     for c in cs:
-        assert c.validate() == [], (c.name, c.validate())
-        assert np.isfinite(cost_scales(c)).all(), c.name
+        c.require_valid()
+        if not np.isfinite(cost_scales(c)).all():
+            raise ValueError(f"beskonačna skala na {c.name}")
     print(f"  svi gradovi povezani, sve skale konačne ({len(cs)} gradova)")
     print("  (generator je ranije davao ~1% nepovezanih gradova, a nepovezan")
     print("   grad daje cp_scale=inf pa je stari cilj tiho gasio putnički član)")
 
     for res in greedy_results(cs[:6]):
         s = sum(res.d[k] for k in ("d_0", "d_1", "d_2", "d_3p", "d_un"))
-        assert abs(s - 1) < 1e-9, s
+        if abs(s - 1) >= 1e-9:
+            raise ValueError(f"udeli demanda se sabiraju na {s}, ne na 1")
     print("  udeli demanda po broju presedanja se sabiraju na 1")
 
     c = cs[0]
     nb = int(c.neighbors[0][0])
-    assert any("duplirane" in p for p in
-               TransitNetwork([[0, nb]] * R).check(c, R, MIN_LEN, MAX_LEN))
+    duplikat = TransitNetwork([[0, nb]] * R).check(c, R, MIN_LEN, MAX_LEN)
+    if not any("duplirane" in p for p in duplikat):
+        raise ValueError(f"check() ne prijavljuje duplikate: {duplikat}")
     print("  duplirane linije se odbijaju u check()")
 
     # baselines i RL sada optimizuju isti skalar
-    from tndp.baselines.common import network_objective
     net = greedy_network(c, R, MIN_LEN, MAX_LEN, alpha=ALPHA)[0]
     sc = cost_scales(c)
-    assert np.isclose(network_objective(c, net, sc, ALPHA),
-                      objective(assign(c, net, compute_transfers=False), sc, ALPHA))
+    baseline = network_objective(c, net, sc, ALPHA)
+    rl = objective(assign(c, net, compute_transfers=False), sc, ALPHA)
+    if not np.isclose(baseline, rl):
+        raise ValueError(f"baseline cilj {baseline} != RL cilj {rl}")
     print("  baseline cilj == RL cilj (isti skalar, ne leksikografski)")
 
 
@@ -198,7 +203,7 @@ def check_input_scale():
 
 def check_reward_variance(cs):
     hdr("7. dekompozicija varijanse nagrade (koliko value(s0) uopšte može)")
-    from tndp.baselines.common import random_route
+    from tndp.baselines.routes import random_route
     rows = []
     for c in cs[:8]:
         sc, rng, o = cost_scales(c), np.random.default_rng(0), []

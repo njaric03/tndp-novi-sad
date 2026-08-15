@@ -46,7 +46,7 @@ def main():
     args = ap.parse_args()
 
     city, imena = ucitaj()
-    assert city.validate() == [], city.validate()
+    city.require_valid()
     gsp, dnevnik = gsp_mreza(city, imena)
     R = len(gsp.routes)
     duz = [len(r) for r in gsp.routes]

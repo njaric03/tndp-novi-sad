@@ -8,13 +8,13 @@ from tndp.rl.env import HALT
 from tndp.rl.features import num_features, spec
 
 class TndpPolicy(nn.Module):
-    def __init__(self, hidden=64, layers=3, heads=4, features="v1"):
+    def __init__(self, hidden=64, layers=3, features="v1"):
         super().__init__()
         # verzija stoji na modelu da je node_features cita sa politike, umesto da se prosledjuje
         self.features = spec(features)
         self.embed = nn.Linear(num_features(features), hidden)
         self.convs = nn.ModuleList([
-            GATv2Conv(hidden, hidden // heads, heads=heads, edge_dim=2)
+            GATv2Conv(hidden, hidden // 4, heads=4, edge_dim=2)
             for _ in range(layers)])
         # ulaz: [embedding cvora, globalni kontekst, embedding kraja na koji se kaci]
         self.node_score = nn.Sequential(

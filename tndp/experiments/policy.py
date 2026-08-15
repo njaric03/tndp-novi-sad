@@ -3,11 +3,10 @@
 import argparse
 from pathlib import Path
 
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from scipy.stats import spearmanr
 
 from tndp.core.network import TransitNetwork
 from tndp.rl.env import HALT, TndpEnv
@@ -43,7 +42,7 @@ def step_probs(policy, env, edge_index, edge_attr):
     return p[:2 * n].reshape(2, n).sum(0), halt, decision
 
 
-def heatmap(policy, city, cfg, alpha, out, panels=2):
+def heatmap(policy, city, cfg, alpha, out):
     env = TndpEnv(city, cfg["num_routes"], cfg["min_len"], cfg["max_len"], alpha)
     edge_index, edge_attr = edge_tensors(city)
     env.reset()
@@ -58,17 +57,15 @@ def heatmap(policy, city, cfg, alpha, out, panels=2):
         a = int(logits.argmax())
         env.step(-1 if (decision == HALT and a == len(logits) - 1) else a)
 
-    # stanja u kojima je politika vec odlucila da zavrsi liniju se izbacuju:
-    # tamo je sva verovatnoca na potezu "kraj", pa mapa po cvorovima nema sta
-    # da pokaze i panel samo trosi prostor
+    # stanja gde je politika vec odlucila da stane se izbacuju - nemaju sta da
+    # pokazu na mapi po cvorovima
     usable = [i for i, s in enumerate(snaps) if s[2] < 0.99]
-    pick = np.unique(np.linspace(0, len(usable) - 1, panels).astype(int))
+    pick = np.unique(np.linspace(0, len(usable) - 1, 2).astype(int))
     pick = [usable[k] for k in pick]
-    # jedna skala boje za sve panele, inace se paneli ne mogu porediti
+    # jedna skala boje za sve panele da se mogu porediti
     vmax = max(snaps[si][1].max() for si in pick)
-    # velicina cvora je ukupna traznja koja u njemu nastaje ili se zavrsava.
-    # Bez nje se sa slike ne vidi ono sto je jedino zanimljivo: da li politika
-    # bira cvorove sa traznjom ili samo geometrijski zgodne cvorove.
+    # velicina cvora = traznja u njemu - bez toga se ne vidi da li politika
+    # prati traznju ili samo geometriju
     mass = city.demand.sum(0) + city.demand.sum(1)
     size = 55 + 240 * (mass - mass.min()) / max(mass.max() - mass.min(), 1e-9)
 
@@ -111,7 +108,6 @@ def heatmap(policy, city, cfg, alpha, out, panels=2):
 # napisati u radu. Poredi se sa stepenom cvora da se vidi da nije rec o tome da
 # politika samo bira dobro povezane cvorove.
 def first_move_correlation(policy, cfg, alpha, cities, out):
-    from scipy.stats import spearmanr
 
     r_demand, r_degree = [], []
     for city in cities:

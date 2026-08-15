@@ -1,18 +1,11 @@
+# gradnja i provera pojedinacnih linija: ono sto je svim baselinima zajednicko
 import numpy as np
 
-from tndp.core.assignment import assign, objective
 from tndp.core.network import is_duplicate
 
 # is_duplicate se ovde samo prosledjuje dalje, da baselines imaju jedno mesto
 # odakle uzimaju sve sto im treba; __all__ to cini namerom umesto slucajem
-__all__ = ["is_duplicate", "network_objective", "terminal_nodes",
-           "trim_to_terminals", "random_route"]
-
-
-# tacno ista skalarna funkcija cilja koju RL trenira i po kojoj se izvestava
-def network_objective(city, network, scales, alpha=0.5):
-    res = assign(city, network, compute_transfers=False)
-    return objective(res, scales, alpha)
+__all__ = ["is_duplicate", "terminal_nodes", "trim_to_terminals", "random_route"]
 
 
 # cvorovi na kojima linija sme da pocne ili se zavrsi (Mandl instance nose tu masku; kod sintetike su svi cvorovi
@@ -20,7 +13,6 @@ def terminal_nodes(city):
     return np.flatnonzero(city.terminal)
 
 
-# oba kraja linije moraju biti dozvoljeni terminali
 def trim_to_terminals(route, city, min_len):
     while len(route) > min_len and not city.terminal[route[0]]:
         route = route[1:]
@@ -32,11 +24,11 @@ def trim_to_terminals(route, city, min_len):
 
 
 # slucajna prosta putanja u ulicnom grafu: slucajan dozvoljen start pa nasumicno prosirivanje sa oba kraja do ciljne
-def random_route(city, rng, min_len, max_len, max_tries=50):
+def random_route(city, rng, min_len, max_len):
     neighbors = city.neighbors
     starts = terminal_nodes(city)
 
-    for _ in range(max_tries):
+    for _ in range(50):
         target = int(rng.integers(min_len, max_len + 1))
         route = [int(starts[rng.integers(len(starts))])]
         while len(route) < target:
