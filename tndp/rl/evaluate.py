@@ -7,7 +7,9 @@ from tndp.rl.features import edge_tensors, node_features
 
 
 # odigraj epizodu politikom; sample=True vuce iz distribucije (trening), sample=False uzima argmax (greedy dekodiranje)
-def rollout(policy, env, sample=True, gen=None):
+# temp deli logite samo pri uzorkovanju: <1 izostrava, >1 siri. log_prob i entropija ostaju na
+# NEDIRNUTOJ raspodeli, inace bi trening menjao ono sto optimizuje kad neko dira dekoder
+def rollout(policy, env, sample=True, gen=None, temp=1.0):
     edge_index, edge_attr = edge_tensors(env.city)
     log_probs, entropies = [], []
     env.reset()
@@ -17,7 +19,9 @@ def rollout(policy, env, sample=True, gen=None):
         logits = policy.action_logits(h, decision, mask, env.ends)
         dist = torch.distributions.Categorical(logits=logits)
         if sample:
-            a = torch.multinomial(dist.probs, 1, generator=gen).squeeze(0)
+            probs = (dist.probs if temp == 1.0
+                     else torch.softmax(logits / temp, dim=-1))
+            a = torch.multinomial(probs, 1, generator=gen).squeeze(0)
         else:
             a = logits.argmax()
         log_probs.append(dist.log_prob(a))
@@ -40,13 +44,14 @@ def decode(policy, city, num_routes, min_len=2, max_len=8, alpha=0.5):
 # najbolja od k sampled epizoda (jeftino poboljsanje, Kool et al
 @torch.no_grad()
 def decode_sampling(policy, city, num_routes, k=32, min_len=2, max_len=8,
-                    alpha=0.5, seed=0):
+                    alpha=0.5, seed=0, temp=1.0):
     gen = torch.Generator().manual_seed(seed)
     env = TndpEnv(city, num_routes, min_len, max_len, alpha)
     best_net, best_res, best_r = None, None, -np.inf
     any_net, any_res, any_r = None, None, -np.inf  # i ako nijedna nije validna
     for _ in range(k):
-        net, reward, res, _, _ = rollout(policy, env, sample=True, gen=gen)
+        net, reward, res, _, _ = rollout(policy, env, sample=True, gen=gen,
+                                         temp=temp)
         if reward > any_r:
             any_net, any_res, any_r = net, res, reward
         # maskiranje ne garantuje validnost van distribucije treninga (na Mumfordu je min_len=10 pa se linija ume zaglaviti
