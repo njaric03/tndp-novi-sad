@@ -11,3 +11,6 @@ demand_mode: gravity
 eval_every: 100
 eval_cities: 16
 alpha_eval: 0.5
+# pinovano: tabele pod ovim imenom su pravljene sa lr 1e-4, pre nego sto je
+# default podignut na 1e-3. bez ovoga bi im se znacenje tiho promenilo.
+lr: 0.0001

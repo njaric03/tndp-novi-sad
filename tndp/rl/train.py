@@ -17,7 +17,7 @@ from tndp.rl.model import TndpPolicy
 from tndp.core.synth import generate_city
 
 DEFAULTS = dict(
-    name="bez-imena", iters=200, batch=8, lr=1e-4, entropy_coef=0.01,
+    name="bez-imena", iters=200, batch=8, lr=1e-3, entropy_coef=0.01,
     value_coef=0.5, grad_clip=1.0, num_routes=4, min_len=2, max_len=8,
     n_range=[15, 25], demand_mode="gravity", hidden=64, layers=3,
     eval_every=25, eval_cities=8, seed=0,
