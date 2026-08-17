@@ -1,0 +1,17 @@
+# faza B: configs/novisad-r19.yaml sa hiperparametrima pobednika sweep-a (sweep-lr1e3)
+# izabran po val_score 1.393 na validacionim gradovima, bench nije koriscen
+iters: 16000
+batch: 16
+n_range:
+- 28
+- 36
+num_routes: 19
+min_len: 2
+max_len: 14
+demand_mode: gravity
+eval_every: 100
+eval_cities: 16
+alpha_eval: 0.5
+lr: 0.001
+hidden: 64
+layers: 3

@@ -1,0 +1,12 @@
+# akm ponovljena sa lr 1e-3: postojeca verzija je trenirana na lr 1e-4,
+# dakle pod uslovima u kojima nijedna konfiguracija nije radila kako treba.
+iters: 3000
+batch: 16
+n_range: [15, 30]
+num_routes: 4
+demand_mode: gravity
+eval_every: 100
+eval_cities: 16
+alpha_eval: 0.5
+features: v2
+lr: 0.001

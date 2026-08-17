@@ -1,0 +1,15 @@
+# faza B: configs/gravity-v2.yaml sa hiperparametrima pobednika sweep-a (sweep-lr1e3)
+# izabran po val_score 1.393 na validacionim gradovima, bench nije koriscen
+iters: 12000
+batch: 16
+n_range:
+- 15
+- 30
+num_routes: 4
+demand_mode: gravity
+eval_every: 100
+eval_cities: 16
+alpha_eval: 0.5
+lr: 0.001
+hidden: 64
+layers: 3

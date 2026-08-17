@@ -1,0 +1,12 @@
+# pretraga hiperparametara na gravity budzetu; referenca je gravity-v1 (1.673),
+# ista konfiguracija sa podrazumevanim vrednostima, pa se ne pusta ponovo.
+# ima smisla tek otkad je seed rasipanje palo sa +-0.294 na +-0.017.
+iters: 3000
+batch: 16
+n_range: [15, 30]
+num_routes: 4
+demand_mode: gravity
+eval_every: 100
+eval_cities: 16
+alpha_eval: 0.5
+hidden: 128
