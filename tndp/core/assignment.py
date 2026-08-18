@@ -105,7 +105,8 @@ def assign(city, network, compute_transfers=True, compute_loads=False, headways=
     d = {"d_0": 0.0, "d_1": 0.0, "d_2": 0.0, "d_3p": 0.0}
     if trace:
         transfers, boardings, max_load = _trace(
-            pred, ground_ids, num_platforms, n, offsets, demand, routes, compute_loads)
+            pred, ground_ids, num_platforms, n, offsets, demand, routes, compute_loads,
+            city=city, headways=headways)
         transfers[~served] = -1
         np.fill_diagonal(transfers, 0)
         offdiag = ~np.eye(n, dtype=bool)
@@ -120,8 +121,64 @@ def assign(city, network, compute_transfers=True, compute_loads=False, headways=
                             boardings=boardings, max_load=max_load)
 
 
+# Koliko puta se ista direktna voznja (od_cvora, do_cvora) nudi na razlicitim linijama.
+# Sluzi SAMO za podelu opterecenja po linijama: dodela najkracim putem daje ceo par
+# jednoj liniji, pa u koridoru sa dve paralelne linije druga dobija tacno nulu, sto
+# je artefakt a ne stvarnost. Cilj se ovim ne dira, objective() gleda travel_time i
+# route_times, a oni ostaju netaknuti.
+#
+# Ovo je aproksimacija Spiess-Florianovog modela strategija: deli se samo voznja koju
+# je najkraci put vec izabrao, ne trazi se optimalna strategija iznova.
+TOL_PARALELNE = 1.25  # alternativa se broji ako nije duza od 1.25x izabrane
+
+
+def _direct_legs(city, routes):
+    veze = {}
+    for ri, r in enumerate(routes):
+        kum = [0.0]
+        for a, b in zip(r, r[1:]):
+            kum.append(kum[-1] + float(city.street_time[a, b]))
+        for p in range(len(r)):
+            for q in range(len(r)):
+                if p != q:
+                    veze.setdefault((r[p], r[q]), []).append(
+                        (ri, p, q, abs(kum[q] - kum[p])))
+    return veze
+
+
+# udeli po liniji za jednu voznju: obrnuto proporcionalno intervalu sledjenja,
+# jer putnik ulazi u prvo vozilo koje naidje
+def _udeli(kandidati, headways):
+    if headways is None:
+        w = np.ones(len(kandidati))
+    else:
+        w = np.array([1.0 / max(float(headways[k[0]]), 1e-9) for k in kandidati])
+    s = w.sum()
+    return w / s if s > 0 else np.full(len(kandidati), 1.0 / len(kandidati))
+
+
+# jedna voznja (linija, ulazna pozicija, izlazna pozicija) razdeljena po paralelnim linijama
+def _dodaj_nogu(ri, ulaz, izlaz, w, routes, veze, headways, boardings, seg):
+    if w <= 0.0:
+        return
+    kand = [(ri, ulaz, izlaz, 0.0)]
+    if veze is not None and ulaz != izlaz:
+        r = routes[ri]
+        svi = veze.get((r[ulaz], r[izlaz]), [])
+        moje = next((t for rj, p, q, t in svi
+                     if rj == ri and p == ulaz and q == izlaz), None)
+        if moje is not None:
+            # izabrana voznja mora da ostane u skupu i kad je tolerancija podesena nisko
+            kand = [x for x in svi if x[3] <= TOL_PARALELNE * moje + 1e-9] or kand
+    for (rj, p, q, _), u in zip(kand, _udeli(kand, headways)):
+        boardings[rj] += w * u
+        for s in range(min(p, q), max(p, q)):
+            seg[rj][s] += w * u
+
+
 # hod unazad po predecessor matrici, od cilja ka izvoru
-def _trace(pred, ground_ids, num_platforms, n, offsets, demand, routes, want_loads):
+def _trace(pred, ground_ids, num_platforms, n, offsets, demand, routes, want_loads,
+           city=None, headways=None):
     transfers = np.full((n, n), -1, dtype=int)
     if not want_loads:
         boardings = seg = None
@@ -136,6 +193,8 @@ def _trace(pred, ground_ids, num_platforms, n, offsets, demand, routes, want_loa
             plat_route[base:base + len(route)] = ri
             plat_pos[base:base + len(route)] = np.arange(len(route))
 
+    veze = _direct_legs(city, routes) if (want_loads and city is not None) else None
+
     for si in range(n):
         p_row = pred[si]
         for tj in range(n):
@@ -143,27 +202,31 @@ def _trace(pred, ground_ids, num_platforms, n, offsets, demand, routes, want_loa
                 continue
             cur = ground_ids[tj]
             nboard = 0
-            usao, vozio = [], []
+            # voznje se skupljaju kao (linija, ulazna pozicija, izlazna pozicija)
+            noge, izlaz = [], None
             while True:
                 prev = p_row[cur]
                 if prev < 0:
                     break
+                if want_loads and prev < num_platforms and cur < num_platforms:
+                    # hod je unazad, pa je cur bliži izlazu: izlazna pozicija je prva vidjena
+                    if izlaz is None:
+                        izlaz = plat_pos[cur]
                 if prev >= num_platforms and cur < num_platforms:
                     nboard += 1
                     if want_loads:
-                        usao.append(plat_route[cur])
-                elif want_loads and prev < num_platforms and cur < num_platforms:
-                    # jedine ivice platforma-platforma su susedne pozicije iste linije, pa je deonica ona sa manjim indeksom
-                    vozio.append((plat_route[cur], min(plat_pos[cur], plat_pos[prev])))
+                        ulaz = plat_pos[cur]
+                        noge.append((plat_route[cur], ulaz,
+                                     izlaz if izlaz is not None else ulaz))
+                        izlaz = None
                 cur = prev
             if cur == ground_ids[si] and nboard > 0:
                 transfers[si, tj] = nboard - 1
                 if want_loads:
                     w = demand[si, tj]
-                    for ri in usao:
-                        boardings[ri] += w
-                    for ri, s in vozio:
-                        seg[ri][s] += w
+                    for ri, ulaz, izl in noge:
+                        _dodaj_nogu(ri, ulaz, izl, w, routes, veze, headways,
+                                    boardings, seg)
 
     max_load = None
     if want_loads:

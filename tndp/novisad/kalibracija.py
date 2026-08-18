@@ -106,9 +106,12 @@ def main():
     for m, b, p, tv, sp in sorted(u_igri, key=lambda x: -x[4])[:12]:
         print(f"{m:>10} {b:5.2f} {p:5.1f} {tv:7.3f} {sp:+9.3f}")
 
-    # sweep bira betu, kod je ne koristi - traznja.BETA=2.0 je ono sto pipeline
-    # stvarno vrti, razlika od sweep optimuma je u 3. decimali Spearmana
-    mera, _, prag, _, _ = najbolji
+    # Izvestava se ono sto pipeline STVARNO vrti, ne sweep optimum. Vazi i za betu
+    # (traznja.BETA=2.0) i za meru rastojanja: traznja.izgradi() gradi matricu
+    # euklidski, a sweep ume da izabere tau. Kad se to razidje, izvestaj bi opisivao
+    # matricu koja nigde ne postoji; ista greska je jednom uhvacena kod bete.
+    mera = traznja.izgradi.__defaults__[1]
+    _, _, prag, _, _ = najbolji
     usvojen = next(x for x in nalazi
                    if (x[0], x[1], x[2]) == (mera, traznja.BETA, prag))
     beta, tv, sp = usvojen[1], usvojen[3], usvojen[4]

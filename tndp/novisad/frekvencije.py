@@ -137,23 +137,26 @@ def _izvestaj(linije, stvarno, model, o, mere, osetljivost, praznjenje, vrh):
     for ime, (n, poznate, udeo) in praznjenje.items():
         r.append(f"| {ime} | {n} od {len(linije)} | {len(poznate)} "
                  f"({', '.join(poznate)}) | {udeo:.1%} |")
-    r += ["", "Poslednje dve kolone su ono što nalaz čini ozbiljnim: linije koje petlja",
-          "isprazni nisu rubne. Osam ih je u brojanju iz 2017. i u stvarnosti nose",
-          "trećinu prevoza.", "",
-          "Čitanje: dodela najkraćim putem sama po sebi isprazni šest linija, među",
-          "paralelnim linijama u istom koridoru pobednik uzima sve. Petlja koja",
-          "izvodi intervale iz opterećenja to pogorša na devet, jer linija sa malim",
-          "opterećenjem dobije dug interval, time postane još manje privlačna, i",
-          "opterećenje joj padne na nulu. Povratna sprega nije prigušena ničim.", "",
-          "Probano i **ne pomaže**: geometrijsko prigušenje koraka (0.5 i 0.3) i",
-          "politički plafon intervala od 30 min umesto 60. Prigušenje pogorša",
-          "Spearman na +0.33, plafon podigne medijanu greške na 10 min, a broj praznih",
-          "linija u oba slučaja ostaje devet. Dakle kvar nije u petlji nego ispod nje.", "",
-          "Stvarni prevoznik nema ovaj problem iz dva razloga koje model nema:",
-          "putnik ulazi u prvu liniju koja naiđe pa se opterećenje deli po",
-          "frekvencijama (Spiess-Florian, strategija umesto puta), a nivo usluge je",
-          "delom politička odluka, GSP vozi liniju 7 na 7,5 minuta jer je tako",
-          "odlučeno, a ne zato što je tražnja to iznudila. Model je predviđa na 60.", "",
+    prazno = max(n for n, _, _ in praznjenje.values())
+    if prazno == 0:
+        r += ["", "Nijedan režim ne isprazni ni jednu liniju. Ranije je čista dodela",
+              "najkraćim putem praznila šest, a petlja pogoršavala na devet: u koridoru",
+              "sa paralelnim linijama pobednik je uzimao sve, pa je linija bez",
+              "opterećenja dobijala dug interval i time postajala još manje privlačna.",
+              "Opterećenje se sada deli po frekvencijama među linijama koje nose istu",
+              "vožnju, pa te povratne sprege nema.", "",
+              "To je aproksimacija Spiess-Florianovog modela strategija, ne on sam: deli",
+              "se samo vožnja koju je najkraći put već izabrao, a optimalna strategija se",
+              "ne traži iznova. Funkcija cilja time nije dirnuta, jer u nju ulaze vremena",
+              "putovanja i vreme vožnje linija, a ne opterećenja po liniji.", ""]
+    else:
+        r += ["", "Linije koje petlja isprazni nisu rubne: ima ih " + str(prazno) + ",",
+              "i nose merljiv deo prevoza.", ""]
+    r += ["Dvopolnost intervala time nije uklonjena. Interval se izvodi iz",
+          "najopterećenije deonice pa tvrdo odseca na dozvoljeni raspon, što veliki deo",
+          "linija gura na jednu od dve granice. Uz to je nivo usluge delom politička",
+          "odluka: GSP vozi liniju 7 na 7,5 minuta jer je tako odlučeno, a ne zato što",
+          "je tražnja to iznudila.", "",
           "**Posledica za rad:** poredak linija po opterećenju je upotrebljiv",
           f"(Spearman {mere['Spearman']:+.3f}), pojedinačni intervali nisu. Svaki",
           "zaključak koji traži tačan interval po liniji, a tu spada i poređenje",

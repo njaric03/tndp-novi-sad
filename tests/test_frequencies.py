@@ -80,3 +80,33 @@ def test_evaluate_converges_and_matches_hand_numbers(toy_city, toy_net):
     # jos jedan prolaz vise ne sme nista da promeni
     assert F.evaluate(toy_city, toy_net, daily_trips=4800.0, passes=8)["h"] \
         == pytest.approx(o["h"])
+
+
+# dve linije nose isti koridor 0-2, pa opterecenje mora da se podeli po frekvencijama
+# umesto da ga cela uzme ona koja je slucajno izabrana kao najkraci put
+def test_paralelne_linije_dele_opterecenje():
+    from tndp.core.assignment import assign
+
+    n = 4
+    street = np.full((n, n), np.inf)
+    np.fill_diagonal(street, 0.0)
+    for a, b in [(0, 1), (1, 2), (2, 3)]:
+        street[a, b] = street[b, a] = 10.0
+    demand = np.zeros((n, n))
+    demand[0, 2] = 100.0
+    city = CityGraph(coords=np.zeros((n, 2)), street_time=street, demand=demand,
+                     name="paralelni")
+    # A i B nose istu voznju 0->2 za 20 min; B ide dalje do 3
+    net = TransitNetwork(routes=[[0, 1, 2], [0, 1, 2, 3]])
+
+    # bez intervala su obe jednako privlacne, pa se par deli na pola
+    res = assign(city, net, compute_loads=True)
+    assert res.boardings == pytest.approx([50.0, 50.0])
+
+    # A vozi na 10 min, B na 30: udeli su 1/10 i 1/30, dakle 0.75 i 0.25
+    res = assign(city, net, compute_loads=True, headways=[10.0, 30.0])
+    assert res.boardings == pytest.approx([75.0, 25.0])
+    # ukupno se ne izgubi ni ne izmisli
+    assert res.boardings.sum() == pytest.approx(100.0)
+    # deonice 0-1 i 1-2 nose isti udeo kao i ulasci
+    assert res.max_load == pytest.approx([75.0, 25.0])
