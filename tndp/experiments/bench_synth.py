@@ -23,6 +23,7 @@ def main():
     ap.add_argument("--alpha", type=float, default=None)
     # ime izlaza bez ekstenzije; ablacije i seed-ovi pisu u svoj fajl da ne prepisu glavnu tabelu
     ap.add_argument("--out", default="bench-synth")
+    # uzorci se dele preko ovih temperatura; jedna vrednost je isto sto i fiksna
     args = ap.parse_args()
 
     policy, cfg = load_policy(args.checkpoint)

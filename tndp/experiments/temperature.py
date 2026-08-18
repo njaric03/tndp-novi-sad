@@ -14,7 +14,7 @@ from tndp.rl.evaluate import decode_sampling
 from tndp.viz.style import save
 from tndp import BENCHMARKS, RESULTS
 
-TEMPS = (0.5, 0.7, 0.9, 1.0, 1.2, 1.5, 2.0, 3.0)
+TEMPS = (1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0)
 
 
 def main():
@@ -55,7 +55,7 @@ def main():
         for city, sc in zip(cities, scales):
             cR, clo, chi = param[city.name] if param else (R, lo, hi)
             net, res = decode_sampling(policy, city, cR, k=k, min_len=clo,
-                                       max_len=chi, alpha=a, temp=t)
+                                       max_len=chi, alpha=a, temps=[t])
             # van raspodele maskiranje ne garantuje validnost, pa se ne obara ceo run
             res = assign(city, net, compute_transfers=False)
             vals.append((objective(res, sc, a), res.d["d_un"]))

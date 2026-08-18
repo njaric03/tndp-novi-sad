@@ -37,6 +37,8 @@ def main():
     ap.add_argument("--alpha", type=float, default=None)
     ap.add_argument("--samples", type=int, default=32)
     ap.add_argument("--evals", type=int, default=EVALS)
+    # svoj fajl po alfi, da paralelni pozivi ne pisu u isti
+    ap.add_argument("--out", default="hybrid")
     args = ap.parse_args()
 
     policy, cfg = load_policy(args.checkpoint)
@@ -113,7 +115,7 @@ def main():
                      f"{delta} | {'-' if name == ref else fmt_p(p)} | "
                      f"{np.mean(secs[name]):.2f} |")
 
-    write_table("hybrid.md", lines)
+    write_table(f"{args.out}.md", lines)
     print("\n" + "\n".join(lines))
 
     import matplotlib.pyplot as plt
@@ -132,7 +134,7 @@ def main():
     ax.set_title("Da li RL start ubrzava lokalnu pretragu")
     ax.legend(fontsize=8)
     ax.grid(alpha=0.3)
-    print("snimljeno u " + ", ".join(save(fig, RESULTS / "hybrid")))
+    print("snimljeno u " + ", ".join(save(fig, RESULTS / args.out)))
 
 
 if __name__ == "__main__":
