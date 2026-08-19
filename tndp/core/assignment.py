@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 
 import numpy as np
@@ -11,7 +12,13 @@ TRANSFER_PENALTY_MIN = 5.0
 # se optimizatoru svejedno isplati ispustiti (checks.py, provera 2)
 BUS_SPEED_KMH, WALK_SPEED_KMH = 20.0, 5.0
 TEZINA_PESACENJA = 2.0
-UNSERVED_FACTOR = BUS_SPEED_KMH / WALK_SPEED_KMH * TEZINA_PESACENJA
+# Kriterijum bi bio da nepokriven par kosta vise od najgoreg OPSLUZENOG (20.9x), a
+# ovaj faktor to ne ispunjava. Zato se moze pregaziti iz okruzenja, da se ceo
+# eksperiment ponovi pri faktoru koji kriterijum ispunjava i proveri da li poredak
+# metoda zavisi od izbora. Sve metode koriste istu vrednost, pa poredjenje ostaje posteno.
+UNSERVED_FACTOR = float(os.environ.get(
+    "TNDP_UNSERVED_FACTOR",
+    BUS_SPEED_KMH / WALK_SPEED_KMH * TEZINA_PESACENJA))
 
 
 @dataclass
