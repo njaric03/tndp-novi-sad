@@ -13,8 +13,7 @@ dependencies = [
 [project.optional-dependencies]
 # RL faza (model i trening). Verzije su ograničene namerno: redovi `RL sampling`
 # u results/ zavise od toga koja od 32 uzorkovane epizode ispadne najbolja, a taj
-# izbor ume da se prevrne na razliku u poslednjim bitovima GATv2 izlaza. Tačne
-# verzije kojima su tabele napravljene stoje u README-u.
+# izbor ume da se prevrne na razliku u poslednjim bitovima GATv2 izlaza.
 rl = [
     "torch>=2.5,<3",
     "torch-geometric>=2.6,<3",

@@ -1,29 +1,23 @@
 # Dizajn mreže linija javnog prevoza pomoću GNN + RL
 
-Transit Network Design Problem (TNDP): dat je graf grada sa uličnom mrežom i matricom
-tražnje putovanja, traži se skup autobuskih linija koji dobro opslužuje putnike uz
-razuman trošak operatera. Problem je NP-težak i klasično se rešava metaheuristikama po
-gradu; ovde graf neuronska mreža uči heuristiku na skupu sintetičkih gradova, pa je
-primenjuje na nov grad u jednom prolazu.
+Dat je graf grada sa uličnom mrežom i procenom koliko se putuje između zona, a traži se
+skup autobuskih linija koji putnike vozi brzo a prevoznika ne košta previše. To je
+Transit Network Design Problem, NP-težak je, i obično se rešava metaheuristikom koja za
+svaki grad pretražuje iznova. Ovde umesto pretrage stoji graf neuronska mreža: nauči
+heuristiku na sintetičkim gradovima, pa novom gradu da mrežu u jednom prolazu.
 
-Seminarski rad za predmet Eksperimenti sa neuronskim mrežama 2 (DMI, UNSPMF), po uzoru
-na Holliday et al. Politika je GATv2 sa pointer mehanizmom, trenirana REINFORCE-om.
-Poredi se sa nasumičnom pretragom, konstruktivnom heuristikom i lokalnom pretragom, na
-held-out sintetici, na benchmark instancama (Mandl, Mumford) i na Novom Sadu sastavljenom
-iz otvorenih podataka.
-
-Ceo argument, brojevi i ograničenja su u samom radu (`seminarski/main.pdf`). Ovaj fajl
-opisuje samo kako se repo koristi.
+Politika je GATv2 sa dinamičkom pažnjom, trenirana REINFORCE-om, a meri se protiv
+nasumične pretrage, konstruktivne heuristike i lokalne pretrage: na sintetici koju nije
+videla, na Mandlu i Mumfordovim instancama, i na Novom Sadu sklopljenom iz otvorenih
+podataka.
 
 ## Funkcija cilja
 
-[assignment.py](tndp/core/assignment.py) za datu mrežu linija računa najkraće vreme
-putovanja svakog para preko grafa linija, sa penalom od 5 min po presedanju, pa iz toga:
+[assignment.py](tndp/core/assignment.py) pusti putnike kroz graf linija i za svaki par
+zona nađe najbrži put, uz penal od 5 min po presedanju. Iz toga izlazi:
 
-- `C_p_all`, prosečno vreme putovanja nad svim parovima, gde nepokriven par plaća
-  `UNSERVED_FACTOR = 8` puta ulično najkraće vreme. Ovo je metrika po kojoj se porede metode.
-- `C_p`, isti prosek samo nad opsluženim parovima. Konvencija iz literature, služi za
-  poređenje sa objavljenim brojevima; između metoda sa različitim `d_un` nije uporediv.
+- `C_p_all`, prosečno vreme nad svim parovima, gde nepokriven par plaća `UNSERVED_FACTOR = 8` puta ulično najkraće vreme.
+- `C_p`, isti prosek ali samo nad opsluženim parovima.
 - `C_o`, ukupno vreme vožnje svih linija u jednom smeru.
 - `d_0/d_1/d_2/d_un`, udeli tražnje bez presedanja, sa jednim, sa dva, i nepokrivene.
 
@@ -33,154 +27,67 @@ Cilj je
 alpha * C_p_all / (donja granica C_p)  +  (1 - alpha) * C_o / (vreme MST-a)
 ```
 
-Obe skale su donje granice iste vrste, pa je vrednost oko 1 kad je mreža blizu teorijskog
-poda. Ista funkcija se koristi u RL nagradi i u cilju klasičnih metoda, inače poređenje
-ne bi merilo metode nego razliku u zadatku.
-
-Skale nisu jednako osetljive: putnički član rasipa 2.9 puta više od operaterskog, pa
-`alpha = 0.5` nije neutralna tačka. `UNSERVED_FACTOR` i `alpha` ostaju stvar izbora;
-osetljivost na obe ispisuje `python -m tndp.experiments.checks` i treba da ide uz rezultate.
-
 ## Pokretanje
 
 ```bash
 python -m venv .venv && .venv\Scripts\activate
-pip install -e .[dev]        # core: numpy, scipy, matplotlib
-pip install -e .[rl]         # torch, torch-geometric (trening i evaluacija)
-pip install -e .[geo]        # osmnx, geopandas (samo za Novi Sad pipeline)
-pip install -e .[nb]         # notebooks/, opciono
+pip install -e .[dev,rl]     # dodatno .[geo] za Novi Sad, .[nb] za notebooks
 pytest
 python -m tndp.experiments.checks   # invarijante i osetljivost na konstante
 ```
+
+Tri testa u `tests/`: assignment, frekvencije, i vrednost cilja naspram objavljenih
+Mandl vrednosti.
 
 ### Trening
 
 ```bash
 python -m tndp.rl.train --config configs/gravity-v2h.yaml          # runs/<ime>/best.pt
-python -m tndp.rl.train --config configs/gravity-v1.yaml --seed 1 # drugi seed
+python -m tndp.rl.train --config configs/gravity-v1.yaml --seed 1
 ```
 
-Čuvaju se dva checkpointa, `policy.pt` (poslednji) i `best.pt` (najbolji na validaciji).
-Evaluacija treba da koristi `best.pt`.
-
-### Regenerisanje tabela i slika
-
-Zastavice nisu ukras: podrazumevane vrednosti skripti se razlikuju od onoga čime su
-predate tabele pravljene, pa bez njih brojevi ne izlaze isti.
-
-```bash
-python -m tndp.experiments.bench_synth    runs/gravity-v2h/best.pt --cities 20 --out main-20-v2h
-python -m tndp.experiments.bench_transfer runs/gravity-v2h/best.pt --instances Mandl1 Mumford0 Mumford1 Mumford2 Mumford3
-python -m tndp.experiments.pareto         runs/gravity-v2h/best.pt              # Pareto front i slika
-python -m tndp.experiments.anytime        runs/gravity-v2h/best.pt --cities 20  # kvalitet vs budžet
-python -m tndp.experiments.hybrid         runs/gravity-v2h/best.pt --cities 3   # politika kao start pretrage
-python -m tndp.experiments.bench_decoders runs/gravity-v2h/best.pt --cities 12  # greedy/sampling/MCTS
-python -m tndp.experiments.bench_freq     runs/gravity-v2h/best.pt             # frekvencije i flota
-python -m tndp.experiments.show_networks  runs/gravity-v2h/best.pt              # slika mreža
-python -m tndp.experiments.policy         runs/gravity-v2h/best.pt              # heatmap politike
-python -m tndp.viz.curves                 runs/gravity-v2h                      # kriva treninga
-```
+Evaluacija koristi `best.pt`, najbolji na validaciji; `policy.pt` je poslednji.
 
 ### Novi Sad
 
-Redosled je obavezan, svaki korak čita ono što je prethodni upisao:
+Moduli u `tndp/novisad/` se pokreću sa `python -m tndp.novisad.<ime>`, i to ovim redom:
 
-```bash
-python -m tndp.novisad.preuzmi     # sirovi izvori u data/novisad/raw/
-python -m tndp.novisad.sredi       # stajalista, linije, polasci, stanovništvo
-python -m tndp.novisad.zone        # zone.csv, stajalista_zone.csv
-python -m tndp.novisad.sadrzaji    # privlacnost.csv, POI iz OpenStreetMap-a
-python -m tndp.novisad.ulice       # tau.csv, susedstvo.csv, preko osmnx
-python -m tndp.novisad.traznja     # traznja.csv, gravitaciona matrica
-
-python -m tndp.novisad.kalibracija # results/novisad-kalibracija.md
-python -m tndp.novisad.frekvencije # results/novisad-frekvencije.md
-python -m tndp.novisad.poredjenje  # results/novisad-poredjenje.md
-python -m tndp.novisad.karta       # karte i results/novisad-struktura.md
+```
+preuzmi → sredi → zone → sadrzaji → ulice → traznja
+pa onda kalibracija, frekvencije, poredjenje, karta
 ```
 
-`data/novisad/` nije u repou, pravi se ovim skriptama.
-
-Trening za studiju slučaja ne traži ništa od ovoga. `configs/novisad-r19.yaml`
-uči na sintetičkim gradovima veličine Novog Sada, a podaci gore služe tek
-evaluaciji, pa ta dva posla mogu da idu uporedo.
+Redosled je obavezan, jer svaki korak čita ono što je prethodni upisao. `data/novisad/`
+nije u repou nego se ovim lancem i pravi.
 
 ## Rezultati
 
-Model iz glavnih tabela je `runs/gravity-v2h` (sintetika, benchmark instance) i
-`runs/novisad-r19h` (Novi Sad). Oba su na stopi učenja `1e-3`; raniji `gravity-v2`
-i `novisad-r19` su na `1e-4` i njihovi brojevi ne smeju u istu tabelu sa ovima.
-Izuzetak su ablacije: one idu na `runs/abl-*-h` i `runs/sweep-*`, jer se porede
-međusobno na kraćem rasporedu od 3000 iteracija. Model stoji u zaglavlju svakog
-`results/*.md`, pa je to i jedini merodavan izvor.
+Glavni modeli su `runs/gravity-v2h` (sintetika, benchmark instance) i `runs/novisad-r19h`
+(Novi Sad), oba na stopi učenja `1e-3`.
 
-Tabele nose standardnu devijaciju po gradovima i uparene razlike u odnosu na referentnu
-metodu (Wilcoxon, iste instance), jer se gradovi po težini razlikuju mnogo više nego
-metode među sobom. `bench-mandl.md` služi kao provera implementacije assignment-a
-naspram objavljenih vrednosti, ne kao poređenje metoda.
-
-Same tabele (`results/*.md`) nisu u repou, jer su izlaz skripti a ne izvor: prave se
-komandama iz odeljka gore i menjaju sa svakim novim modelom. Glavne su
-`main-20-v2h.md` (sintetika), `pareto.md` (front po alfi), `hybrid.md` (spoj),
-`bench-transfer.md` (Mandl i Mumford) i `novisad-poredjenje.md` (Novi Sad).
-
-### Testovi
-
-| fajl | šta proverava |
-|---|---|
-| `test_assignment.py` | dodela putnika na ruke: vremena, presedanja, nepokriveni parovi |
-| `test_frequencies.py` | intervali, flota, skale i petlja druge faze, sve na ruke |
-| `test_mandl_acceptance.py` | naša cost funkcija naspram objavljenih Mandl vrednosti |
-
-Pokrivaju jedini deo koda gde se greška ne vidi kao pad nego kao pogrešan broj. Ostalo se
-proverava pokretanjem samih skripti, koje padaju ako metoda vrati nevalidnu mrežu.
-
-### Reproducibilnost
-
-```
-Python 3.11   torch 2.13.0+cpu   torch-geometric 2.8.0.post1
-numpy 2.4.6   scipy 1.17.1       matplotlib 3.11.1
-```
-
-Klasične metode i `RL greedy dekod` su deterministični. Redovi `RL sampling 32` nisu:
-dekoder uzima najbolju od 32 uzorkovane epizode, pa razlika u poslednjim bitovima GATv2
-izlaza, koju donosi druga verzija `torch-geometric`, ume da promeni koja epizoda pobedi.
-Na proseku preko 20 gradova to je ±0.002, na pojedinačnoj instanci do ±0.03.
+Sadržaj `results/` nije u repou, prave ga skripte iz `tndp/experiments/`. Uzimaju
+putanju do checkpointa, a zastavice su u `--help`.
 
 ## Struktura
 
 ```
 tndp/
-  core/        CityGraph, TransitNetwork, passenger assignment, cost, frekvencije,
-               učitavanje instanci i generator sintetičkih gradova (synth.py)
+  core/        graf grada, mreža linija, assignment, cilj, frekvencije, synth.py
   baselines/   nasumična pretraga, konstruktivna heuristika, lokalna pretraga
-  rl/          MDP env, GATv2 + pointer model, REINFORCE trening, dekoderi, MCTS
-  novisad/     preuzimanje i sređivanje podataka, zoniranje, tražnja, kalibracija, karte
-  experiments/ skripte koje pokreću metode i modele i proizvode results/
-  viz/         crtanje: stil, karte mreža, krive treninga, figure za rad
+  rl/          MDP env, GATv2 model, REINFORCE, dekoderi, MCTS
+  novisad/     podaci, zoniranje, tražnja, kalibracija, karte
+  experiments/ skripte koje pokreću metode i pišu results/
+  viz/         crtanje
 configs/       yaml konfiguracije treninga i ablacija
-data/benchmarks/  Mandl i Mumford instance (izvor: RenatoArbex/TransitNetworkDesign)
-results/       tabele i slike koje se predaju
-notebooks/     tri sveske koje pozivaju postojeći kod: podaci, model, rezultati
-tests/         acceptance test na Mandlu, assignment i frekvencije na ruke
+data/benchmarks/  Mandl i Mumford instance
+notebooks/     tri sveske nad postojećim kodom: podaci, model, rezultati
+tests/         assignment, frekvencije, acceptance na Mandlu
 ```
-
-Dve konvencije važe kroz ceo repo. Imena u kodu su engleska svuda osim u `tndp/novisad/`,
-koji je domenski paket pa se u njemu sve zove kao u samim izvorima podataka (`zone`,
-`stajalista`, `polasci`). Komentari su srpski bez dijakritike, dok tekst koji čitalac
-vidi, dakle oznake na slikama i izveštaji u `results/`, ide sa dijakritikom.
 
 ## Izvori
 
-| Uloga | Izvor |
-|---|---|
-| Metoda (GAT + RL), verzija koju pratimo | Holliday, El-Geneidy, Dudek, *Learning Heuristics for Transit Network Design and Improvement with Deep Reinforcement Learning*, https://arxiv.org/abs/2404.05894 |
-| Objavljena verzija iste metode | Transportmetrica B 13(1), 2025, https://doi.org/10.1080/21680566.2025.2561863 |
-| MDP formulacija i trening | Holliday, *Applications of deep reinforcement learning to urban transit network design*, doktorska teza, https://arxiv.org/abs/2502.17758 |
-| Politika kao operator u metaheuristici | Holliday, Dudek, *Neural Bee Colony Optimization*, https://arxiv.org/abs/2306.00720; *A Neural-Evolutionary Algorithm for Autonomous Transit Network Design*, ICRA 2024, https://arxiv.org/abs/2403.07917 |
-| MCTS dekodiranje | *AlphaTransit: Learning to Design City-scale Transit Routes*, https://arxiv.org/abs/2605.28730 |
-| REINFORCE baseline i sampling dekodiranje | Kool, van Hoof, Welling, *Attention, Learn to Solve Routing Problems!*, ICLR 2019 |
-| Benchmark instance | Mumford (2013); Nikolić, Teodorović (2013); John, Mumford, Lewis (2014) |
-| Fajlovi instanci i objavljena rešenja | https://github.com/RenatoArbex/TransitNetworkDesign |
-| Brojanje putnika po linijama, Novi Sad 2017 | Lazarević et al. (2020) |
-| Pregled oblasti | *Transit network design problem: a half century of methodological research*, Innovative Infrastructure Solutions (2025), https://doi.org/10.1007/s41062-025-02356-5 |
+Metoda je rađena po radu Hollidaya, El-Geneidyja i Dudeka, [Learning Heuristics for
+Transit Network Design and Improvement with Deep Reinforcement
+Learning](https://arxiv.org/abs/2404.05894). Instance u `data/benchmarks/` su Mandl i
+Mumford, preuzete iz
+[RenatoArbex/TransitNetworkDesign](https://github.com/RenatoArbex/TransitNetworkDesign).

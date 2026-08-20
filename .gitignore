@@ -27,3 +27,8 @@ results/hybrid.log
 runs-*.out
 results/*.log
 results/.orkestrator-start
+
+# results/ je izlaz skripti a ne izvor: tabele i figure se prave komandama iz
+# README-a i menjaju sa svakim novim modelom, pa se ne komituju
+results/*.md
+results/*.png
