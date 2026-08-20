@@ -218,6 +218,28 @@ def preuzmi_sadrzaje():
     print(f"  tačaka {len(g)}, {put.stat().st_size // 1024} KB")
 
 
+# Dunav i ostale vode, samo za karte. Ni tražnja ni ulični graf ih ne čitaju:
+# reka je u modelu prisutna posredno, kroz to gde mostovi stvaraju ulične veze.
+# Bez nje karta ne može da nosi tvrdnje iz rada o Petrovaradinu i o prelascima.
+def preuzmi_vode():
+    import osmnx as ox
+
+    _podesi_osmnx()
+    print("vode (OSM)")
+    put = konstante.RAW / "vode.geojson"
+    if put.exists():
+        print(f"  {put.name} već postoji, preskačem")
+        return
+    g = ox.features_from_bbox(konstante.BBOX_ULICE,
+                              {"natural": "water", "waterway": "riverbank"})
+    # linijske reke se odbacuju: crta se površina vode, a Dunav je na ovoj
+    # razmeri poligon; linija bi kroz grad prošla kao tanak konac
+    g = g[g.geometry.geom_type.isin(["Polygon", "MultiPolygon"])]
+    g = g[["geometry"]].reset_index(drop=True)
+    g.to_file(put, driver="GeoJSON")
+    print(f"  poligona {len(g)}, {put.stat().st_size // 1024} KB")
+
+
 def main():
     import urllib3
     urllib3.disable_warnings()
@@ -230,6 +252,7 @@ def main():
     preuzmi_nsinfo(s)
     preuzmi_ulice()
     preuzmi_sadrzaje()
+    preuzmi_vode()
     print(f"\ngotovo, sirovi podaci u {konstante.RAW}")
 
 

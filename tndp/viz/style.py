@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
 
 # jedna boja po metodi kroz ceo rad
 METHOD_COLORS = {
@@ -16,6 +17,13 @@ METHOD_COLORS = {
     "literatura": "#000000",
 }
 FALLBACK = "#666666"
+
+# Rad se slaze Latin Modernom, pa figure moraju biti serifne, inace izgledaju
+# nalepljeno iz drugog dokumenta. Latin Modern se ne sme pretpostaviti da je
+# instaliran; STIXGeneral i DejaVu Serif dolaze uz matplotlib, pa se figure
+# pregenerisu isto na svakoj masini. STIX ide prvi jer uz njega ide i isti
+# matematicki set, pa $\alpha$ i $C_p$ na slici ne odskacu od teksta oko sebe.
+SERIF = ["STIXGeneral", "DejaVu Serif", "Times New Roman"]
 
 # Naziv metode kakav stoji u tekstu rada. Interni kljucevi su engleski jer se
 # tako zovu funkcije, ali slika i tekst moraju da koriste isti naziv, inace
@@ -70,6 +78,31 @@ def save(fig, out_path, formats=("png",)):
 
 # Zajednicki izgled svih figura. Poziva se na pocetku svake skripte koja crta,
 # da se slike u radu ne razlikuju po fontu, mrezi i debljini linija.
+# Decimalni zarez na osama. Tekst rada pise 0,59 a matplotlib podrazumevano
+# 0.59, pa se u istoj recenici pojave oba oblika. locale se ne dira: na Windowsu
+# srpski locale nije zagarantovan, a i menjao bi ceo proces.
+def _zarez(v, _pos=None):
+    s = f"{v:g}"
+    return s.replace(".", ",") if "e" not in s else s
+
+
+# za ose koje se ne dobijaju kao Axes (colorbar i slicno)
+def zarez_formatter():
+    return FuncFormatter(_zarez)
+
+
+# primeni zarez na obe ose datih osa; poziva se posle podesavanja granica
+def decimal_comma(*axes):
+    for ax in axes:
+        ax.xaxis.set_major_formatter(zarez_formatter())
+        ax.yaxis.set_major_formatter(zarez_formatter())
+
+
+# isto, ali za tekst koji se sam ispisuje na sliku (anotacije, podnaslovi)
+def broj(v, decimala=2):
+    return f"{v:.{decimala}f}".replace(".", ",")
+
+
 def apply_style():
     plt.rcParams.update({
         "figure.facecolor": "white",
@@ -86,6 +119,9 @@ def apply_style():
         # bude krupniji nego sto izgleda potrebno na ekranu: posle skaliranja
         # od oko 0,75 ovo daje ~8 pt, sto je jos citljivo u stampi.
         "font.size": 11.0,
+        "font.family": "serif",
+        "font.serif": SERIF,
+        "mathtext.fontset": "stix",
         "axes.titlesize": 12.0,
         "axes.labelsize": 11.0,
         "legend.fontsize": 10.0,

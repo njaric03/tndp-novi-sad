@@ -28,7 +28,13 @@ def run(solve, cities, scales, R, lo, hi, a):
         net = solve(c)
         net.require_valid(c, R, lo, hi)
         objs.append(objective(assign(c, net, compute_transfers=False), sc, a))
-    return (time.perf_counter() - t0) / len(cities), float(np.mean(objs))
+    # sd ide uz prosek jer se iz nje crta traka na slici: gradovi se po tezini
+    # razlikuju vise nego metode medju sobom, pa sam prosek precutkuje koliko je
+    # razmak izmedju dve krive zapravo pouzdan
+    # objs po gradu ide u zasebnu tabelu: razlika dve metode meri se uparano, na
+    # istim gradovima, a to se iz proseka i sd vise ne moze rekonstruisati
+    return ((time.perf_counter() - t0) / len(cities), float(np.mean(objs)),
+            float(np.std(objs)), objs)
 
 
 def main():
@@ -57,23 +63,28 @@ def main():
         series["RL + MCTS"] = [(s, lambda c, s=s: mcts_decode(
             policy, c, R, lo, hi, a, sims=s)[0]) for s in MCTS_SIMS]
 
-    rows = ["| metoda | budžet | s/grad | cilj |", "|---|---|---|---|"]
+    rows = ["| metoda | budžet | s/grad | cilj | sd |", "|---|---|---|---|---|"]
+    po_gradu = ["| metoda | budžet | s/grad | grad | cilj |", "|---|---|---|---|---|"]
+
+    def upisi(name, budget, dt, obj, sd, objs):
+        rows.append(f"| {name} | {budget} | {dt:.3f} | {obj:.3f} | {sd:.3f} |")
+        print(rows[-1])
+        for k, v in enumerate(objs):
+            po_gradu.append(f"| {name} | {budget} | {dt:.3f} | {k} | {v:.4f} |")
+
     for name, budgets in series.items():
         for budget, solve in budgets:
-            dt, obj = run(solve, cities, scales, R, lo, hi, a)
-            rows.append(f"| {name} | {budget} | {dt:.3f} | {obj:.3f} |")
-            print(rows[-1])
+            upisi(name, budget, *run(solve, cities, scales, R, lo, hi, a))
 
     # jednokratne metode kao tacke
     for name, solve in [("greedy", lambda c: greedy_network(c, R, lo, hi, alpha=a)[0]),
                         ("RL greedy dekod", lambda c: decode(policy, c, R, lo, hi, a)[0])]:
-        dt, obj = run(solve, cities, scales, R, lo, hi, a)
-        rows.append(f"| {name} | 1 | {dt:.3f} | {obj:.3f} |")
-        print(rows[-1])
+        upisi(name, 1, *run(solve, cities, scales, R, lo, hi, a))
 
-    write_table("anytime.md",
-                [f"# Anytime poređenje ({args.cities} gradova, alpha={a}, "
-                 f"model {args.checkpoint})", ""] + rows)
+    zaglavlje = [f"# Anytime poređenje ({args.cities} gradova, alpha={a}, "
+                 f"model {args.checkpoint})", ""]
+    write_table("anytime.md", zaglavlje + rows)
+    write_table("anytime-po-gradu.md", zaglavlje + po_gradu)
     # sliku crta viz.paper iz ove iste tabele, da se figura u radu i tabela
     # ne mogu razici
     print("->", *paper.budget(RESULTS / "slika-budzet"))
