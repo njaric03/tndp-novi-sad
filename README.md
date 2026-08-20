@@ -56,7 +56,7 @@ python -m tndp.experiments.checks   # invarijante i osetljivost na konstante
 ### Trening
 
 ```bash
-python -m tndp.rl.train --config configs/gravity-v2.yaml          # runs/<ime>/best.pt
+python -m tndp.rl.train --config configs/gravity-v2h.yaml          # runs/<ime>/best.pt
 python -m tndp.rl.train --config configs/gravity-v1.yaml --seed 1 # drugi seed
 ```
 
@@ -69,16 +69,16 @@ Zastavice nisu ukras: podrazumevane vrednosti skripti se razlikuju od onoga čim
 predate tabele pravljene, pa bez njih brojevi ne izlaze isti.
 
 ```bash
-python -m tndp.experiments.bench_synth    runs/gravity-v2/best.pt --cities 20 --out main-20-v2
-python -m tndp.experiments.bench_transfer runs/gravity-v2/best.pt --instances Mandl1 Mumford0 Mumford1 Mumford2 Mumford3
-python -m tndp.experiments.pareto         runs/gravity-v2/best.pt              # Pareto front i slika
-python -m tndp.experiments.anytime        runs/gravity-v2/best.pt --cities 20  # kvalitet vs budžet
-python -m tndp.experiments.hybrid         runs/gravity-v2/best.pt --cities 3   # politika kao start pretrage
-python -m tndp.experiments.bench_decoders runs/gravity-v2/best.pt --cities 12  # greedy/sampling/MCTS
-python -m tndp.experiments.bench_freq     runs/gravity-v1/best.pt              # frekvencije i flota
-python -m tndp.experiments.show_networks  runs/gravity-v2/best.pt              # slika mreža
-python -m tndp.experiments.policy         runs/gravity-v2/best.pt              # heatmap politike
-python -m tndp.viz.curves                 runs/gravity-v2                      # kriva treninga
+python -m tndp.experiments.bench_synth    runs/gravity-v2h/best.pt --cities 20 --out main-20-v2h
+python -m tndp.experiments.bench_transfer runs/gravity-v2h/best.pt --instances Mandl1 Mumford0 Mumford1 Mumford2 Mumford3
+python -m tndp.experiments.pareto         runs/gravity-v2h/best.pt              # Pareto front i slika
+python -m tndp.experiments.anytime        runs/gravity-v2h/best.pt --cities 20  # kvalitet vs budžet
+python -m tndp.experiments.hybrid         runs/gravity-v2h/best.pt --cities 3   # politika kao start pretrage
+python -m tndp.experiments.bench_decoders runs/gravity-v2h/best.pt --cities 12  # greedy/sampling/MCTS
+python -m tndp.experiments.bench_freq     runs/gravity-v2h/best.pt             # frekvencije i flota
+python -m tndp.experiments.show_networks  runs/gravity-v2h/best.pt              # slika mreža
+python -m tndp.experiments.policy         runs/gravity-v2h/best.pt              # heatmap politike
+python -m tndp.viz.curves                 runs/gravity-v2h                      # kriva treninga
 ```
 
 ### Novi Sad
@@ -107,20 +107,22 @@ evaluaciji, pa ta dva posla mogu da idu uporedo.
 
 ## Rezultati
 
-Model iz glavnih tabela je `runs/gravity-v2` (sintetika, benchmark instance) i
-`runs/novisad-r19` (Novi Sad). Dva izuzetka, oba označena u zaglavlju samog fajla:
-ablacije su na `runs/gravity-v1` jer se porede međusobno na kraćem rasporedu, a
-[bench-freq.md](results/bench-freq.md) je takođe još na `gravity-v1`.
+Model iz glavnih tabela je `runs/gravity-v2h` (sintetika, benchmark instance) i
+`runs/novisad-r19h` (Novi Sad). Oba su na stopi učenja `1e-3`; raniji `gravity-v2`
+i `novisad-r19` su na `1e-4` i njihovi brojevi ne smeju u istu tabelu sa ovima.
+Izuzetak su ablacije: one idu na `runs/abl-*-h` i `runs/sweep-*`, jer se porede
+međusobno na kraćem rasporedu od 3000 iteracija. Model stoji u zaglavlju svakog
+`results/*.md`, pa je to i jedini merodavan izvor.
 
 Tabele nose standardnu devijaciju po gradovima i uparene razlike u odnosu na referentnu
 metodu (Wilcoxon, iste instance), jer se gradovi po težini razlikuju mnogo više nego
-metode među sobom. [bench-mandl.md](results/bench-mandl.md) služi kao provera
-implementacije assignment-a naspram objavljenih vrednosti, ne kao poređenje metoda.
+metode među sobom. `bench-mandl.md` služi kao provera implementacije assignment-a
+naspram objavljenih vrednosti, ne kao poređenje metoda.
 
-Glavne brojke: [main-20-v2.md](results/main-20-v2.md) (sintetika),
-[pareto.md](results/pareto.md) (front po alfi), [hybrid.md](results/hybrid.md) (spoj),
-[bench-transfer.md](results/bench-transfer.md) (Mandl i Mumford),
-[novisad-poredjenje.md](results/novisad-poredjenje.md) (Novi Sad).
+Same tabele (`results/*.md`) nisu u repou, jer su izlaz skripti a ne izvor: prave se
+komandama iz odeljka gore i menjaju sa svakim novim modelom. Glavne su
+`main-20-v2h.md` (sintetika), `pareto.md` (front po alfi), `hybrid.md` (spoj),
+`bench-transfer.md` (Mandl i Mumford) i `novisad-poredjenje.md` (Novi Sad).
 
 ### Testovi
 
