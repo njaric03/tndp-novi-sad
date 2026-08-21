@@ -2,8 +2,8 @@
 # varijanta stvarno odstupa od osnovne politike. Wilcoxon + Holm za vise varijanti.
 #
 # pokretanje:
-#   python -m tndp.experiments.compare_models runs/gravity-v1/best.pt \
-#       runs/gravity-v1-s1/best.pt runs/abl-akm/best.pt --cities 20
+#   python -m tndp.experiments.compare_models runs/sweep-lr1e3/best.pt \
+#       runs/sweep-lr1e3-s1/best.pt runs/abl-akm-h/best.pt --cities 20
 
 import argparse
 import time

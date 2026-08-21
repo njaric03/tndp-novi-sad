@@ -1,0 +1,19 @@
+# isti raspored kao sweep-lr1e3, ali trening pod TNDP_UNSERVED_FACTOR=21.
+# Zasto: results/faktor21.md evaluira model treniran na faktoru 8 pod faktorom
+# 21, dakle pod nagradom koju nije video. Taj broj je zato konzervativan, ali
+# ostaje prigovor da poredjenje nije pod istim uslovima za obe strane (klasicne
+# metode optimizuju bas taj cilj, politika ne). Ovaj run zatvara tu rupu.
+# 21 nije nov magican broj: najgori opslugen par putuje 20.9x duze od ulicnog
+# najkraceg, pa je 21 najmanja vrednost pri kojoj nepokriven par kosta vise od
+# najgoreg opsluzenog, sto je kriterijum iz kog je faktor i izveden.
+# POKRETATI SAMO uz TNDP_UNSERVED_FACTOR=21 u okruzenju, config to ne moze da
+# postavi (assignment.py cita promenljivu pri import-u).
+iters: 3000
+batch: 16
+n_range: [15, 30]
+num_routes: 4
+demand_mode: gravity
+eval_every: 100
+eval_cities: 16
+alpha_eval: 0.5
+lr: 0.001

@@ -1,0 +1,18 @@
+# entropijska regularizacija, koeficijent 0.1 (podrazumevani je 0.01).
+# Hipoteza: entropija politike padne na 0.125 do kraja treninga, pa 32 uzorka
+# daju varijacije jedne ideje; to ne boli na sintetici (u distribuciji) nego na
+# prenosu, gde je zaostatak 8-21%. Zato se ova ablacija cita na bench_transfer,
+# ne na bench_synth.
+# Referenca je sweep-lr1e3 (isti raspored, entropy_coef 0.01), cetiri seeda:
+# 1.564 / 1.572 / 1.488 / 1.514, dakle 1.534 +- 0.040. Razlika manja od toga
+# ne nosi zakljucak.
+iters: 3000
+batch: 16
+n_range: [15, 30]
+num_routes: 4
+demand_mode: gravity
+eval_every: 100
+eval_cities: 16
+alpha_eval: 0.5
+lr: 0.001
+entropy_coef: 0.1

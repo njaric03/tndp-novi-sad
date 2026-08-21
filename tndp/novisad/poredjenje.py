@@ -15,7 +15,9 @@ from tndp.rl.evaluate import decode, decode_sampling
 
 KOREN = Path(__file__).resolve().parent.parent.parent
 REZULTATI = KOREN / "results"
-MODEL = KOREN / "runs" / "novisad-r19" / "best.pt"
+# isti run iz kog su i sve tabele o Novom Sadu u radu; novisad-r19 je stariji,
+# na stopi ucenja 1e-4, i njegovi brojevi se ne smeju naci na istoj strani
+MODEL = KOREN / "runs" / "novisad-r19h" / "best.pt"
 
 
 # koliko se mreza poklapa sa GSP-om, mereno na neusmerenim parovima uzastopnih zona

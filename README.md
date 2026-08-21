@@ -7,7 +7,7 @@ svaki grad pretražuje iznova. Ovde umesto pretrage stoji graf neuronska mreža:
 heuristiku na sintetičkim gradovima, pa novom gradu da mrežu u jednom prolazu.
 
 Politika je GATv2 sa dinamičkom pažnjom, trenirana REINFORCE-om, a meri se protiv
-nasumične pretrage, konstruktivne heuristike i lokalne pretrage: na sintetici koju nije
+nasumične pretrage, greedyja i lokalne pretrage: na sintetici koju nije
 videla, na Mandlu i Mumfordovim instancama, i na Novom Sadu sklopljenom iz otvorenih
 podataka.
 
@@ -73,7 +73,7 @@ putanju do checkpointa, a zastavice su u `--help`.
 ```
 tndp/
   core/        graf grada, mreža linija, assignment, cilj, frekvencije, synth.py
-  baselines/   nasumična pretraga, konstruktivna heuristika, lokalna pretraga
+  baselines/   nasumična pretraga, greedy, lokalna pretraga
   rl/          MDP env, GATv2 model, REINFORCE, dekoderi, MCTS
   novisad/     podaci, zoniranje, tražnja, kalibracija, karte
   experiments/ skripte koje pokreću metode i pišu results/

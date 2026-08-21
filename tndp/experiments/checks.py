@@ -225,9 +225,9 @@ def check_reward_variance(cs):
           f"gornja granica za value(s0)")
     print("  -> value(s0) vidi samo 8% varijanse, pa se cinilo da bi self-critical")
     print("     baseline, koji hvata i unutar-gradsku, bio bolji default.")
-    print("     IZMERENO JE SUPROTNO: abl-selfcritical daje 2.186 naspram 1.877")
-    print("     osnovne (results/ablacije.md), i to je jedina varijanta koja gubi")
-    print("     od greedyja sa p < 0.001. Dekompozicija dakle ne predvidja ishod.")
+    print("     NIJE POTVRDJENO: self-critical daje 1.519 (prosek dva semena)")
+    print("     naspram 1.534 +- 0.040 osnovne (cetiri semena), dakle unutar")
+    print("     rasipanja. Dekompozicija dakle ne predvidja ishod.")
 
 
 # --- 8
