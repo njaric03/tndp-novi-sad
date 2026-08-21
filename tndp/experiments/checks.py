@@ -225,9 +225,9 @@ def check_reward_variance(cs):
           f"gornja granica za value(s0)")
     print("  -> value(s0) vidi samo 8% varijanse, pa se cinilo da bi self-critical")
     print("     baseline, koji hvata i unutar-gradsku, bio bolji default.")
-    print("     NIJE POTVRDJENO: self-critical daje 1.519 (prosek dva semena)")
-    print("     naspram 1.534 +- 0.040 osnovne (cetiri semena), dakle unutar")
-    print("     rasipanja. Dekompozicija dakle ne predvidja ishod.")
+    print("     NIJE POTVRDJENO: self-critical daje 1.522 naspram 1.534 +- 0.040")
+    print("     osnovne, mereno na cetiri semena, dakle unutar rasipanja.")
+    print("     Dekompozicija dakle ne predvidja ishod.")
 
 
 # --- 8
