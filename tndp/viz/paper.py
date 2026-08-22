@@ -170,77 +170,50 @@ def budget(out):
     return style.save(fig, out)
 
 
-# Levo klasican Pareto front, desno cilj po alfi. Front sam ne pokazuje gde se
-# metode ukrstaju, a bas to je tvrdnja u tekstu, pa ide drugi panel.
+# Cilj po alfi, jedan panel. Klasican Pareto front (C_p naspram C_o) je ranije
+# stajao levo, ali tvrdnja u tekstu je gde se metode ukrstaju, a to se na frontu
+# ne vidi: tacke ukrstanja leze jedna preko druge i moraju da se objasnjavaju u
+# potpisu. Fizicke minute su ostale u tabeli za Novi Sad.
 def pareto(out):
     rows = _table("pareto.md")
     curves = {}
     for r in rows:
         curves.setdefault(r["metoda"], []).append(
-            (_number(r["alpha"]), _number(r["C_p_all (min)"]),
-             _number(r["C_o (min)"]), _number(r["cilj"])))
+            (_number(r["alpha"]), _number(r["cilj"])))
 
     style.apply_style()
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8.6, 3.6))
+    fig, ax = plt.subplots(figsize=(5.6, 3.6))
     for name, t in curves.items():
         t = np.array(sorted(t))
-        color = style.color_for(name)
-        ax1.plot(t[:, 1], t[:, 2], "o-", color=color, label=style.label(name))
-        ax2.plot(t[:, 0], t[:, 3], "o-", color=color, label=style.label(name))
-    # alfa se ispisuje samo na jednoj krivoj i samo na svakoj drugoj tacki:
-    # gornji kraj fronta je zbijen, pa bi se pune oznake preklopile.
-    # Pomeraj je po tacki, ne jedinstven: front je konveksan, pa isti pomeraj
-    # koji je kod alfa 0,5 pored krive kod 0,25 padne na nju, a kod 0,1 i 0,9
-    # izadje van okvira ose.
-    # Jedini pouzdano prazan deo panela je gore desno: tamo bi mreza bila i
-    # spora i skupa, pa nijedna metoda ne stize dotle. Oznake zato idu u tom
-    # smeru, a one koje se time udalje od svoje tacke dobijaju tanku vodilju.
-    MESTO = {0.1: (-12, 32, "right", True), 0.25: (20, 16, "left", True),
-             0.5: (11, 1, "left", False), 0.9: (12, -4, "left", False)}
-    reference = np.array(sorted(curves["hill climbing"]))
-    for a, cp, co, _ in reference:
-        if a not in MESTO:
-            continue
-        dx, dy, ha, vodilja = MESTO[a]
-        ax1.annotate(f"$\\alpha$ = {style.broj(a, 2)}", (cp, co), fontsize=9.0,
-                     xytext=(dx, dy), textcoords="offset points", ha=ha,
-                     va="center", color="#555555", zorder=6,
-                     arrowprops=dict(arrowstyle="-", lw=0.6, color="#aaaaaa",
-                                     shrinkA=1, shrinkB=4) if vodilja else None,
-                     # bela kontura: kratke oznake svejedno prolaze uz krivu
-                     path_effects=[pe.withStroke(linewidth=2.4,
-                                                 foreground="white")])
-    ax1.margins(y=0.06)
-    # crta se C_p_all, ne C_p: nepokriveni parovi su naplaceni, inace bi metoda
-    # koja ispusti najteze parove izgledala najbolje bas na ovoj osi
-    ax1.set_xlabel("$C_{p,all}$, prosečno vreme putovanja (min)")
-    ax1.set_ylabel("$C_o$, ukupno vreme linija (min)")
-    ax1.set_title("front putnik/prevoznik, oznake su $\\alpha$", fontsize=11.5)
-    ax1.legend(loc="upper right")
+        ax.plot(t[:, 0], t[:, 1], "o-", color=style.color_for(name),
+                label=style.label(name))
 
     # tacke ukrstanja politike sa klasicnim metodama, linearno izmedju uzoraka
     rl = np.array(sorted(curves["RL sampling 32"]))
     for opponent in ("greedy", "hill climbing"):
         p = np.array(sorted(curves[opponent]))
-        diff = rl[:, 3] - p[:, 3]
+        diff = rl[:, 1] - p[:, 1]
         sign_change = np.where(np.diff(np.sign(diff)) != 0)[0]
         for k in sign_change:
             t = diff[k] / (diff[k] - diff[k + 1])
             a = rl[k, 0] + t * (rl[k + 1, 0] - rl[k, 0])
-            j = rl[k, 3] + t * (rl[k + 1, 3] - rl[k, 3])
-            ax2.plot([a], [j], "kx", markersize=9, markeredgewidth=1.8, zorder=5)
-            ax2.annotate(f"$\\alpha$ = {style.broj(a, 2)}", (a, j), fontsize=9.5,
-                         xytext=(6, -13), textcoords="offset points", zorder=6,
-                         path_effects=[pe.withStroke(linewidth=2.4,
-                                                     foreground="white")])
-    ax2.set_xlabel("$\\alpha$, težina putničkog člana")
-    ax2.set_ylabel("cilj, manja vrednost je bolja")
-    ax2.set_title("isti podaci kao levo, ali po $\\alpha$", fontsize=11.5)
-    style.decimal_comma(ax1, ax2)
+            j = rl[k, 1] + t * (rl[k + 1, 1] - rl[k, 1])
+            ax.plot([a], [j], "kx", markersize=9, markeredgewidth=1.8, zorder=5)
+            ax.annotate(f"$\\alpha$ = {style.broj(a, 2)}", (a, j), fontsize=9.5,
+                        xytext=(6, -13), textcoords="offset points", zorder=6,
+                        path_effects=[pe.withStroke(linewidth=2.4,
+                                                    foreground="white")])
+    ax.set_xlabel("$\\alpha$, težina putničkog člana")
+    ax.set_ylabel("cilj, manja vrednost je bolja")
+    ax.legend(loc="upper left")
+    style.decimal_comma(ax)
     return style.save(fig, out)
 
 
 def main():
+    # Slika sa budzetom vise nije u radu: prelomljena osa i dve tacke naspram
+    # tri krive trazile su pola potpisa da se procitaju. Funkcija ostaje jer
+    # ispisuje uparene razlike po vremenu, a ti brojevi stoje u tekstu.
     print("->", *budget(RESULTS / "slika-budzet"))
     print("->", *pareto(RESULTS / "slika-pareto"))
 
